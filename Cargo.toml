@@ -1,11 +1,31 @@
 [package]
-name = "slh-dsa-rs"
+name = "fips205"
 version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "FIPS 205 (draft): Stateless Hash-Based Digital Signature Standard"
-repository = "https://github.com/integritychain/slh-dsa-rs"
+repository = "https://github.com/integritychain/fips205"
 rust-version = "1.73"
 
 
 [dependencies]
+zeroize = { version = "1.6.0", features = ["zeroize_derive"] }
+rand_core = { version = "0.6.4", default-features = false }
+
+[features]
+default = ["default-rng", "slh_dsa_sha2_128s", "slh_dsa_shake_128s", "slh_dsa_sha2_128f", "slh_dsa_shake_128f",
+    "slh_dsa_sha2_192s", "slh_dsa_shake_192s", "slh_dsa_sha2_192f", "slh_dsa_shake_192f",
+    "slh_dsa_sha2_256s", "slh_dsa_shake_256s", "slh_dsa_sha2_256f", "slh_dsa_shake_256f"]
+default-rng = ["rand_core/getrandom"]
+slh_dsa_sha2_128s = []
+slh_dsa_shake_128s = []
+slh_dsa_sha2_128f = []
+slh_dsa_shake_128f = []
+slh_dsa_sha2_192s = []
+slh_dsa_shake_192s = []
+slh_dsa_sha2_192f = []
+slh_dsa_shake_192f = []
+slh_dsa_sha2_256s = []
+slh_dsa_shake_256s = []
+slh_dsa_sha2_256f = []
+slh_dsa_shake_256f = []
