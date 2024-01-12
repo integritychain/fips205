@@ -10,20 +10,26 @@ extern crate alloc;
 
 mod algs;
 mod traits;
+mod types;
 
 /// to be deleted
 #[must_use]
 pub fn add(left: usize, right: usize) -> usize { left + right }
 
-struct Params {
-    w: usize
+struct Context {
+    lgw: u32,
+    w: usize,
+    len1: usize
 }
 
 macro_rules! functionality {
     () => {
-        use zeroize::{Zeroize, ZeroizeOnDrop};
         use crate::traits::PK;
+        use crate::Context;
+        use zeroize::{Zeroize, ZeroizeOnDrop};
         // ----- 'EXTERNAL' DATA TYPES -----
+
+        static CONTEXT: Context = Context{lgw: LGW, w: 2_usize.pow(LGW), len1: (8*N).div_ceil(LGW as usize)};
 
         /// Correctly sized private key specific to the target security parameter set. <br>
         #[derive(Clone, Zeroize, ZeroizeOnDrop)]
@@ -36,9 +42,9 @@ macro_rules! functionality {
 
         impl PK for PrivateKey {
             type Seed = [u8; N];
-            fn seed(&self) -> [u8; N] {self.sk_seed}
-        }
 
+            fn seed(&self) -> [u8; N] { self.sk_seed }
+        }
     };
 }
 

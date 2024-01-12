@@ -11,6 +11,8 @@ rust-version = "1.73"
 [dependencies]
 zeroize = { version = "1.6.0", features = ["zeroize_derive"] }
 rand_core = { version = "0.6.4", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+
 
 [features]
 default = ["default-rng", "slh_dsa_sha2_128s", "slh_dsa_shake_128s", "slh_dsa_sha2_128f", "slh_dsa_shake_128f",

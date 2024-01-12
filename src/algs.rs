@@ -1,7 +1,12 @@
+use crate::types::ADRS;
+use crate::types::{WOTS_PK, WOTS_PRF};
+use crate::Context;
 use alloc::vec;
 use alloc::vec::Vec;
-use crate::Params;
-use crate::traits::PK;
+use sha3::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake256,
+};
 
 /// Algorithm 1: `toInt(X, n)` on page 14.
 /// Convert a byte string to an integer.
@@ -91,29 +96,50 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
     baseb
 }
 
+#[must_use]
+pub(crate) fn shake256(input: &[&[u8]]) -> [u8; 32] {
+    let mut hasher = Shake256::default();
+    input.iter().for_each(|item| hasher.update(item));
+    let mut reader = hasher.finalize_xof();
+    let mut result = [0u8; 32];
+    reader.read(&mut result);
+    result
+}
+
+pub(crate) fn f(pk_seed: &[u8], adrs: &ADRS, tmp: &[u8]) -> Vec<u8> {
+    shake256(&[&pk_seed, &adrs.to_bytes(), tmp]).into()
+}
+
 
 /// Algorithm 4: `chain(X, i, s, PK.seed, ADRS)` on page 17.
-/// Chaining function used in WOTS+.
+/// Chaining function used in WOTS+. The chain function takes as input an n-byte string `X` and integers `s` and `i`
+/// and returns the result of iterating a hash function `F` on the input `s` times, starting from an index of `i`.
+/// The chain function also requires as input PK.seed, which is part of the SLH-DSA public key, and an address `ADRS`.
+/// The type in `ADRS` must be set to `WOTS_HASH`, and the layer address, tree address, key pair address, and chain
+/// address must be set to the address of the chain being computed. The chain function updates the hash address in
+/// `ADRS` with each iteration to specify the current position in the chain prior to ADRS’s use in `F`.
 ///
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
-pub(crate) fn chain(params: &Params, _x: &[u8], i: usize, s: usize, pk: &impl PK, _adrs: u32) -> Option<[u8; 32]> {
+pub(crate) fn chain(
+    context: &Context, cap_x: Vec<u8>, i: usize, s: usize, pk_seed: &[u8], adrs: &mut ADRS,
+) -> Option<Vec<u8>> {
     // 1: if (i + s) ≥ w then
-    if (i + s) >= params.w {
+    if (i + s) >= context.w {
         // 2:   return NULL
         return None;
         // 3: end if
     }
     // 4:
     // 5: tmp ← X
-    let mut tmp = [0u8; 32]; // Check digest width
+    let mut tmp = cap_x;
     // 6:
     // 7: for j from i to i + s − 1 do
-    for j in i..(i+s) {
+    for j in i..(i + s) {
         // 8:    ADRS.setHashAddress(j)
-
+        adrs.set_hash_address(j.try_into().expect("usize->u32 fails"));
         // 9:    tmp ← F(PK.seed, ADRS, tmp)
-
+        tmp = f(&pk_seed, &adrs, &tmp)
         // 10: end for
     }
     // 11: return tmp
@@ -121,26 +147,82 @@ pub(crate) fn chain(params: &Params, _x: &[u8], i: usize, s: usize, pk: &impl PK
 }
 
 
+pub(crate) fn prf(pk_seed: &[u8], sk_seed: &[u8], adrs: &ADRS) -> Vec<u8> {
+    shake256(&[&pk_seed, &sk_seed, &adrs.to_bytes()]).into()
+}
+
+
+/// Note: duplicates a bunch of shake256 due to `ml` vec<option<vec<u8>>> type 'challenges'. TODO: improve
+pub(crate) fn tlen(
+    context: &Context, pk_seed: &[u8], adrs: &ADRS, ml: Vec<Option<Vec<u8>>>,
+) -> Vec<u8> {
+    assert!(ml
+        .iter()
+        .all(|item| item.is_some() & (item.as_ref().unwrap().len() == context.len1)));
+    let mut hasher = Shake256::default();
+    hasher.update(pk_seed);
+    hasher.update(&adrs.to_bytes());
+    ml.iter()
+        .for_each(|item| hasher.update(&item.as_ref().unwrap()));
+    let mut reader = hasher.finalize_xof();
+    let mut result = [0u8; 32];
+    reader.read(&mut result);
+    result.into()
+}
+
+
 /// Algorithm 5: `wots_PKgen(SK.seed, PK.seed, ADRS)` on page 18.
-/// Generate a WOTS+ public key.
+/// Generate a WOTS+ public key. The `wots_PKgen` function generates WOTS+ public keys. It takes as input `SK.seed`
+/// and `PK.seed` from the SLH-DSA private key and an address. The type in the address `ADRS` must be set to
+/// `WOTS_HASH`, and the layer address, tree address, and key pair address must encode the address of the `WOTS+`
+/// public key to be generated.
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pk`.
-const _A5: u32 = 0;
-// 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
-// 2: skADRS.setTypeAndClear(WOTS_PRF)
-// 3: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 4: for i from 0 to len − 1 do
-// 5:   skADRS.setChainAddress(i)
-// 6:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-// 7:   ADRS.setChainAddress(i)
-// 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
-// 9: end for
-// 10: wotspkADRS ← ADRS    ▷ Copy address to create WOTS+ public key address
-// 11: wotspkADRS.setTypeAndClear(WOTS_PK)
-// 12: wotspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
-// 14: return pk
+pub(crate) fn wots_pkgen(
+    context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &mut ADRS,
+) -> Vec<u8> {
+    // 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
+    let mut sk_adrs = adrs.clone();
+
+    // 2: skADRS.setTypeAndClear(WOTS_PRF)
+    sk_adrs.set_type_and_clear(WOTS_PRF);
+
+    // 3: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    sk_adrs.set_key_pair_address(adrs.get_key_pair_address());
+
+    // 4: for i from 0 to len − 1 do
+    let mut tmp: Vec<Option<Vec<u8>>> = vec![];
+    for i in 0..context.len1 {
+        // 5:   skADRS.setChainAddress(i)
+        sk_adrs.set_chain_address(i);
+
+        // 6:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
+        let sk = prf(pk_seed, sk_seed, &sk_adrs);
+
+        // 7:   ADRS.setChainAddress(i)
+        adrs.set_chain_address(i);
+
+        // 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
+        tmp[i] = chain(context, sk, 0, context.w - 1, pk_seed, adrs);
+
+        // 9: end for
+    }
+    // 10: wotspkADRS ← ADRS    ▷ Copy address to create WOTS+ public key address
+    let mut wotspk_adrs = adrs.clone();
+
+    // 11: wotspkADRS.setTypeAndClear(WOTS_PK)
+    wotspk_adrs.set_type_and_clear(WOTS_PK);
+
+    // 12: wotspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
+
+    // 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
+    let pk = tlen(context, pk_seed, &wotspk_adrs, tmp);
+
+    // 14: return pk
+    pk
+}
 
 
 /// Algorithm 6: `wots_sign(M, SK.seed, PK.seed, ADRS)` on page 19.
@@ -148,29 +230,40 @@ const _A5: u32 = 0;
 ///
 /// Input: Message `M`, secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ signature sig.
-const _A6: u32 = 0;
-// 1: csum ← 0
-// 2:
-// 3: msg ← base_2b (M, lgw, len1)    ▷ Convert message to base w
-// 4:
-// 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
-// 6:   csum ← csum + w − 1 − msg[i]
-// 7: end for
-// 8:
-// 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-// 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
-// 11:
-// 12: skADRS ← ADRS
-// 13: skADRS.setTypeAndClear(WOTS_PRF)
-// 14: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 15: for i from 0 to len − 1 do
-// 16:   skADRS.setChainAddress(i)
-// 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-// 18:   ADRS.setChainAddress(i)
-// 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
-// 20: end for
-// 21: return sig
+pub(crate) fn wots_sign(context: &Context, m: &[u8], _sk_seed: &[u8], _pk_seed: &[u8], _adrs: &ADRS) -> u32 {
+    // 1: csum ← 0
+    let mut csum = 0u64;
 
+    // 2:
+    // 3: msg ← base_2b(M, lgw, len1)    ▷ Convert message to base w
+    let msg = base_2b(m, context.lgw, context.len1);
+
+    // 4:
+    // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
+    for i in 0..context.len1 {
+
+        // 6:   csum ← csum + w − 1 − msg[i]
+        csum += context.w as u64 - 1 - msg[i];
+
+        // 7: end for
+    }
+    // 8:
+    // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
+
+    // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
+    // 11:
+    // 12: skADRS ← ADRS
+    // 13: skADRS.setTypeAndClear(WOTS_PRF)
+    // 14: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    // 15: for i from 0 to len − 1 do
+    // 16:   skADRS.setChainAddress(i)
+    // 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
+    // 18:   ADRS.setChainAddress(i)
+    // 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
+    // 20: end for
+    // 21: return sig
+    csum as u32
+}
 
 /// Algorithm 7: `wots_PKFromSig(sig, M, PK.seed, ADRS)` on page 20.
 /// Compute a WOTS+ public key from a message and its signature.
