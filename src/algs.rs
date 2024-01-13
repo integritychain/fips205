@@ -1,4 +1,4 @@
-use crate::types::{ADRS, WotsSig};
+use crate::types::{WotsSig, Adrs};
 use crate::types::{WOTS_PK, WOTS_PRF};
 use crate::Context;
 use alloc::vec;
@@ -9,6 +9,7 @@ use sha3::{
     Shake256,
 };
 
+
 /// Algorithm 1: `toInt(X, n)` on page 14.
 /// Convert a byte string to an integer.
 ///
@@ -16,15 +17,20 @@ use sha3::{
 /// Output: Integer value of `X`.
 pub(crate) fn to_int(x: &[u8], n: usize) -> u64 {
     assert_eq!(x.len(), n);
+
     // 1: total ← 0
     let mut total = 0_u64;
+
     // 2:
     // 3: for i from 0 to n − 1 do
-    for i in 0..n {
+    for item in x.iter().take(n) {
+        //
         // 4:   total ← 256 · total + X[i]
-        total = (total << 8) + x[i] as u64;
+        total = (total << 8) + u64::from(*item);
+
         // 5: end for
     }
+
     // 6: return total
     total
 }
@@ -42,12 +48,11 @@ pub(crate) fn to_byte(x: u64, n: usize) -> Vec<u8> {
     let mut total = x;
 
     // 2:
-
     // 3: for i from 0 to n − 1 do
     for i in 0..n {
         //
         // 4:   S[n − 1 − i] ← total mod 256    ▷ Least significant 8 bits of total
-        s[n - 1 - i] = total as u8;
+        s[n - 1 - i] = total.to_le_bytes()[0];
 
         // 5:   total ← total ≫ 8
         total >>= 8;
@@ -68,34 +73,48 @@ pub(crate) fn to_byte(x: u64, n: usize) -> Vec<u8> {
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
     assert!(x.len() >= out_len * b as usize / 8);
     let mut baseb = vec![0u64; out_len];
+
     // 1: in ← 0
     let mut inn = 0;
+
     // 2: bits ← 0
     let mut bits = 0;
+
     // 3: total ← 0
     let mut total = 0;
+
     // 4:
     // 5: for out from 0 to out_len − 1 do
-    for out in 0..out_len {
+    for item in baseb.iter_mut().take(out_len) {
+        //
         // 6:    while bits < b do
         while bits < b {
+            //
             // 7:      total ← (total ≪ 8) + X[in]
-            total = (total << 8) + x[inn] as u64;
+            total = (total << 8) + u64::from(x[inn]);
+
             // 8:      in ← in + 1
             inn += 1;
+
             // 9:      bits ← bits + 8
             bits += 8;
+
             // 10:   end while
         }
+
         // 11:   bits ← bits − b
         bits -= b;
+
         // 12:   baseb[out] ← (total ≫ bits) mod 2^b
-        baseb[out] = (total >> bits) & (2u64.pow(b) - 1);
+        *item = (total >> bits) & (2u64.pow(b) - 1);
+
         // 13: end for
     }
+
     // 14: return baseb
     baseb
 }
+
 
 #[must_use]
 pub(crate) fn shake256<N: ArrayLength>(input: &[&[u8]]) -> GenericArray<u8, N> {
@@ -107,8 +126,11 @@ pub(crate) fn shake256<N: ArrayLength>(input: &[&[u8]]) -> GenericArray<u8, N> {
     result
 }
 
-pub(crate) fn f<N: ArrayLength>(pk_seed: &[u8], adrs: &ADRS, tmp: &GenericArray<u8, N>) -> GenericArray<u8, N> {
-    shake256(&[&pk_seed, &adrs.to_bytes(), tmp]).into()
+
+pub(crate) fn f<N: ArrayLength>(
+    pk_seed: &[u8], adrs: &Adrs, tmp: &GenericArray<u8, N>,
+) -> GenericArray<u8, N> {
+    shake256(&[&pk_seed, &adrs.to_bytes(), tmp])
 }
 
 
@@ -123,48 +145,56 @@ pub(crate) fn f<N: ArrayLength>(pk_seed: &[u8], adrs: &ADRS, tmp: &GenericArray<
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
 pub(crate) fn chain<N: ArrayLength>(
-    context: &Context, cap_x: GenericArray<u8, N>, i: usize, s: usize, pk_seed: &[u8], adrs: &ADRS,
+    context: &Context, cap_x: GenericArray<u8, N>, i: usize, s: usize, pk_seed: &[u8], adrs: &Adrs,
 ) -> Option<GenericArray<u8, N>> {
     let mut adrs = adrs.clone();
+
     // 1: if (i + s) ≥ w then
     if (i + s) >= context.w {
+        //
         // 2:   return NULL
         return None;
+
         // 3: end if
     }
+
     // 4:
     // 5: tmp ← X
     let mut tmp = cap_x;
+
     // 6:
     // 7: for j from i to i + s − 1 do
     for j in i..(i + s) {
+        //
         // 8:    ADRS.setHashAddress(j)
         adrs.set_hash_address(j.try_into().expect("usize->u32 fails"));
+
         // 9:    tmp ← F(PK.seed, ADRS, tmp)
-        tmp = f(&pk_seed, &adrs, &tmp)
+        tmp = f(pk_seed, &adrs, &tmp);
+
         // 10: end for
     }
+
     // 11: return tmp
     Some(tmp)
 }
 
 
-pub(crate) fn prf<N: ArrayLength>(pk_seed: &[u8], sk_seed: &[u8], adrs: &ADRS) -> GenericArray<u8, N> {
+#[allow(clippy::similar_names)]
+pub(crate) fn prf<N: ArrayLength>(
+    pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
+) -> GenericArray<u8, N> {
     shake256(&[&pk_seed, &sk_seed, &adrs.to_bytes()])
 }
 
 
 pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
-    _context: &Context, pk_seed: &[u8], adrs: &ADRS, ml: &GenericArray<GenericArray<u8, N>, LEN>,
+    _context: &Context, pk_seed: &[u8], adrs: &Adrs, ml: &GenericArray<GenericArray<u8, N>, LEN>,
 ) -> GenericArray<u8, N> {
-    // assert!(ml
-    //     .iter()
-    //     .all(|item| item.as_ref().len() == context.len1));
     let mut hasher = Shake256::default();
     hasher.update(pk_seed);
     hasher.update(&adrs.to_bytes());
-    ml.iter()
-        .for_each(|item| hasher.update(&item.as_ref()));
+    ml.iter().for_each(|item| hasher.update(item));
     let mut reader = hasher.finalize_xof();
     let mut result = GenericArray::default();
     reader.read(&mut result);
@@ -180,8 +210,9 @@ pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pk`.
+#[allow(clippy::similar_names)]
 pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
-    context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &mut ADRS,
+    context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &mut Adrs,
 ) -> GenericArray<u8, N> {
     let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
 
@@ -196,6 +227,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
 
     // 4: for i from 0 to len − 1 do
     for i in 0..context.len1 {
+        //
         // 5:   skADRS.setChainAddress(i)
         sk_adrs.set_chain_address(i);
 
@@ -210,6 +242,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
 
         // 9: end for
     }
+
     // 10: wotspkADRS ← ADRS    ▷ Copy address to create WOTS+ public key address
     let mut wotspk_adrs = adrs.clone();
 
@@ -220,6 +253,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
     wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
+    #[allow(clippy::let_and_return)]
     let pk = tlen(context, pk_seed, &wotspk_adrs, &tmp);
 
     // 14: return pk
@@ -232,7 +266,10 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
 ///
 /// Input: Message `M`, secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ signature sig.
-pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(context: &Context, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], adrs: ADRS) -> WotsSig<N, LEN> {
+#[allow(clippy::similar_names)]
+pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(
+    context: &Context, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], adrs: Adrs,
+) -> WotsSig<N, LEN> {
     let mut adrs = adrs;
     let mut sig: WotsSig<N, LEN> = WotsSig::default();
 
@@ -245,19 +282,25 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(context: &Context, m: 
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
-    for i in 0..context.len1 {
-
+    for item in msg.iter().take(context.len1) {
+        //
         // 6:   csum ← csum + w − 1 − msg[i]
-        csum += context.w as u64 - 1 - msg[i];
+        csum += context.w as u64 - 1 - item;
 
         // 7: end for
     }
+
     // 8:
     // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-    csum = csum << ((8 - ((context.len2 * context.lgw as usize) % 8)) % 8);
+    //csum = csum << ((8 - ((context.len2 * context.lgw as usize) % 8)) % 8);
+    csum <<= (8 - ((context.len2 * context.lgw as usize) % 8)) % 8;
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
-    msg.extend(&base_2b(&to_byte(csum, (context.len2 * context.lgw as usize).div_ceil(8)), context.lgw, context.len2));
+    msg.extend(&base_2b(
+        &to_byte(csum, (context.len2 * context.lgw as usize).div_ceil(8)),
+        context.lgw,
+        context.len2,
+    ));
 
     // 11:
     // 12: skADRS ← ADRS
@@ -270,8 +313,9 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(context: &Context, m: 
     sk_addrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 15: for i from 0 to len − 1 do
-    for i in 0..context.len {
-
+    #[allow(clippy::cast_possible_truncation)] // step 19
+    for (i, item) in msg.iter().enumerate().take(context.len) {
+        //
         // 16:   skADRS.setChainAddress(i)
         sk_addrs.set_chain_address(i);
 
@@ -282,13 +326,15 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(context: &Context, m: 
         adrs.set_chain_address(i);
 
         // 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
-        sig.data[i] = chain(context, sk, 0, msg[i] as usize, pk_seed, &adrs).unwrap();
+        sig.data[i] = chain(context, sk, 0, *item as usize, pk_seed, &adrs).unwrap();
 
         // 20: end for
     }
+
     // 21: return sig
     sig
 }
+
 
 /// Algorithm 7: `wots_PKFromSig(sig, M, PK.seed, ADRS)` on page 20.
 /// Compute a WOTS+ public key from a message and its signature.
@@ -395,7 +441,7 @@ const _A10: u32 = 0;
 ///
 /// Input: Message `M`, private seed `SK.seed`, public seed `PK.seed`, tree index `idx_tree`, leaf
 /// index `idx_leaf`. <br>
-/// Output: HT signature SIG_HT.
+/// Output: HT signature `SIG_HT`.
 const _A11: u32 = 0;
 // 1: ADRS ← toByte(0, 32)
 // 2:
