@@ -1,5 +1,55 @@
 use alloc::vec::Vec;
+use generic_array::{ArrayLength, GenericArray};
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+
+/// Fig 16 on page 34
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub struct SlhDsaSig<A: ArrayLength, K: ArrayLength, N: ArrayLength> {
+    randomness: GenericArray<u8, N>,
+    fors_sig: ForsSig<A, K, N>,
+    ht_sig: HtSig<N>,
+}
+
+
+/// Fig 13 on page 29
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct ForsSig<A: ArrayLength, K: ArrayLength, N: ArrayLength> {
+    private_key_value: GenericArray<GenericArray<u8, N>, K>,
+    auth: GenericArray<Auth<A, N>, K>,
+}
+
+
+/// Fig 10?
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct Auth<A: ArrayLength, N: ArrayLength> {
+    tree: GenericArray<GenericArray<u8, N>, A>
+}
+
+
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct HtSig<N: ArrayLength> {
+    x: GenericArray<u8, N>
+}
+
+
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub struct WotsSig<N: ArrayLength, LEN: ArrayLength> {
+    pub(crate) data: GenericArray<GenericArray<u8, N>, LEN>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const WOTS_HASH: u32 = 0;
 pub(crate) const WOTS_PK: u32 = 1;

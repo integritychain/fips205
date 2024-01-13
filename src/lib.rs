@@ -8,6 +8,7 @@
 
 extern crate alloc;
 
+
 mod algs;
 mod traits;
 mod types;
@@ -19,17 +20,33 @@ pub fn add(left: usize, right: usize) -> usize { left + right }
 struct Context {
     lgw: u32,
     w: usize,
-    len1: usize
+    len1: usize,
+    len2: usize,
+    len: usize
 }
+
 
 macro_rules! functionality {
     () => {
         use crate::traits::PK;
+        use crate::types::{SlhDsaSig};
+        use generic_array::typenum::{U5, U16};
         use crate::Context;
         use zeroize::{Zeroize, ZeroizeOnDrop};
         // ----- 'EXTERNAL' DATA TYPES -----
 
-        static CONTEXT: Context = Context{lgw: LGW, w: 2_usize.pow(LGW), len1: (8*N).div_ceil(LGW as usize)};
+        const W: usize = 2_usize.pow(LGW);
+        const LEN1: usize = (8*N).div_ceil(LGW as usize);
+        const LEN2: usize = ((LEN1*(W-1)).ilog2()/LGW) as usize + 1;
+        const LEN: usize = LEN1 + LEN2;
+
+        static CONTEXT: Context = Context{lgw: LGW, w: W, len1: LEN1,
+        len2: LEN2, len: LEN};
+
+
+        fn sign() -> SlhDsaSig::<U5, U5, U16> {
+            SlhDsaSig::<U5, U5, U16>::default()
+        }
 
         /// Correctly sized private key specific to the target security parameter set. <br>
         #[derive(Clone, Zeroize, ZeroizeOnDrop)]

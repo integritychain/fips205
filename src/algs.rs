@@ -1,8 +1,9 @@
-use crate::types::ADRS;
+use crate::types::{ADRS, WotsSig};
 use crate::types::{WOTS_PK, WOTS_PRF};
 use crate::Context;
 use alloc::vec;
 use alloc::vec::Vec;
+use generic_array::{ArrayLength, GenericArray};
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
@@ -97,16 +98,16 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
 }
 
 #[must_use]
-pub(crate) fn shake256(input: &[&[u8]]) -> [u8; 32] {
+pub(crate) fn shake256<N: ArrayLength>(input: &[&[u8]]) -> GenericArray<u8, N> {
     let mut hasher = Shake256::default();
     input.iter().for_each(|item| hasher.update(item));
     let mut reader = hasher.finalize_xof();
-    let mut result = [0u8; 32];
+    let mut result = GenericArray::default();
     reader.read(&mut result);
     result
 }
 
-pub(crate) fn f(pk_seed: &[u8], adrs: &ADRS, tmp: &[u8]) -> Vec<u8> {
+pub(crate) fn f<N: ArrayLength>(pk_seed: &[u8], adrs: &ADRS, tmp: &GenericArray<u8, N>) -> GenericArray<u8, N> {
     shake256(&[&pk_seed, &adrs.to_bytes(), tmp]).into()
 }
 
@@ -121,9 +122,10 @@ pub(crate) fn f(pk_seed: &[u8], adrs: &ADRS, tmp: &[u8]) -> Vec<u8> {
 ///
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
-pub(crate) fn chain(
-    context: &Context, cap_x: Vec<u8>, i: usize, s: usize, pk_seed: &[u8], adrs: &mut ADRS,
-) -> Option<Vec<u8>> {
+pub(crate) fn chain<N: ArrayLength>(
+    context: &Context, cap_x: GenericArray<u8, N>, i: usize, s: usize, pk_seed: &[u8], adrs: &ADRS,
+) -> Option<GenericArray<u8, N>> {
+    let mut adrs = adrs.clone();
     // 1: if (i + s) ≥ w then
     if (i + s) >= context.w {
         // 2:   return NULL
@@ -147,27 +149,26 @@ pub(crate) fn chain(
 }
 
 
-pub(crate) fn prf(pk_seed: &[u8], sk_seed: &[u8], adrs: &ADRS) -> Vec<u8> {
-    shake256(&[&pk_seed, &sk_seed, &adrs.to_bytes()]).into()
+pub(crate) fn prf<N: ArrayLength>(pk_seed: &[u8], sk_seed: &[u8], adrs: &ADRS) -> GenericArray<u8, N> {
+    shake256(&[&pk_seed, &sk_seed, &adrs.to_bytes()])
 }
 
 
-/// Note: duplicates a bunch of shake256 due to `ml` vec<option<vec<u8>>> type 'challenges'. TODO: improve
-pub(crate) fn tlen(
-    context: &Context, pk_seed: &[u8], adrs: &ADRS, ml: Vec<Option<Vec<u8>>>,
-) -> Vec<u8> {
-    assert!(ml
-        .iter()
-        .all(|item| item.is_some() & (item.as_ref().unwrap().len() == context.len1)));
+pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
+    _context: &Context, pk_seed: &[u8], adrs: &ADRS, ml: &GenericArray<GenericArray<u8, N>, LEN>,
+) -> GenericArray<u8, N> {
+    // assert!(ml
+    //     .iter()
+    //     .all(|item| item.as_ref().len() == context.len1));
     let mut hasher = Shake256::default();
     hasher.update(pk_seed);
     hasher.update(&adrs.to_bytes());
     ml.iter()
-        .for_each(|item| hasher.update(&item.as_ref().unwrap()));
+        .for_each(|item| hasher.update(&item.as_ref()));
     let mut reader = hasher.finalize_xof();
-    let mut result = [0u8; 32];
+    let mut result = GenericArray::default();
     reader.read(&mut result);
-    result.into()
+    result
 }
 
 
@@ -179,9 +180,11 @@ pub(crate) fn tlen(
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pk`.
-pub(crate) fn wots_pkgen(
+pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
     context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &mut ADRS,
-) -> Vec<u8> {
+) -> GenericArray<u8, N> {
+    let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
+
     // 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
     let mut sk_adrs = adrs.clone();
 
@@ -192,7 +195,6 @@ pub(crate) fn wots_pkgen(
     sk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 4: for i from 0 to len − 1 do
-    let mut tmp: Vec<Option<Vec<u8>>> = vec![];
     for i in 0..context.len1 {
         // 5:   skADRS.setChainAddress(i)
         sk_adrs.set_chain_address(i);
@@ -204,7 +206,7 @@ pub(crate) fn wots_pkgen(
         adrs.set_chain_address(i);
 
         // 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
-        tmp[i] = chain(context, sk, 0, context.w - 1, pk_seed, adrs);
+        tmp[i] = chain(context, sk, 0, context.w - 1, pk_seed, adrs).expect("chain broek!");
 
         // 9: end for
     }
@@ -218,7 +220,7 @@ pub(crate) fn wots_pkgen(
     wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
-    let pk = tlen(context, pk_seed, &wotspk_adrs, tmp);
+    let pk = tlen(context, pk_seed, &wotspk_adrs, &tmp);
 
     // 14: return pk
     pk
@@ -230,13 +232,16 @@ pub(crate) fn wots_pkgen(
 ///
 /// Input: Message `M`, secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ signature sig.
-pub(crate) fn wots_sign(context: &Context, m: &[u8], _sk_seed: &[u8], _pk_seed: &[u8], _adrs: &ADRS) -> u32 {
+pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(context: &Context, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], adrs: ADRS) -> WotsSig<N, LEN> {
+    let mut adrs = adrs;
+    let mut sig: WotsSig<N, LEN> = WotsSig::default();
+
     // 1: csum ← 0
     let mut csum = 0u64;
 
     // 2:
     // 3: msg ← base_2b(M, lgw, len1)    ▷ Convert message to base w
-    let msg = base_2b(m, context.lgw, context.len1);
+    let mut msg = base_2b(m, context.lgw, context.len1);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
@@ -249,20 +254,40 @@ pub(crate) fn wots_sign(context: &Context, m: &[u8], _sk_seed: &[u8], _pk_seed: 
     }
     // 8:
     // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
+    csum = csum << ((8 - ((context.len2 * context.lgw as usize) % 8)) % 8);
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
+    msg.extend(&base_2b(&to_byte(csum, (context.len2 * context.lgw as usize).div_ceil(8)), context.lgw, context.len2));
+
     // 11:
     // 12: skADRS ← ADRS
+    let mut sk_addrs = adrs.clone();
+
     // 13: skADRS.setTypeAndClear(WOTS_PRF)
+    sk_addrs.set_type_and_clear(WOTS_PRF);
+
     // 14: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    sk_addrs.set_key_pair_address(adrs.get_key_pair_address());
+
     // 15: for i from 0 to len − 1 do
-    // 16:   skADRS.setChainAddress(i)
-    // 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-    // 18:   ADRS.setChainAddress(i)
-    // 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
-    // 20: end for
+    for i in 0..context.len {
+
+        // 16:   skADRS.setChainAddress(i)
+        sk_addrs.set_chain_address(i);
+
+        // 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
+        let sk = prf(pk_seed, sk_seed, &sk_addrs);
+
+        // 18:   ADRS.setChainAddress(i)
+        adrs.set_chain_address(i);
+
+        // 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
+        sig.data[i] = chain(context, sk, 0, msg[i] as usize, pk_seed, &adrs).unwrap();
+
+        // 20: end for
+    }
     // 21: return sig
-    csum as u32
+    sig
 }
 
 /// Algorithm 7: `wots_PKFromSig(sig, M, PK.seed, ADRS)` on page 20.
