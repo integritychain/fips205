@@ -43,7 +43,7 @@ pub(crate) fn to_int(x: &[u8], n: usize) -> u64 {
 /// Input: Integer `x`, string length `n`. <br>
 /// Output: Byte string of length `n` containing binary representation of `x` in big-endian byte-order.
 pub(crate) fn to_byte(x: u64, n: usize) -> Vec<u8> {
-    let mut s = vec![0u8; n];
+    let mut s = vec![0u8; n];  // TODO revisit generic array
 
     // 1: total ← x
     let mut total = x;
@@ -73,7 +73,7 @@ pub(crate) fn to_byte(x: u64, n: usize) -> Vec<u8> {
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
     assert!(x.len() >= out_len * b as usize / 8);
-    let mut baseb = vec![0u64; out_len];
+    let mut baseb = vec![0u64; out_len];  // TODO revisit GenericArray
 
     // 1: in ← 0
     let mut inn = 0;
