@@ -23,6 +23,8 @@ struct Context {
     len1: usize,
     len2: usize,
     len: usize,
+    h: u32,
+    h_prime: u32,
 }
 
 
@@ -40,7 +42,15 @@ macro_rules! functionality {
         const LEN2: usize = ((LEN1 * (W - 1)).ilog2() / LGW) as usize + 1;
         const LEN: usize = LEN1 + LEN2;
 
-        static CONTEXT: Context = Context { lgw: LGW, w: W, len1: LEN1, len2: LEN2, len: LEN };
+        static CONTEXT: Context = Context {
+            lgw: LGW,
+            w: W,
+            len1: LEN1,
+            len2: LEN2,
+            len: LEN,
+            h: H,
+            h_prime: H_PRIME,
+        };
 
 
         fn sign() -> SlhDsaSig<U5, U5, U16> { SlhDsaSig::<U5, U5, U16>::default() }

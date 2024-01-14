@@ -1,14 +1,15 @@
-use crate::types::{WotsSig, Adrs};
-use crate::types::{WOTS_PK, WOTS_PRF};
-use crate::Context;
 use alloc::vec;
 use alloc::vec::Vec;
+
 use generic_array::{ArrayLength, GenericArray};
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
 };
 
+use crate::types::{Adrs, WotsPk, WotsSig};
+use crate::types::{TREE, WOTS_HASH, WOTS_PK, WOTS_PRF};
+use crate::Context;
 
 /// Algorithm 1: `toInt(X, n)` on page 14.
 /// Convert a byte string to an integer.
@@ -212,8 +213,9 @@ pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
 /// Output: WOTS+ public key `pk`.
 #[allow(clippy::similar_names)]
 pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
-    context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &mut Adrs,
-) -> GenericArray<u8, N> {
+    context: &Context, sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
+) -> WotsPk<N> {
+    let mut adrs = adrs.clone();
     let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
 
     // 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
@@ -238,7 +240,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
         adrs.set_chain_address(i);
 
         // 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
-        tmp[i] = chain(context, sk, 0, context.w - 1, pk_seed, adrs).expect("chain broek!");
+        tmp[i] = chain(context, sk, 0, context.w - 1, pk_seed, &adrs).expect("chain broek!");
 
         // 9: end for
     }
@@ -253,11 +255,10 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
     wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
-    #[allow(clippy::let_and_return)]
     let pk = tlen(context, pk_seed, &wotspk_adrs, &tmp);
 
     // 14: return pk
-    pk
+    WotsPk(pk)
 }
 
 
@@ -292,7 +293,6 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(
 
     // 8:
     // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-    //csum = csum << ((8 - ((context.len2 * context.lgw as usize) % 8)) % 8);
     csum <<= (8 - ((context.len2 * context.lgw as usize) % 8)) % 8;
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
@@ -341,26 +341,89 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(
 ///
 /// Input: WOTS+ signature `sig`, message `M`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pksig` derived from `sig`.
-const _A7: u32 = 0;
-// 1: csum ← 0
-// 2:
-// 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
-// 4:
-// 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
-// 6:   csum ← csum + w − 1 − msg[i]
-// 7: end for
-// 8:
-// 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-// 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
-// 11: for i from 0 to len − 1 do
-// 12:   ADRS.setChainAddress(i)
-// 13:   tmp[i] ← chain(sig[i], msg[i], w − 1 − msg[i], PK.seed, ADRS)
-// 14: end for
-// 15: wotspkADRS ← ADRS
-// 16: wotspkADRS.setTypeAndClear(WOTS_PK)
-// 17: wotspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 18: pksig ← Tlen (PK.seed, wotspkADRS, tmp)
-// 19: return pksig
+pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
+    context: &Context, sig: &WotsSig<LEN, N>, m: &[u8], pk_seed: &[u8], adrs: &Adrs,
+) -> WotsPk<N> {
+    let mut adrs = adrs.clone();
+    let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
+
+    // 1: csum ← 0
+    let mut csum = 0;
+
+    // 2:
+    // 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
+    let mut msg = base_2b(m, context.lgw, context.len1);
+
+    // 4:
+    // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
+    for item in msg.iter().take(context.len1) {
+        //
+        // 6:   csum ← csum + w − 1 − msg[i]
+        csum += context.w as u64 - 1 - item;
+
+        // 7: end for
+    }
+
+    // 8:
+    // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
+    csum <<= (8 - ((context.len2 * context.lgw as usize) % 8)) % 8;
+
+    // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
+    msg.extend(&base_2b(
+        &to_byte(csum, (context.len2 * context.lgw as usize).div_ceil(8)),
+        context.lgw,
+        context.len2,
+    ));
+
+    // 11: for i from 0 to len − 1 do
+    for i in 0..context.len {
+        //
+        // 12:   ADRS.setChainAddress(i)
+        adrs.set_chain_address(i);
+
+        // 13:   tmp[i] ← chain(sig[i], msg[i], w − 1 − msg[i], PK.seed, ADRS)
+        tmp[i] = chain(
+            context,
+            sig.data[i].clone(),
+            usize::try_from(msg[i]).unwrap(),
+            context.w - 1 - usize::try_from(msg[i]).unwrap(),
+            pk_seed,
+            &adrs,
+        )
+        .expect("chain broek!");
+
+        // 14: end for
+    }
+
+    // 15: wotspkADRS ← ADRS
+    let mut wotspk_adrs = adrs.clone();
+
+    // 16: wotspkADRS.setTypeAndClear(WOTS_PK)
+    wotspk_adrs.set_type_and_clear(WOTS_PK);
+
+    // 17: wotspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
+
+    // 18: pksig ← Tlen (PK.seed, wotspkADRS, tmp)
+    let pk = tlen(context, pk_seed, &wotspk_adrs, &tmp);
+
+    // 19: return pksig
+    WotsPk(pk)
+}
+
+#[allow(clippy::similar_names)] // lnode and rnode
+pub(crate) fn h<N: ArrayLength>(
+    pk_seed: &[u8], adrs: &Adrs, lnode: &[u8], rnode: &[u8],
+) -> GenericArray<u8, N> {
+    let mut hasher = Shake256::default();
+    [pk_seed, &adrs.to_bytes(), lnode, rnode]
+        .iter()
+        .for_each(|item| hasher.update(item));
+    let mut reader = hasher.finalize_xof();
+    let mut result = GenericArray::default();
+    reader.read(&mut result);
+    result
+}
 
 
 /// Algorithm 8: `xmss_node(SK.seed, i, z, PK.seed, ADRS)` on page 22.
@@ -369,23 +432,62 @@ const _A7: u32 = 0;
 /// Input: Secret seed `SK.seed`, target node index `i`, target node height `z`, public seed `PK.seed`,
 /// `address ADRS`. <br>
 /// Output: n-byte root `node`.
-const _A8: u32 = 0;
-// 1: if z > h′ or i ≥ 2^{h −z} then
-// 2:   return NULL
-// 3: end if
-// 4: if z = 0 then
-// 5:    ADRS.setTypeAndClear(WOTS_HASH)
-// 6:    ADRS.setKeyPairAddress(i)
-// 7:    node ← wots_PKgen(SK.seed, PK.seed, ADRS)
-// 8: else
-// 9:    lnode ← xmss_node(SK.seed, 2i, z − 1, PK.seed, ADRS)
-// 10:   rnode ← xmss_node(SK.seed, 2i + 1, z − 1, PK.seed, ADRS)
-// 11:   ADRS.setTypeAndClear(TREE)
-// 12:   ADRS.setTreeHeight(z)
-// 13:   ADRS.setTreeIndex(i)
-// 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
-// 15: end if
-// 16: return node
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn xmss_node<LEN: ArrayLength, N: ArrayLength>(
+    context: &Context, sk_seed: &[u8], i: u32, z: u32, pk_seed: &[u8], adrs: &Adrs,
+) -> Option<GenericArray<u8, N>> {
+    let mut adrs = adrs.clone();
+
+    // 1: if z > h′ or i ≥ 2^{h −z} then
+    if (z > context.h_prime) | (i >= 2u32.pow(context.h - z)) {
+        //
+        // 2:   return NULL
+        return None;
+
+        // 3: end if
+    }
+
+    // 4: if z = 0 then
+    let node = if z == 0 {
+        //
+        // 5:    ADRS.setTypeAndClear(WOTS_HASH)
+        adrs.set_type_and_clear(WOTS_HASH);
+
+        // 6:    ADRS.setKeyPairAddress(i)
+        adrs.set_key_pair_address(i.to_be_bytes());
+
+        // 7:    node ← wots_PKgen(SK.seed, PK.seed, ADRS)
+        wots_pkgen::<LEN, N>(context, sk_seed, pk_seed, &adrs)
+            .0
+            .clone() // TODO revisit
+
+    // 8: else
+    } else {
+        //
+        // 9:    lnode ← xmss_node(SK.seed, 2 * i, z − 1, PK.seed, ADRS)
+        let lnode = xmss_node::<LEN, N>(context, sk_seed, 2 * i, z - 1, pk_seed, &adrs)?;
+
+        // 10:   rnode ← xmss_node(SK.seed, 2 * i + 1, z − 1, PK.seed, ADRS)
+        let rnode = xmss_node::<LEN, N>(context, sk_seed, 2 * i + 1, z - 1, pk_seed, &adrs)?;
+
+        // 11:   ADRS.setTypeAndClear(TREE)
+        adrs.set_type_and_clear(TREE);
+
+        // 12:   ADRS.setTreeHeight(z)
+        adrs.set_tree_height(z);
+
+        // 13:   ADRS.setTreeIndex(i)
+        adrs.set_tree_index(i);
+
+        // 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
+        h(pk_seed, &adrs, &lnode, &rnode)
+
+        // 15: end if
+    };
+
+    // 16: return node
+    Some(node)
+}
 
 
 /// Algorithm 9: `xmss_sign(M, SK.seed, idx, PK.seed, ADRS)` on page 23.

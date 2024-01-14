@@ -34,14 +34,17 @@ pub(crate) struct HtSig<N: ArrayLength> {
 
 
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-pub struct WotsSig<N: ArrayLength, LEN: ArrayLength> {
+pub struct WotsSig<LEN: ArrayLength, N: ArrayLength> {
     pub(crate) data: GenericArray<GenericArray<u8, N>, LEN>,
 }
 
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub struct WotsPk<N: ArrayLength>(pub(crate) GenericArray<u8, N>);
 
-const WOTS_HASH: u32 = 0;
+
+pub(crate) const WOTS_HASH: u32 = 0;
 pub(crate) const WOTS_PK: u32 = 1;
-const TREE: u32 = 2;
+pub(crate) const TREE: u32 = 2;
 const FORS_TREE: u32 = 3;
 const FORS_ROOTS: u32 = 4;
 pub(crate) const WOTS_PRF: u32 = 5;
@@ -59,7 +62,7 @@ pub struct Adrs {
     f4: [u8; 4], // type
     f5: [u8; 4], // key pair address OR padding
     f6: [u8; 4], // chain address OR padding OR tree height
-    f7: [u8; 4], // hash address OR padding ORtree index OR hash address = 0
+    f7: [u8; 4], // hash address OR padding OR tree index OR hash address = 0
 }
 
 
@@ -78,9 +81,11 @@ impl Adrs {
         self.f7 = 0u32.to_be_bytes();
     }
 
-    pub(crate) fn set_hash_address(&mut self, addr: u32) { self.f7 = addr.to_be_bytes(); }
+    pub(crate) fn set_hash_address(&mut self, addr: u32) { self.f7 = addr.to_be_bytes() }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        [self.f0, self.f1, self.f2, self.f3].concat()
-    }
+    pub(crate) fn set_tree_height(&mut self, z: u32) { self.f6 = z.to_be_bytes() }
+
+    pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
+
+    pub(crate) fn to_bytes(&self) -> Vec<u8> { [self.f0, self.f1, self.f2, self.f3].concat() }
 }
