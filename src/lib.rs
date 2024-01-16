@@ -8,7 +8,6 @@
 
 extern crate alloc;
 
-
 mod algs;
 mod traits;
 mod types;
@@ -20,13 +19,13 @@ pub fn add(left: usize, right: usize) -> usize { left + right }
 struct Context {
     lgw: u32,
     w: usize,
-    len1: usize,
+    len1: u32,
     len2: usize,
     len: usize,
     h: u32,
     h_prime: u32,
+    d: u32,
 }
-
 
 macro_rules! functionality {
     () => {
@@ -45,15 +44,18 @@ macro_rules! functionality {
         static CONTEXT: Context = Context {
             lgw: LGW,
             w: W,
-            len1: LEN1,
+            len1: LEN1 as u32,
             len2: LEN2,
             len: LEN,
             h: H,
             h_prime: H_PRIME,
+            d: D,
         };
 
-
-        fn sign() -> SlhDsaSig<U5, U5, U16> { SlhDsaSig::<U5, U5, U16>::default() }
+        // Dummy placeholder TODO: fix
+        fn sign() -> SlhDsaSig<U5, U5, U16, U5, U16, U5> {
+            SlhDsaSig::<U5, U5, U16, U5, U16, U5>::default()
+        }
 
         /// Correctly sized private key specific to the target security parameter set. <br>
         #[derive(Clone, Zeroize, ZeroizeOnDrop)]
@@ -89,7 +91,6 @@ pub mod slh_dsa_sha2_128s {
 
     functionality!();
 }
-
 
 /// TKTK
 #[cfg(feature = "slh_dsa_shake_128s")]
@@ -145,7 +146,6 @@ pub mod slh_dsa_shake_128f {
     functionality!();
 }
 
-
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_192s")]
 pub mod slh_dsa_sha2_192s {
@@ -163,7 +163,6 @@ pub mod slh_dsa_sha2_192s {
 
     functionality!();
 }
-
 
 /// TKTK
 #[cfg(feature = "slh_dsa_shake_192s")]
@@ -219,7 +218,6 @@ pub mod slh_dsa_shake_192f {
     functionality!();
 }
 
-
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_256s")]
 pub mod slh_dsa_sha2_256s {
@@ -237,7 +235,6 @@ pub mod slh_dsa_sha2_256s {
 
     functionality!();
 }
-
 
 /// TKTK
 #[cfg(feature = "slh_dsa_shake_256s")]
@@ -292,7 +289,6 @@ pub mod slh_dsa_shake_256f {
 
     functionality!();
 }
-
 
 #[cfg(test)]
 mod tests {
