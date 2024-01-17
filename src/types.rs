@@ -12,22 +12,41 @@ pub struct SlhDsaSig<
     LEN: ArrayLength,
     N: ArrayLength,
 > {
-    randomness: GenericArray<u8, N>,
-    fors_sig: ForsSig<A, K, N>,
-    ht_sig: HtSig<D, HP, LEN, N>,
+    pub(crate) randomness: GenericArray<u8, N>,
+    pub(crate) fors_sig: ForsSig<A, K, N>,
+    pub(crate) ht_sig: HtSig<D, HP, LEN, N>,
 }
+
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub struct SlhPublicKey<N: ArrayLength> {
+    pub(crate) pk_seed: GenericArray<u8, N>,
+    pub(crate) pk_root: GenericArray<u8, N>,
+}
+
+pub struct SlhPrivateKey<N: ArrayLength> {
+    pub(crate) sk_seed: GenericArray<u8, N>,
+    pub(crate) sk_prf: GenericArray<u8, N>,
+    pub(crate) pk_seed: GenericArray<u8, N>,
+    pub(crate) pk_root: GenericArray<u8, N>,
+}
+
 
 /// Fig 13 on page 29
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct ForsSig<A: ArrayLength, K: ArrayLength, N: ArrayLength> {
-    private_key_value: GenericArray<GenericArray<u8, N>, K>,
-    auth: GenericArray<Auth<A, N>, K>,
+    pub(crate) private_key_value: GenericArray<GenericArray<u8, N>, K>,
+    pub(crate) auth: GenericArray<Auth<A, N>, K>,
+}
+
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct ForsPk<N: ArrayLength> {
+    pub(crate) key: GenericArray<u8, N>,
 }
 
 /// Fig 10?
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct Auth<A: ArrayLength, N: ArrayLength> {
-    tree: GenericArray<GenericArray<u8, N>, A>,
+    pub(crate) tree: GenericArray<GenericArray<u8, N>, A>,
 }
 
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
@@ -59,10 +78,10 @@ impl<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> XmssSig<HP, LEN, N> {
 pub(crate) const WOTS_HASH: u32 = 0;
 pub(crate) const WOTS_PK: u32 = 1;
 pub(crate) const TREE: u32 = 2;
-const FORS_TREE: u32 = 3;
-const FORS_ROOTS: u32 = 4;
+pub(crate) const FORS_TREE: u32 = 3;
+pub(crate) const FORS_ROOTS: u32 = 4;
 pub(crate) const WOTS_PRF: u32 = 5;
-const FORS_PRF: u32 = 6;
+pub(crate) const FORS_PRF: u32 = 6;
 
 /// Straddling the line between struct, enum and union...
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]

@@ -3,6 +3,9 @@
 #![deny(warnings)]
 #![deny(missing_docs)]
 #![allow(dead_code)]
+// TODO
+//  1. check 12-byte adrs fields
+//  2. revisit/clean hash functions
 
 //! TKTK crate doc
 
@@ -25,6 +28,8 @@ struct Context {
     h: u32,
     h_prime: u32,
     d: u32,
+    a: u32,
+    k: u32,
 }
 
 macro_rules! functionality {
@@ -50,6 +55,8 @@ macro_rules! functionality {
             h: H,
             h_prime: H_PRIME,
             d: D,
+            a: A,
+            k: K,
         };
 
         // Dummy placeholder TODO: fix

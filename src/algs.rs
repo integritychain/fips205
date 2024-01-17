@@ -2,13 +2,16 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use generic_array::{ArrayLength, GenericArray};
+use rand_core::CryptoRngCore;
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
 };
 
-use crate::types::{Adrs, HtSig, WotsPk, WotsSig, XmssSig};
-use crate::types::{TREE, WOTS_HASH, WOTS_PK, WOTS_PRF};
+use crate::types::{
+    Adrs, ForsPk, ForsSig, HtSig, SlhDsaSig, SlhPrivateKey, SlhPublicKey, WotsPk, WotsSig, XmssSig,
+};
+use crate::types::{FORS_PRF, FORS_ROOTS, FORS_TREE, TREE, WOTS_HASH, WOTS_PK, WOTS_PRF};
 use crate::Context;
 
 
@@ -184,9 +187,9 @@ pub(crate) fn chain<N: ArrayLength>(
 
 #[allow(clippy::similar_names)]
 pub(crate) fn prf<N: ArrayLength>(
-    pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
+    pk_seed: &[u8], sk_seed: &[u8], adrs: &[u8],
 ) -> GenericArray<u8, N> {
-    shake256(&[&pk_seed, &sk_seed, &adrs.to_bytes()])
+    shake256(&[&pk_seed, &sk_seed, &adrs])
 }
 
 
@@ -236,7 +239,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
         sk_adrs.set_chain_address(i);
 
         // 6:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-        let sk = prf(pk_seed, sk_seed, &sk_adrs);
+        let sk = prf(pk_seed, sk_seed, &sk_adrs.to_bytes());
 
         // 7:   ADRS.setChainAddress(i)
         adrs.set_chain_address(i);
@@ -323,7 +326,7 @@ pub(crate) fn wots_sign<N: ArrayLength, LEN: ArrayLength>(
         sk_addrs.set_chain_address(i as u32);
 
         // 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-        let sk = prf(pk_seed, sk_seed, &sk_addrs);
+        let sk = prf(pk_seed, sk_seed, &sk_addrs.to_bytes());
 
         // 18:   ADRS.setChainAddress(i)
         adrs.set_chain_address(i as u32);
@@ -418,10 +421,10 @@ pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
 
 #[allow(clippy::similar_names)] // lnode and rnode
 pub(crate) fn h<N: ArrayLength>(
-    pk_seed: &[u8], adrs: &Adrs, lnode: &[u8], rnode: &[u8],
+    pk_seed: &[u8], adrs: &[u8], lnode: &[u8], rnode: &[u8],
 ) -> GenericArray<u8, N> {
     let mut hasher = Shake256::default();
-    [pk_seed, &adrs.to_bytes(), lnode, rnode]
+    [pk_seed, &adrs, lnode, rnode]
         .iter()
         .for_each(|item| hasher.update(item));
     let mut reader = hasher.finalize_xof();
@@ -485,7 +488,7 @@ pub(crate) fn xmss_node<LEN: ArrayLength, N: ArrayLength>(
         adrs.set_tree_index(i);
 
         // 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
-        h(pk_seed, &adrs, &lnode, &rnode)
+        h(pk_seed, &adrs.to_bytes(), &lnode, &rnode)
 
         // 15: end if
     };
@@ -587,7 +590,7 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
             adrs.set_tree_index(tmp);
 
             // 13:     node[1] ← H(PK.seed, ADRS, node[0] ∥ AUTH[k])
-            h(pk_seed, &adrs, &node_0, &auth[k as usize])
+            h(pk_seed, &adrs.to_bytes(), &node_0, &auth[k as usize])
 
             // 14:   else
         } else {
@@ -597,7 +600,7 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
             adrs.set_tree_index(tmp);
 
             // 16:     node[1] ← H(PK.seed, ADRS, AUTH[k] ∥ node[0])
-            h(pk_seed, &adrs, &auth[k as usize], &node_0)
+            h(pk_seed, &adrs.to_bytes(), &auth[k as usize], &node_0)
 
             // 17:   end if
         };
@@ -741,12 +744,25 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`, secret key index `idx`. <br>
 /// Output: n-byte FORS private-key value.
-const _A13: u32 = 0;
-// 1: skADRS ← ADRS    ▷ Copy address to create key generation address
-// 2: skADRS.setTypeAndClear(FORS_PRF)
-// 3: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 4: skADRS.setTreeIndex(idx)
-// 5: return PRF(PK.seed, SK.seed, skADRS)
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn fors_sk_gen<N: ArrayLength>(
+    sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs, idx: u32,
+) -> GenericArray<u8, N> {
+    // 1: skADRS ← ADRS    ▷ Copy address to create key generation address
+    let mut sk_adrs = adrs.clone();
+
+    // 2: skADRS.setTypeAndClear(FORS_PRF)
+    sk_adrs.set_type_and_clear(FORS_PRF);
+
+    // 3: skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    sk_adrs.set_key_pair_address(adrs.get_key_pair_address());
+
+    // 4: skADRS.setTreeIndex(idx)
+    sk_adrs.set_tree_index(idx);
+
+    // 5: return PRF(PK.seed, SK.seed, skADRS)
+    prf(pk_seed, sk_seed, &sk_adrs.to_bytes())
+}
 
 
 /// Algorithm 14: `fors_node(SK.seed, i, z, PK.seed, ADRS)` on page 30.
@@ -755,43 +771,110 @@ const _A13: u32 = 0;
 /// Input: Secret seed `SK.seed`, target node index `i`, target node height `z`, public seed `PK.seed`,
 /// address `ADRS`. <br>
 /// Output: n-byte root node.
-const _A14: u32 = 0;
-// 1: if z > a or i ≥ k · 2(a−z) then
-// 2:   return NULL
-// 3: end if
-// 4: if z = 0 then
-// 5:    sk ← fors_SKgen(SK.seed, PK.seed, ADRS, i)
-// 6:    ADRS.setTreeHeight(0)
-// 7:    ADRS.setTreeIndex(i)
-// 8:    node ← F(PK.seed, ADRS, sk)
-// 9:  else
-// 10:   lnode ← fors_node(SK.seed, 2i, z − 1, PK.seed, ADRS)
-// 11:   rnode ← fors_node(SK.seed, 2i + 1, z − 1, PK.seed, ADRS)
-// 12:   ADRS.setTreeHeight(z)
-// 13:   ADRS.setTreeIndex(i)
-// 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
-// 15: end if
-// 16: return node
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn fors_node<N: ArrayLength>(
+    context: &Context, sk_seed: &[u8], i: u32, z: u32, pk_seed: &[u8], adrs: &Adrs,
+) -> Result<GenericArray<u8, N>, &'static str> {
+    let mut adrs = adrs.clone();
 
+    // 1: if z > a or i ≥ k · 2(a−z) then
+    if (z > context.a) | (i > context.k * 2 * (context.a - z)) {
+        //
+        // 2:   return NULL
+        return Err("Alg14 fails");
+
+        // 3: end if
+    }
+
+    // 4: if z = 0 then
+    let node = if z == 0 {
+        //
+        // 5:    sk ← fors_SKgen(SK.seed, PK.seed, ADRS, i)
+        let sk = fors_sk_gen(sk_seed, pk_seed, &adrs, i);
+
+        // 6:    ADRS.setTreeHeight(0)
+        adrs.set_tree_height(0);
+
+        // 7:    ADRS.setTreeIndex(i)
+        adrs.set_tree_index(i);
+
+        // 8:    node ← F(PK.seed, ADRS, sk)
+        f(pk_seed, &adrs, &sk)
+
+        // 9:  else
+    } else {
+        // 10:   lnode ← fors_node(SK.seed, 2i, z − 1, PK.seed, ADRS)
+        let lnode = fors_node::<N>(context, sk_seed, 2 * i, z - 1, pk_seed, &adrs)?;
+
+        // 11:   rnode ← fors_node(SK.seed, 2i + 1, z − 1, PK.seed, ADRS)
+        let rnode = fors_node::<N>(context, sk_seed, 2 * i + 1, z - 1, pk_seed, &adrs)?;
+
+        // 12:   ADRS.setTreeHeight(z)
+        adrs.set_tree_height(z);
+
+        // 13:   ADRS.setTreeIndex(i)
+        adrs.set_tree_index(i);
+
+        // 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
+        h(pk_seed, &adrs.to_bytes(), &lnode, &rnode)
+
+        // 15: end if
+    };
+
+    // 16: return node
+    Ok(node)
+}
 
 /// Algorithm 15: `fors_sign(md, SK.seed, PK.seed, ADRS)`
 /// Generate a FORS signature.
 ///
 /// Input: Message digest `md`, secret seed `SK.seed`, address `ADRS`, public seed `PK.seed`. <br>
 /// Output: FORS signature `SIG_FORS`.
-const _A15: u32 = 0;
-// 1: SIG_FORS = NULL    ▷ Initialize SIG_FORS as a zero-length byte string
-// 2: indices ← base_2^b(md, a, k)
-// 3: for i from 0 to k − 1 do    ▷ Compute signature elements
-// 4:    SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2a + indices[i])
-// 5:
-// 6:    for j from 0 to a − 1 do    ▷ Compute auth path
-// 7:      s ← indices[i]/2^j xor 1
-// 8:      AUTH[j] ← fors_node(SK.seed, i · 2^{a−j} + s, j, PK.seed, ADRS)
-// 9:    end for
-// 10:   SIG_FORS ← SIG_FORS ∥ AUTH
-// 11: end for
-// 12: return SIG_FORS
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn fors_sign<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
+    context: &Context, md: &[u8], sk_seed: &[u8], adrs: &Adrs, pk_seed: &[u8],
+) -> Result<ForsSig<A, K, N>, &'static str> {
+    // 1: SIG_FORS = NULL    ▷ Initialize SIG_FORS as a zero-length byte string
+    let mut sig_fors = ForsSig::default();
+
+    // 2: indices ← base_2^b(md, a, k)
+    let indices = base_2b(md, context.a, context.k as usize);
+
+    // 3: for i from 0 to k − 1 do    ▷ Compute signature elements
+    #[allow(clippy::cast_possible_truncation)]
+    for i in 0..context.k {
+        //
+        // 4:    SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2a + indices[i])
+        sig_fors.private_key_value[i as usize] = fors_sk_gen::<N>(
+            sk_seed,
+            pk_seed,
+            adrs,
+            i * 2 * context.a + indices[i as usize] as u32,
+        );
+
+        // 5:
+        // 6:    for j from 0 to a − 1 do    ▷ Compute auth path
+        for j in 0..context.a {
+            //
+            // 7:      s ← indices[i]/2^j xor 1
+            let s = (indices[i as usize] >> j) ^ 1;
+
+            // 8:      AUTH[j] ← fors_node(SK.seed, i · 2^{a−j} + s, j, PK.seed, ADRS)
+            sig_fors.auth[j as usize].tree[i as usize] =  // TODO: check order of j and i
+                fors_node::<N>(context, sk_seed, i * 2u32.pow(context.a - j) + s as u32, j, pk_seed, adrs)?;
+
+            // 9:    end for
+        }
+
+        // 10:   SIG_FORS ← SIG_FORS ∥ AUTH
+        // built within inner loop above
+
+        // 11: end for
+    }
+
+    // 12: return SIG_FORS
+    Ok(sig_fors)
+}
 
 
 /// Algorithm 16: `fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)` on page 32.
@@ -799,33 +882,91 @@ const _A15: u32 = 0;
 ///
 /// Input: FORS signature `SIG_FORS`, message digest `md`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: FORS public key.
-const _A16: u32 = 0;
-// 1: indices ← base_2^b(md, a, k)
-// 2: for i from 0 to k − 1 do
-// 3:   sk ← SIG_FORS.getSK(i)    ▷ SIG_FORS [i · (a + 1) · n : (i · (a + 1) + 1) · n]
-// 4:   ADRS.setTreeHeight(0)    ▷ Compute leaf
-// 5:   ADRS.setTreeIndex(i · 2^a + indices[i])
-// 6:   node[0] ← F(PK.seed, ADRS, sk)
-// 7:
-// 8: auth ← SIGFORS .getAUTH(i)    ▷ SIGFORS [(i · (a + 1) + 1) · n : (i + 1) · (a + 1) · n]
-// 9: for j from 0 to a − 1 do    ▷ Compute root from leaf and AUTH
-// 10:  ADRS.setTreeHeight(j + 1)
-// 11:  if indices[i]/2^jj is even then
-// 12:    ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
-// 13:    node[1] ← H(PK.seed, ADRS, node[0] ∥ auth[j])
-// 14:  else
-// 15:    ADRS.setTreeIndex((ADRS.getTreeIndex() − 1)/2)
-// 16:    node[1] ← H(PK.seed, ADRS, auth[j] ∥ node[0])
-// 17:  end if
-// 18: node[0] ← node[1]
-// 19: end for
-// 20: root[i] ← node[0]
-// 21: end for
-// 22: forspkADRS ← ADRS    ▷ Compute the FORS public key from the Merkle tree roots
-// 23: forspkADRS.setTypeAndClear(FORS_ROOTS)
-// 24: forspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
-// 25: pk ← Tk(PK.seed, forspkADRS, root)
-// 26: return pk;
+pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
+    context: &Context, sig_fors: &ForsSig<A, K, N>, md: &[u8], pk_seed: &[u8], adrs: &Adrs,
+) -> ForsPk<N> {
+    let mut adrs = adrs.clone();
+
+    // 1: indices ← base_2^b(md, a, k)
+    let indices = base_2b(md, context.a, context.k as usize);
+
+    // 2: for i from 0 to k − 1 do
+    let mut root: GenericArray<GenericArray<u8, N>, K> = GenericArray::default();
+    #[allow(clippy::cast_possible_truncation)] // Step 5
+    for i in 0..context.k {
+        //
+        // 3:   sk ← SIG_FORS.getSK(i)    ▷ SIG_FORS [i · (a + 1) · n : (i · (a + 1) + 1) · n]
+        let sk = sig_fors.private_key_value[i as usize].clone();
+
+        // 4:   ADRS.setTreeHeight(0)    ▷ Compute leaf
+        adrs.set_tree_height(0);
+
+        // 5:   ADRS.setTreeIndex(i · 2^a + indices[i])
+        adrs.set_tree_index(i * 2u32.pow(context.a) + indices[i as usize] as u32);
+
+        // 6:   node[0] ← F(PK.seed, ADRS, sk)
+        let mut node_0 = f(pk_seed, &adrs, &sk);
+
+        // 7:
+        // 8: auth ← SIGFORS.getAUTH(i)    ▷ SIGFORS [(i · (a + 1) + 1) · n : (i + 1) · (a + 1) · n]
+        let auth = sig_fors.auth[i as usize].clone();
+
+        // 9: for j from 0 to a − 1 do    ▷ Compute root from leaf and AUTH
+        for j in 0..context.a {
+            //
+            // 10:  ADRS.setTreeHeight(j + 1)
+            adrs.set_tree_height(j + 1);
+
+            // 11:  if indices[i]/2^j is even then
+            let node_1 = if indices[i as usize] >> j & 1 == 1 {
+                //
+                // 12:    ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
+                let tmp = adrs.get_tree_index() / 2;
+                adrs.set_tree_index(tmp);
+
+                // 13:    node[1] ← H(PK.seed, ADRS, node[0] ∥ auth[j])
+                h(pk_seed, &adrs.to_bytes(), &node_0, &auth.tree[j as usize])
+
+                // 14:  else
+            } else {
+                //
+                // 15:    ADRS.setTreeIndex((ADRS.getTreeIndex() − 1)/2)
+                let tmp = (adrs.get_tree_index() - 1) / 2;
+                adrs.set_tree_index(tmp);
+
+                // 16:    node[1] ← H(PK.seed, ADRS, auth[j] ∥ node[0])
+                h(pk_seed, &adrs.to_bytes(), &auth.tree[j as usize], &node_0)
+
+                // 17:  end if
+            };
+
+            // 18: node[0] ← node[1]
+            node_0 = node_1;
+
+            // 19: end for
+        }
+
+        // 20: root[i] ← node[0]
+        root[i as usize] = node_0;
+
+        // 21: end for
+    }
+
+    // 22: forspkADRS ← ADRS    ▷ Compute the FORS public key from the Merkle tree roots
+    let mut fors_pk_adrs = adrs.clone();
+
+    // 23: forspkADRS.setTypeAndClear(FORS_ROOTS)
+    fors_pk_adrs.set_type_and_clear(FORS_ROOTS);
+
+    // 24: forspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+    fors_pk_adrs.set_key_pair_address(adrs.get_key_pair_address());
+
+    // 25: pk ← Tk(PK.seed, forspkADRS, root)
+    let pk = tlen(context, pk_seed, &fors_pk_adrs, &root);
+
+    // 26: return pk;
+    ForsPk { key: pk }
+}
 
 
 /// Algorithm 17: `slh_keygen()` on page 34.
@@ -833,16 +974,41 @@ const _A16: u32 = 0;
 ///
 /// Input: (none) <br>
 /// Output: SLH-DSA key pair `(SK, PK)`.
-const _A17: u32 = 0;
-// 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
-// 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
-// 3: PK.seed ←$ B^n
-// 4:
-// 5: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
-// 6: ADRS.setLayerAddress(d − 1)
-// 7: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
-// 8:
-// 9: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn slh_keygen_with_rng<LEN: ArrayLength, N: ArrayLength>(
+    context: &Context, rng: &mut impl CryptoRngCore,
+) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
+    // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
+    let mut sk_seed = GenericArray::default();
+    rng.try_fill_bytes(&mut sk_seed)
+        .map_err(|_| "Alg17: rng failed")?;
+
+    // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
+    let mut sk_prf = GenericArray::default();
+    rng.try_fill_bytes(&mut sk_prf)
+        .map_err(|_| "Alg17: rng failed")?;
+
+    // 3: PK.seed ←$ B^n
+    let mut pk_seed = GenericArray::default();
+    rng.try_fill_bytes(&mut pk_seed)
+        .map_err(|_| "Alg17: rng failed")?;
+
+    // 4:
+    // 5: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
+    let mut adrs = Adrs::default();
+
+    // 6: ADRS.setLayerAddress(d − 1)
+    adrs.set_layer_address(context.d - 1);
+
+    // 7: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
+    let pk_root = xmss_node::<LEN, N>(context, &sk_seed, 0, context.h_prime, &pk_seed, &adrs)?;
+
+    // 8:
+    // 9: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
+    let pk = SlhPublicKey { pk_seed: pk_seed.clone(), pk_root: pk_root.clone() };
+    let sk = SlhPrivateKey { sk_seed, sk_prf, pk_seed, pk_root };
+    Ok((sk, pk))
+}
 
 
 /// Algorithm 18: `slh_sign(M, SK)` on page 35.
@@ -850,35 +1016,99 @@ const _A17: u32 = 0;
 ///
 /// Input: Message `M`, private key `SK = (SK.seed, SK.prf, PK.seed, PK.root)`. <br>
 /// Output: SLH-DSA signature `SIG`.
-const _A18: u32 = 0;
-// 1: ADRS ← toByte(0, 32)
-// 2:
-// 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
-// 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
-// 5:   opt_rand ←$ Bn
-// 6: end if
-// 7: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
-// 8: SIG ← R
-// 9:
-// 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-// 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-// 12: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
-// 13: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
-// 14:
-// 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
-// 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-// 17:
-// 18: ADRS.setTreeAddress(idx_tree)
-// 19: ADRS.setTypeAndClear(FORS_TREE)
-// 20: ADRS.setKeyPairAddress(idxleaf)
-// 21: SIG_FORS ← fors_sign(md, SK.seed, PK.seed, ADRS)
-// 22: SIG ← SIG ∥ SIG_FORS
-// 23:
-// 24: PK_FORS ← fors_pkFromSig(SIG_FORS , md, PK.seed, ADRS)    ▷ Get FORS key
-// 25:
-// 26: SIG_HT ← ht_sign(PK_FORS , SK.seed, PK.seed, idx_tree, idx_leaf)
-// 27: SIG ← SIG ∥ SIG_HT
-// 28: return SIG
+#[allow(clippy::cast_possible_truncation)] // temporary, investigating idx_leaf int sizes
+pub(crate) fn slh_sign_with_rng<
+    A: ArrayLength,
+    D: ArrayLength,
+    HP: ArrayLength,
+    K: ArrayLength,
+    LEN: ArrayLength,
+    N: ArrayLength,
+>(
+    context: &Context, rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>,
+    randomize: bool,
+) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
+    // 1: ADRS ← toByte(0, 32)
+    let mut adrs = Adrs::default();
+
+    // 2:
+    // 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
+    let mut opt_rand = sk.pk_seed.clone();
+
+    // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
+    if randomize {
+        // 5:   opt_rand ←$ Bn
+        rng.try_fill_bytes(&mut opt_rand)
+            .map_err(|_| "Alg17: rng failed")?;
+
+        // 6: end if
+    }
+
+    // 7: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
+    let r = prf(&sk.sk_prf, &opt_rand, m);
+
+
+    // 8: SIG ← R
+    let mut sig = SlhDsaSig::default();
+    sig.randomness = r.clone();
+
+    // 9:
+    // 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
+    let digest = h::<N>(&r, &sk.pk_seed, &sk.pk_root, m);
+
+    // 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
+    let index1 = (context.k * context.a).div_ceil(8) as usize;
+    let md = &digest[0..index1];
+
+    // 12: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
+    let index2 = index1 + (context.h - context.h / context.d).div_ceil(8) as usize;
+    let tmp_idx_tree = &digest[index1..index2];
+
+    // 13: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
+    let index3 = index2 + context.h.div_ceil(8 * context.d) as usize;
+    let tmp_idx_leaf = &digest[index2..index3];
+
+    // 14:
+    // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
+    let idx_tree = to_int(tmp_idx_tree, context.h.div_ceil(8 * context.d) as usize)
+        % 2u64.pow(context.h - context.h / context.d);
+
+    // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
+    let idx_leaf = to_int(tmp_idx_leaf, context.h.div_ceil(8 * context.d) as usize)
+        % 2u64.pow(context.h / context.d); // TODO: indicates size of int!!
+
+    // 17:
+    // 18: ADRS.setTreeAddress(idx_tree)
+    adrs.set_tree_address(idx_tree as u32); //TODO not u32
+
+    // 19: ADRS.setTypeAndClear(FORS_TREE)
+    adrs.set_type_and_clear(FORS_TREE);
+
+    // 20: ADRS.setKeyPairAddress(idxleaf)
+    adrs.set_key_pair_address(idx_leaf as u32);
+
+    // 21: SIG_FORS ← fors_sign(md, SK.seed, PK.seed, ADRS)
+    // 22: SIG ← SIG ∥ SIG_FORS
+    sig.fors_sig = fors_sign(context, md, &sk.sk_seed, &adrs, &sk.pk_seed)?; // TODO: adrs swapped position?
+
+    // 23:
+    // 24: PK_FORS ← fors_pkFromSig(SIG_FORS , md, PK.seed, ADRS)    ▷ Get FORS key
+    let pk_fors = fors_pk_from_sig::<A, K, N>(context, &sig.fors_sig, md, &sk.pk_seed, &adrs);
+
+    // 25:
+    // 26: SIG_HT ← ht_sign(PK_FORS , SK.seed, PK.seed, idx_tree, idx_leaf)
+    // 27: SIG ← SIG ∥ SIG_HT
+    sig.ht_sig = ht_sign::<D, HP, LEN, N>(
+        context,
+        &pk_fors.key,
+        &sk.sk_seed,
+        &sk.pk_seed,
+        idx_tree as u32,
+        idx_leaf as u32,
+    )?;
+    // 28: return SIG
+    Ok(sig)
+}
 
 
 /// Algorithm 19: `slh_verify(M, SIG, PK)`
@@ -886,27 +1116,83 @@ const _A18: u32 = 0;
 ///
 /// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
 /// Output: Boolean.
-const _A19: u32 = 0;
-// 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
-// 2:   return false
-// 3: end if
-// 4: ADRS ← toByte(0, 32)
-// 5: R ← SIG.getR()    ▷ SIG[0 : n]
-// 6: SIG_FORS ← SIG.getSIG_FORS()    ▷ SIG[n : (1 + k(1 + a)) · n]
-// 7: SIG_HT ← SIG.getSIG_HT()    ▷ SIG[(1 + k(1 + a)) · n : (1 + k(1 + a) + h + d · len) · n]
-// 8:
-// 9: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-// 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-// 11: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
-// 12: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
-// 13:
-// 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
-// 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-// 16:
-// 17: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
-// 18: ADRS.setTypeAndClear(FORS_TREE)
-// 19: ADRS.setKeyPairAddress(idx_leaf)
-// 20:
-// 21: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
-// 22:
-// 23: return ht_verify(PK_FORS, SIG_HT, PK.seed, idx_tree , idx_leaf, PK.root)
+#[allow(clippy::cast_possible_truncation)] // TODO: temporary
+pub(crate) fn slh_verify<
+    A: ArrayLength,
+    D: ArrayLength,
+    HP: ArrayLength,
+    K: ArrayLength,
+    LEN: ArrayLength,
+    N: ArrayLength,
+>(
+    context: &Context, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>, pk: &SlhPublicKey<N>,
+) -> bool {
+    // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
+    // 2:   return false
+    // 3: end if
+    // TODO: THIS FUNCTION PROBABLY WANTS A BYTE ARRAY, THEN DESERIALIZE
+
+    // 4: ADRS ← toByte(0, 32)
+    let mut adrs = Adrs::default();
+
+    // 5: R ← SIG.getR()    ▷ SIG[0 : n]
+    let r = &sig.randomness;
+
+    // 6: SIG_FORS ← SIG.getSIG_FORS()    ▷ SIG[n : (1 + k(1 + a)) · n]
+    let sig_fors = &sig.fors_sig;
+
+    // 7: SIG_HT ← SIG.getSIG_HT()    ▷ SIG[(1 + k(1 + a)) · n : (1 + k(1 + a) + h + d · len) · n]
+    let sig_ht = &sig.ht_sig;
+
+    // 8:
+    // 9: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
+    let digest = h::<N>(r, &pk.pk_seed, &pk.pk_root, m);
+
+    // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
+    let index1 = (context.k * context.a).div_ceil(8) as usize;
+    let md = &digest[0..index1];
+
+    // 11: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
+    let index2 = index1 + (context.h - context.h / context.d).div_ceil(8) as usize;
+    let tmp_idx_tree = &digest[index1..index2];
+
+    // 12: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
+    let index3 = index2 + context.h.div_ceil(8 * context.d) as usize;
+    let tmp_idx_leaf = &digest[index2..index3];
+
+    // 13:
+    // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
+    let idx_tree = to_int(tmp_idx_tree, context.h.div_ceil(8 * context.d) as usize)
+        % 2u64.pow(context.h - context.h / context.d);
+
+    // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
+    // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
+    let idx_leaf = to_int(tmp_idx_leaf, context.h.div_ceil(8 * context.d) as usize)
+        % 2u64.pow(context.h / context.d); // TODO: indicates size of int!!
+
+    // 16:
+    // 17: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
+    adrs.set_tree_address(idx_tree as u32);
+
+    // 18: ADRS.setTypeAndClear(FORS_TREE)
+    adrs.set_type_and_clear(FORS_TREE);
+
+    // 19: ADRS.setKeyPairAddress(idx_leaf)
+    adrs.set_key_pair_address(idx_leaf as u32);
+
+    // 20:
+    // 21: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
+    let pk_fors = fors_pk_from_sig::<A, K, N>(context, sig_fors, md, &pk.pk_seed, &adrs);
+
+    // 22:
+    // 23: return ht_verify(PK_FORS, SIG_HT, PK.seed, idx_tree , idx_leaf, PK.root)
+    ht_verify::<D, HP, LEN, N>(
+        context,
+        &pk_fors.key,
+        sig_ht,
+        &pk.pk_seed,
+        idx_tree as u32,
+        idx_leaf as u32,
+        &pk.pk_root,
+    )
+}
