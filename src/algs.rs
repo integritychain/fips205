@@ -1,6 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
+//use generic_array::typenum::{Prod, Sum, U2, U3};
 use generic_array::{ArrayLength, GenericArray};
 use rand_core::CryptoRngCore;
 use sha3::{
@@ -76,6 +77,7 @@ pub(crate) fn to_byte(x: u64, n: usize) -> Vec<u8> {
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
     assert!(x.len() >= out_len * b as usize / 8);
+    assert!(b < 64);
     let mut baseb = vec![0u64; out_len]; // TODO revisit GenericArray
 
     // 1: in ← 0
@@ -110,7 +112,7 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize) -> Vec<u64> {
         bits -= b;
 
         // 12:   baseb[out] ← (total ≫ bits) mod 2^b
-        *item = (total >> bits) & (2u64.pow(b) - 1);
+        *item = (total >> bits) % 2u64.pow(b); //& (2u64.pow(b) - 1);
 
         // 13: end for
     }
@@ -194,7 +196,9 @@ pub(crate) fn prf<N: ArrayLength>(
 
 pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
     pk_seed: &[u8], adrs: &Adrs, ml: &GenericArray<GenericArray<u8, N>, LEN>,
-) -> GenericArray<u8, N> {
+) -> GenericArray<u8, N>
+where
+{
     let mut hasher = Shake256::default();
     hasher.update(pk_seed);
     hasher.update(&adrs.to_bytes());
@@ -246,7 +250,7 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
 
         // 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
         tmp[i as usize] =
-            chain(sk, 0, crate::W as usize - 1, pk_seed, &adrs).expect("chain broek!");
+            chain(sk, 0, crate::W as usize - 1, pk_seed, &adrs).expect("chain broke!");
 
         // 9: end for
     }
@@ -400,7 +404,7 @@ pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
             pk_seed,
             &adrs,
         )
-        .expect("chain broek!");
+        .expect("chain broke2!");
 
         // 14: end for
     }
@@ -450,7 +454,7 @@ pub(crate) fn xmss_node<H: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
     let mut adrs = adrs.clone();
 
     // 1: if z > h′ or i ≥ 2^{h −z} then
-    if (z > HP::to_u32()) | (i as u64 >= 2u64.pow(H::to_u32() - z)) {
+    if (z > HP::to_u32()) | (i as u64 >= 2u64.pow(HP::to_u32() - z)) {
         //
         // 2:   return NULL
         return Err("Alg8: fail");
@@ -514,8 +518,8 @@ pub(crate) fn xmss_sign<H: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
     // 1: for j from 0 to h′-1 do    ▷ Build authentication path
     for j in 0..HP::to_u32() {
         //
-        // 2:   k ← idx/2 xor 1
-        let k = (idx / 2) ^ 1;
+        // 2:   k ← idx/2 ^j xor 1
+        let k = (idx >> j) ^ 1;
 
         // 3:   AUTH[j] ← xmss_node(SK.seed, k, j, PK.seed, ADRS)
         sig_xmss.auth[j as usize] = xmss_node::<H, HP, LEN, N>(sk_seed, k, j, pk_seed, &adrs)?;
@@ -780,8 +784,8 @@ pub(crate) fn fors_node<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
 ) -> Result<GenericArray<u8, N>, &'static str> {
     let mut adrs = adrs.clone();
 
-    // 1: if z > a or i ≥ k · 2(a−z) then
-    if (z > A::to_u32()) | (i > K::to_u32() * 2 * (A::to_u32() - z)) {
+    // 1: if z > a or i ≥ k · 2^(a−z) then
+    if (z > A::to_u32()) | (i > K::to_u32() * 2u32.pow(A::to_u32() - z)) {
         //
         // 2:   return NULL
         return Err("Alg14 fails");
@@ -847,12 +851,12 @@ pub(crate) fn fors_sign<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
     #[allow(clippy::cast_possible_truncation)]
     for i in 0..K::to_u32() {
         //
-        // 4:    SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2a + indices[i])
+        // 4:    SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2^a + indices[i])
         sig_fors.private_key_value[i as usize] = fors_sk_gen::<N>(
             sk_seed,
             pk_seed,
             adrs,
-            i * 2 * A::to_u32() + indices[i as usize] as u32,
+            i * 2u32.pow(A::to_u32()) + indices[i as usize] as u32,
         );
 
         // 5:
@@ -863,8 +867,13 @@ pub(crate) fn fors_sign<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
             let s = (indices[i as usize] >> j) ^ 1;
 
             // 8:      AUTH[j] ← fors_node(SK.seed, i · 2^{a−j} + s, j, PK.seed, ADRS)
-            sig_fors.auth[j as usize].tree[i as usize] =  // TODO: check order of j and i
-                fors_node::<A, K, N>(sk_seed, i * 2u32.pow(A::to_u32() - j) + s as u32, j, pk_seed, adrs)?;
+            sig_fors.auth[i as usize].tree[j as usize] = fors_node::<A, K, N>(
+                sk_seed,
+                i * 2u32.pow(A::to_u32() - j) + s as u32,
+                j,
+                pk_seed,
+                adrs,
+            )?;
 
             // 9:    end for
         }
@@ -921,7 +930,7 @@ pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
             adrs.set_tree_height(j + 1);
 
             // 11:  if indices[i]/2^j is even then
-            let node_1 = if indices[i as usize] >> j & 1 == 1 {
+            let node_1 = if indices[i as usize] >> j % 2 == 0 {
                 //
                 // 12:    ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
                 let tmp = adrs.get_tree_index() / 2;
@@ -990,17 +999,17 @@ pub(crate) fn slh_keygen_with_rng<
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
     let mut sk_seed = GenericArray::default();
     rng.try_fill_bytes(&mut sk_seed)
-        .map_err(|_| "Alg17: rng failed")?;
+        .map_err(|_| "Alg17: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
     let mut sk_prf = GenericArray::default();
     rng.try_fill_bytes(&mut sk_prf)
-        .map_err(|_| "Alg17: rng failed")?;
+        .map_err(|_| "Alg17: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
     let mut pk_seed = GenericArray::default();
     rng.try_fill_bytes(&mut pk_seed)
-        .map_err(|_| "Alg17: rng failed")?;
+        .map_err(|_| "Alg17: rng failed3")?;
 
     // 4:
     // 5: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
