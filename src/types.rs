@@ -114,7 +114,7 @@ impl Adrs {
         self.f7 = 0u32.to_be_bytes();
     }
 
-    pub(crate) fn set_tree_address(&mut self, t: u32) { self.f1 = t.to_be_bytes() }
+    pub(crate) fn set_tree_address(&mut self, t: u64) { self.f2 = ((t >> 32) as u32).to_be_bytes(); self.f3 = (t as u32).to_be_bytes() }
 
     // TODO: revisit 16 bytes
 
@@ -126,5 +126,5 @@ impl Adrs {
 
     pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> { [self.f0, self.f1, self.f2, self.f3].concat() }
+    pub(crate) fn to_bytes(&self) -> Vec<u8> { [self.f0, self.f1, self.f2, self.f3, self.f4, self.f5, self.f6, self.f7].concat() }
 }

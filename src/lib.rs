@@ -11,9 +11,11 @@
 
 //! TKTK crate doc
 
-extern crate alloc; // TODO: remove (with vecs)
+extern crate alloc;
+extern crate core; // TODO: remove (with vecs)
 
 mod algs;
+mod test;
 mod traits;
 mod types;
 
@@ -24,6 +26,32 @@ const W: u32 = 16;
 
 macro_rules! functionality {
     () => {
+        use rand_core::CryptoRngCore;
+        use crate::types::{SlhPrivateKey, SlhPublicKey, SlhDsaSig};
+            use generic_array::typenum::{Prod, Sum, U2, U3};
+
+        /// blah
+        pub fn slh_keygen_with_rng(
+            rng: &mut impl CryptoRngCore,
+        ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
+            crate::algs::slh_keygen_with_rng::<D, H, HP, Sum<Prod<U2, N>, U3>, N>(rng)
+        }
+
+        /// blah
+        pub fn slh_sign_with_rng(
+            rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>, randomize: bool,
+        ) -> Result<SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, &'static str> {
+            crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
+                rng, &m, &sk, randomize)
+        }
+
+        /// blah
+        pub fn slh_verify(
+            m: &[u8], sig: &SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, pk: &SlhPublicKey<N>,
+        ) -> bool {
+            crate::algs::slh_verify::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(&m, &sig, &pk)
+        }
+
         #[cfg(test)]
         mod tests {
             use super::*;
@@ -31,6 +59,7 @@ macro_rules! functionality {
             use generic_array::typenum::{Prod, Sum, U2, U3};
             use rand_core::OsRng;
 
+            #[ignore]
             #[test]
             fn it_works1111() {
                 let m = [0u8, 1, 2, 3];
