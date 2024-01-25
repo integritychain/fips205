@@ -1,18 +1,15 @@
-//#![no_std]
+#![no_std]
 #![deny(clippy::pedantic)]
 #![deny(warnings)]
 #![deny(missing_docs)]
-#![allow(dead_code)]
 // TODO
 //  1. Get one instance working (or at least not erroring)
-//  2. check 12-byte adrs fields -- how big is the integer really?
 //  3. revisit/clean hash functions
-//  4. adrs - store in be or le; how to account for sha2/shake?? (different size)
 
 //! TKTK crate doc
 
-extern crate alloc;
-extern crate core; // TODO: remove (with vecs)
+//extern crate alloc;
+//extern crate core; // TODO: remove (with vecs)
 
 mod algs;
 mod test;
@@ -22,15 +19,18 @@ mod types;
 // Per eqns 5.1-4 on page 16, LGW=4, W=16 and LEN2=3 are constant across all parameter sets.
 const LGW: u32 = 4;
 const W: u32 = 16;
+const LEN2: u32 = 3;
 
 
 macro_rules! functionality {
     () => {
+        use crate::types::{SlhDsaSig, SlhPrivateKey, SlhPublicKey};
+        use generic_array::typenum::{Prod, Sum, U2, U3};
         use rand_core::CryptoRngCore;
-        use crate::types::{SlhPrivateKey, SlhPublicKey, SlhDsaSig};
-            use generic_array::typenum::{Prod, Sum, U2, U3};
 
         /// blah
+        /// # Errors
+        ///
         pub fn slh_keygen_with_rng(
             rng: &mut impl CryptoRngCore,
         ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
@@ -38,14 +38,18 @@ macro_rules! functionality {
         }
 
         /// blah
+        /// # Errors
+        ///
         pub fn slh_sign_with_rng(
             rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>, randomize: bool,
         ) -> Result<SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, &'static str> {
             crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
-                rng, &m, &sk, randomize)
+                rng, &m, &sk, randomize,
+            )
         }
 
         /// blah
+        #[must_use]
         pub fn slh_verify(
             m: &[u8], sig: &SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, pk: &SlhPublicKey<N>,
         ) -> bool {
@@ -55,24 +59,22 @@ macro_rules! functionality {
         #[cfg(test)]
         mod tests {
             use super::*;
-            use crate::algs::{slh_keygen_with_rng, slh_sign_with_rng, slh_verify};
-            use generic_array::typenum::{Prod, Sum, U2, U3};
-            use rand_core::OsRng;
+            use rand_chacha::rand_core::SeedableRng;
 
-            #[ignore]
             #[test]
-            fn it_works1111() {
-                let m = [0u8, 1, 2, 3];
-                // TODO: can we push LEN SUM<PROD> calculation downwards? (and remove a generic arg)
-                let (sk, pk) =
-                    slh_keygen_with_rng::<D, H, HP, Sum<Prod<U2, N>, U3>, N>(&mut OsRng).unwrap();
-                let sig = slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
-                    &mut OsRng, &m, &sk, false,
-                )
-                .unwrap();
-                let result =
-                    slh_verify::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(&m, &sig, &pk);
-                assert_eq!(result, false);
+            fn simple_loop() {
+                let mut message = [0u8, 1, 2, 3];
+                let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
+                for i in 0..5 {
+                    message[3] = i as u8;
+                    let (sk, pk) = slh_keygen_with_rng(&mut rng).unwrap();
+                    let sig = slh_sign_with_rng(&mut rng, &message, &sk, false).unwrap();
+                    let result = slh_verify(&message, &sig, &pk);
+                    assert_eq!(result, true, "Signature failed to verify");
+                    message[3] = i + 1 as u8;
+                    let result = slh_verify(&message, &sig, &pk);
+                    assert_eq!(result, false, "Signature should not have verifed");
+                }
             }
         }
     };
@@ -90,9 +92,9 @@ pub mod slh_dsa_sha2_128s {
     type A = U12;
     type K = U14;
     type M = U30;
-    const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 7856;
-    const SK_LEN: usize = 0000;
+    //const PK_LEN: usize = 32;
+    //const SIG_LEN: usize = 7856;
+    //const SK_LEN: usize = 0000;
 
     functionality!();
 }

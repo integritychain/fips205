@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+//use alloc::vec::Vec;
 use generic_array::{ArrayLength, GenericArray};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -18,15 +18,18 @@ pub struct SlhDsaSig<
 }
 
 impl<
-    A: ArrayLength,
-    D: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    N: ArrayLength,
-> SlhDsaSig<A, D, HP, K, LEN, N> {
+        A: ArrayLength,
+        D: ArrayLength,
+        HP: ArrayLength,
+        K: ArrayLength,
+        LEN: ArrayLength,
+        N: ArrayLength,
+    > SlhDsaSig<A, D, HP, K, LEN, N>
+{
     pub fn deser(self, out: &mut [u8]) {
-        assert_eq!(out.len(), N::to_usize() +  // randomness
+        assert_eq!(
+            out.len(),
+            N::to_usize() +  // randomness
         N::to_usize() * K::to_usize() + K::to_usize() * A::to_usize() * N::to_usize() + // ForsSig
             D::to_usize() * (HP::to_usize() * N::to_usize() + LEN::to_usize() * N::to_usize())
         );
@@ -37,26 +40,28 @@ impl<
         //     start += N::to_usize();
         // }
         for k in 0..K::to_usize() {
-            out[start..(start+N::to_usize())].copy_from_slice(&self.fors_sig.private_key_value[k]);
+            out[start..(start + N::to_usize())]
+                .copy_from_slice(&self.fors_sig.private_key_value[k]);
             start += N::to_usize();
             for a in 0..A::to_usize() {
-                out[start..(start+N::to_usize())].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
+                out[start..(start + N::to_usize())].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
                 start += N::to_usize();
             }
         }
         for d in 0..D::to_usize() {
-            println!("and we move to xmss {} starting at {}", d, start);
-
+            //println!("and we move to xmss {} starting at {}", d, start);
             for len in 0..LEN::to_usize() {
-                out[start..(start+N::to_usize())].copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
+                out[start..(start + N::to_usize())]
+                    .copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
                 start += N::to_usize();
             }
             for hp in 0..HP::to_usize() {
-                out[start..(start+N::to_usize())].copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
+                out[start..(start + N::to_usize())]
+                    .copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
                 start += N::to_usize();
             }
         }
-        assert_eq!(start, out.len())
+        debug_assert_eq!(start, out.len());
     }
 }
 
@@ -157,7 +162,11 @@ impl Adrs {
         self.f7 = 0u32.to_be_bytes();
     }
 
-    pub(crate) fn set_tree_address(&mut self, t: u64) { self.f2 = ((t >> 32) as u32).to_be_bytes(); self.f3 = (t as u32).to_be_bytes() }
+    #[allow(clippy::cast_possible_truncation)]
+    pub(crate) fn set_tree_address(&mut self, t: u64) {
+        self.f2 = ((t >> 32) as u32).to_be_bytes();
+        self.f3 = (t as u32).to_be_bytes();
+    }
 
     // TODO: revisit 16 bytes
 
@@ -169,5 +178,15 @@ impl Adrs {
 
     pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> { [self.f0, self.f1, self.f2, self.f3, self.f4, self.f5, self.f6, self.f7].concat() }
+    pub(crate) fn to_32_bytes(&self) -> [u8; 32] {
+        let mut ret = [0u8; 32];
+        let mut start = 0;
+        for sl in [
+            self.f0, self.f1, self.f2, self.f3, self.f4, self.f5, self.f6, self.f7,
+        ] {
+            ret[start..start + 4].copy_from_slice(&sl);
+            start += 4;
+        }
+        ret
+    }
 }

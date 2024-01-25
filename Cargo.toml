@@ -15,10 +15,15 @@ sha3 = { version = "0.10.8", default-features = false }
 generic-array = {  version = "1.0.0", features=["const-default", "zeroize"] }
 hex = "0.4.3"
 
+
+[dev-dependencies]
+rand_chacha = "0.3.1"
+
+
 [features]
-default = ["default-rng", "slh_dsa_sha2_128s", "slh_dsa_shake_128s", "slh_dsa_sha2_128f", "slh_dsa_shake_128f",
-    "slh_dsa_sha2_192s", "slh_dsa_shake_192s", "slh_dsa_sha2_192f", "slh_dsa_shake_192f",
-    "slh_dsa_sha2_256s", "slh_dsa_shake_256s", "slh_dsa_sha2_256f", "slh_dsa_shake_256f"]
+default = ["default-rng", "slh_dsa_sha2_128s"] #, "slh_dsa_shake_128s", "slh_dsa_sha2_128f", "slh_dsa_shake_128f",
+#    "slh_dsa_sha2_192s", "slh_dsa_shake_192s", "slh_dsa_sha2_192f", "slh_dsa_shake_192f",
+#    "slh_dsa_sha2_256s", "slh_dsa_shake_256s", "slh_dsa_sha2_256f", "slh_dsa_shake_256f"]
 default-rng = ["rand_core/getrandom"]
 slh_dsa_sha2_128s = []
 slh_dsa_shake_128s = []
@@ -34,5 +39,5 @@ slh_dsa_sha2_256f = []
 slh_dsa_shake_256f = []
 
 
-[dev-dependencies]
-rand = "0.8.5"
+[profile.dev]
+opt-level = 3
