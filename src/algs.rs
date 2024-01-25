@@ -21,7 +21,7 @@ use crate::types::{FORS_PRF, FORS_ROOTS, FORS_TREE, TREE, WOTS_HASH, WOTS_PK, WO
 /// Output: Integer value of `X`.
 pub(crate) fn to_int(x: &[u8], n: usize) -> u64 {
     assert_eq!(x.len(), n);
-    println!("byte count  {}", x.len());
+    //println!("byte count  {}", x.len());
 
     // 1: total ← 0
     let mut total = 0_u64;
@@ -415,7 +415,7 @@ pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
             &adrs,
         )
         .expect("chain broke2!");
-        println!("wots_pk_from_sig tmp: [{}] {}", i, hex::encode(&tmp[i]));  // TODO <<<========== BROKE b4 HERE!!!
+        //println!("wots_pk_from_sig tmp: [{}] {}", i, hex::encode(&tmp[i]));  // TODO <<<========== BROKE b4 HERE!!!
 
         // 14: end for
     }
@@ -442,7 +442,7 @@ pub(crate) fn h<N: ArrayLength>(
     pk_seed: &[u8], adrs: &[u8], lnode: &[u8], rnode: &[u8],
 ) -> GenericArray<u8, N> {
     let mut hasher = Shake256::default();
-    [pk_seed, &adrs, lnode, rnode]
+    [pk_seed, adrs, lnode, rnode]
         .iter()
         .for_each(|item| hasher.update(item));
     let mut reader = hasher.finalize_xof();
@@ -584,10 +584,12 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
 
     // 5: node[0] ← wots_PKFromSig(sig, M, PK.seed, ADRS)
     let mut node_0 = wots_pk_from_sig::<LEN, N>(sig, m, pk_seed, &adrs).0.clone();
-    println!("verif node_0: {}", hex::encode(&node_0)); // TODO blah...3rd? time here
-    if node_0[0] == 0x9a {
-        println!("wogga");
-    }
+    //println!("verif node_0: {}", hex::encode(&node_0)); // TODO blah...3rd? time here
+    //if node_0[0] == 0x9a {
+        //println!("wogga");
+        //println!("auth 0 : {}", hex::encode(&auth[0]));
+
+    //}
     // 6:
     // 7: ADRS.setTypeAndClear(TREE)    ▷ Compute root from WOTS+ pk and AUTH
     adrs.set_type_and_clear(TREE);
@@ -603,11 +605,11 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
 
         // 11:   if idx/2^k is even then
         #[allow(clippy::if_not_else)] // Follows the algorithm as written
-        let node_1 = if ((idx >> k) % 2) == 0 {
+        let node_1 = if ((idx >> k) & 1) == 0 {
             // 12:     ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
             let tmp = adrs.get_tree_index() / 2;
             adrs.set_tree_index(tmp);
-
+            println!("hit even!! {:x?}", idx);  // Odd, this is 4 but py is 5
             // 13:     node[1] ← H(PK.seed, ADRS, node[0] ∥ AUTH[k])
             h(pk_seed, &adrs.to_bytes(), &node_0, &auth[k as usize])
 
@@ -619,8 +621,16 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
             adrs.set_tree_index(tmp);
 
             // 16:     node[1] ← H(PK.seed, ADRS, AUTH[k] ∥ node[0])
-            h(pk_seed, &adrs.to_bytes(), &auth[k as usize], &node_0)
-
+            let xy = h(pk_seed, &adrs.to_bytes(), &auth[k as usize], &node_0);
+            // if node_0[0] == 0x9a {
+            //     println!("wogga");
+            //     println!("pk_seed : {}", hex::encode(&pk_seed));
+            //     println!("addrs 0 : {}", hex::encode(&adrs.to_bytes()));
+            //     println!("auth k : {}", hex::encode(&auth[k as usize]));
+            //     println!("node0 0 : {}", hex::encode(&node_0));
+            //     println!("xy 0 : {}", hex::encode(&xy));  // we are golden here
+            // }
+            xy
             // 17:   end if
         };
 
@@ -631,6 +641,7 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
     }
 
     // 20: return node[0]
+    println!("returns node0 0 : {}", hex::encode(&node_0)); // we are golden here YYYYYYYYYY
     node_0
 }
 
@@ -651,6 +662,7 @@ pub(crate) fn ht_sign<
 >(
     m: &[u8], sk_seed: &[u8], pk_seed: &[u8], idx_tree: u64, idx_leaf: u32,
 ) -> Result<HtSig<D, HP, LEN, N>, &'static str> {
+    let mut idx_tree = idx_tree;
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -676,7 +688,7 @@ pub(crate) fn ht_sign<
         let idx_leaf = idx_tree % 2u64.pow(HP::to_u32());
 
         // 9:    idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
-        let idx_tree = idx_tree >> HP::to_u32();
+        idx_tree = idx_tree >> HP::to_u32();
 
         // 10:   ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);
@@ -693,15 +705,18 @@ pub(crate) fn ht_sign<
         // 14:   if j < d − 1 then
         if j < (D::to_u32() - 1) {
             //
+            println!("rooooooot before --> : {}", hex::encode(&root)); // we are golden here YYYYYYYYYY
+
             // 15:     root ← xmss_PKFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
             root = xmss_pk_from_sig::<HP, LEN, N>(idx_leaf as u32, &sig_tmp, &root, pk_seed, &adrs);
+            println!("rooooooot after  --> : {}", hex::encode(&root)); // we are golden here YYYYYYYYYY
 
             // 16:   end if
         }
 
         // 17: end for
     }
-
+    println!("sig_ht (maybe several): {}", hex::encode(&sig_ht.xmss_sigs[0].sig_wots.data[0])); // we are golden here YYYYYYYYYY
     // 18: return SIGHT
     Ok(sig_ht)
 }
@@ -716,6 +731,7 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
     m: &[u8], sig_ht: &HtSig<D, HP, LEN, N>, pk_seed: &[u8], idx_tree: u64, idx_leaf: u32,
     pk_root: &GenericArray<u8, N>,
 ) -> bool {
+    let mut idx_tree = idx_tree;
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -729,7 +745,7 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
 
     // 5: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
     let mut node = xmss_pk_from_sig(idx_leaf, &sig_tmp, m, pk_seed, &adrs);
-    println!("verif node: {}", hex::encode(&node));
+    //println!("verif node: {}", hex::encode(&node));
 
     // 6: for j from 1 to d − 1 do
     for j in 1..D::to_u32() {
@@ -738,7 +754,7 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
         let idx_leaf = idx_tree % 2u64.pow(HP::to_u32());
 
         // 8:    idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
-        let idx_tree = idx_tree >> HP::to_u32();
+        idx_tree = idx_tree >> HP::to_u32();
 
         // 9:    ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);
@@ -760,6 +776,9 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
     // 16: else
     // 17:   return false
     // 18: end if
+    for i in 0..node.len() {
+        if node[i] != pk_root[i] {println!("mismatch at {} ",i)}
+    }
     node == *pk_root
 }
 

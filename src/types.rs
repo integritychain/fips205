@@ -3,7 +3,7 @@ use generic_array::{ArrayLength, GenericArray};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Fig 16 on page 34
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SlhDsaSig<
     A: ArrayLength,
     D: ArrayLength,
@@ -15,6 +15,49 @@ pub struct SlhDsaSig<
     pub(crate) randomness: GenericArray<u8, N>,
     pub(crate) fors_sig: ForsSig<A, K, N>,
     pub(crate) ht_sig: HtSig<D, HP, LEN, N>,
+}
+
+impl<
+    A: ArrayLength,
+    D: ArrayLength,
+    HP: ArrayLength,
+    K: ArrayLength,
+    LEN: ArrayLength,
+    N: ArrayLength,
+> SlhDsaSig<A, D, HP, K, LEN, N> {
+    pub fn deser(self, out: &mut [u8]) {
+        assert_eq!(out.len(), N::to_usize() +  // randomness
+        N::to_usize() * K::to_usize() + K::to_usize() * A::to_usize() * N::to_usize() + // ForsSig
+            D::to_usize() * (HP::to_usize() * N::to_usize() + LEN::to_usize() * N::to_usize())
+        );
+        out[0..N::to_usize()].copy_from_slice(&self.randomness);
+        let mut start = N::to_usize();
+        // for k in 0..K::to_usize() {
+        //     out[start..(start+N::to_usize())].copy_from_slice(&self.fors_sig.private_key_value[k]);
+        //     start += N::to_usize();
+        // }
+        for k in 0..K::to_usize() {
+            out[start..(start+N::to_usize())].copy_from_slice(&self.fors_sig.private_key_value[k]);
+            start += N::to_usize();
+            for a in 0..A::to_usize() {
+                out[start..(start+N::to_usize())].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
+                start += N::to_usize();
+            }
+        }
+        for d in 0..D::to_usize() {
+            println!("and we move to xmss {} starting at {}", d, start);
+
+            for len in 0..LEN::to_usize() {
+                out[start..(start+N::to_usize())].copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
+                start += N::to_usize();
+            }
+            for hp in 0..HP::to_usize() {
+                out[start..(start+N::to_usize())].copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
+                start += N::to_usize();
+            }
+        }
+        assert_eq!(start, out.len())
+    }
 }
 
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
@@ -32,7 +75,7 @@ pub struct SlhPrivateKey<N: ArrayLength> {
 
 
 /// Fig 13 on page 29
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct ForsSig<A: ArrayLength, K: ArrayLength, N: ArrayLength> {
     pub(crate) private_key_value: GenericArray<GenericArray<u8, N>, K>,
     pub(crate) auth: GenericArray<Auth<A, N>, K>,
@@ -44,17 +87,17 @@ pub(crate) struct ForsPk<N: ArrayLength> {
 }
 
 /// Fig 10?
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct Auth<A: ArrayLength, N: ArrayLength> {
     pub(crate) tree: GenericArray<GenericArray<u8, N>, A>,
 }
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct HtSig<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> {
     pub(crate) xmss_sigs: GenericArray<XmssSig<HP, LEN, N>, D>,
 }
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub struct WotsSig<LEN: ArrayLength, N: ArrayLength> {
     pub(crate) data: GenericArray<GenericArray<u8, N>, LEN>,
 }
@@ -63,7 +106,7 @@ pub struct WotsSig<LEN: ArrayLength, N: ArrayLength> {
 pub struct WotsPk<N: ArrayLength>(pub(crate) GenericArray<u8, N>);
 
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub struct XmssSig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> {
     pub(crate) sig_wots: WotsSig<LEN, N>,
     pub(crate) auth: GenericArray<GenericArray<u8, N>, HP>,
