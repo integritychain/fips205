@@ -1,14 +1,15 @@
 use generic_array::{ArrayLength, GenericArray};
+use generic_array::typenum::U33;
 use rand_core::CryptoRngCore;
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake256,
 };
-
 use crate::types::{
     Adrs, ForsPk, ForsSig, HtSig, SlhDsaSig, SlhPrivateKey, SlhPublicKey, WotsPk, WotsSig, XmssSig,
 };
 use crate::types::{FORS_PRF, FORS_ROOTS, FORS_TREE, TREE, WOTS_HASH, WOTS_PK, WOTS_PRF};
+
 
 /// Algorithm 1: `toInt(X, n)` on page 14.
 /// Convert a byte string to an integer.
@@ -116,22 +117,11 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
     // 14: return baseb  (mutable parameter)
 }
 
-
-#[must_use]
-pub(crate) fn shake256<N: ArrayLength>(input: &[&[u8]]) -> GenericArray<u8, N> {
+pub(crate) fn shake256_a(input: &[&[u8]], out: &mut [u8]) {
     let mut hasher = Shake256::default();
     input.iter().for_each(|item| hasher.update(item));
     let mut reader = hasher.finalize_xof();
-    let mut result = GenericArray::default();
-    reader.read(&mut result);
-    result
-}
-
-
-pub(crate) fn f<N: ArrayLength>(
-    pk_seed: &[u8], adrs: &Adrs, tmp: &GenericArray<u8, N>,
-) -> GenericArray<u8, N> {
-    shake256(&[&pk_seed, &adrs.to_32_bytes(), tmp])
+    reader.read(out);
 }
 
 
@@ -171,7 +161,8 @@ pub(crate) fn chain<N: ArrayLength>(
         adrs.set_hash_address(j.try_into().expect("usize->u32 fails")); // TODO: something better than expect?
 
         // 9:    tmp ← F(PK.seed, ADRS, tmp)
-        tmp = f(pk_seed, &adrs, &tmp);
+        //tmp = f(pk_seed, &adrs, &tmp);
+        shake256_a(&[pk_seed, &adrs.to_32_bytes(), &tmp.clone()], &mut tmp[..]);
 
         // 10: end for
     }
@@ -181,23 +172,10 @@ pub(crate) fn chain<N: ArrayLength>(
 }
 
 
-#[allow(clippy::similar_names)]
-pub(crate) fn prf<N: ArrayLength>(
-    pk_seed: &[u8], sk_seed: &[u8], adrs: &[u8],
-) -> GenericArray<u8, N> {
-    shake256(&[&pk_seed, &adrs, &sk_seed]) // note order
-} // NOTE ORDER
-
-#[allow(clippy::similar_names)]
-pub(crate) fn prf2<N: ArrayLength>(a0: &[u8], b1: &[u8], c2: &[u8]) -> GenericArray<u8, N> {
-    shake256(&[&a0, &b1, &c2])
-} // NOTE ORDER
-
-
 pub(crate) fn tlen<LEN: ArrayLength, N: ArrayLength>(
     pk_seed: &[u8], adrs: &Adrs, ml: &GenericArray<GenericArray<u8, N>, LEN>,
 ) -> GenericArray<u8, N>
-where
+    where
 {
     let mut hasher = Shake256::default();
     hasher.update(pk_seed);
@@ -242,7 +220,8 @@ pub(crate) fn wots_pkgen<LEN: ArrayLength, N: ArrayLength>(
         sk_adrs.set_chain_address(i);
 
         // 6:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-        let sk = prf(pk_seed, sk_seed, &sk_adrs.to_32_bytes());
+        let mut sk = GenericArray::default();
+        shake256_a(&[pk_seed, &sk_adrs.to_32_bytes(), sk_seed], &mut sk);  // Note spec swaps latter two parms
 
         // 7:   ADRS.setChainAddress(i)
         adrs.set_chain_address(i);
@@ -333,7 +312,8 @@ pub(crate) fn wots_sign<LEN: ArrayLength, N: ArrayLength>(
         sk_addrs.set_chain_address(i as u32);
 
         // 17:   sk ← PRF(PK.seed, SK.seed, skADRS)    ▷ Compute secret value for chain i
-        let sk = prf(pk_seed, sk_seed, &sk_addrs.to_32_bytes());
+        let mut sk = GenericArray::default();
+        shake256_a(&[pk_seed, &sk_addrs.to_32_bytes(), sk_seed], &mut sk);
 
         // 18:   ADRS.setChainAddress(i)
         adrs.set_chain_address(i as u32);
@@ -408,7 +388,7 @@ pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
             pk_seed,
             &adrs,
         )
-        .expect("chain broke2!");
+            .expect("chain broke2!");
 
         // 14: end for
     }
@@ -427,21 +407,6 @@ pub(crate) fn wots_pk_from_sig<LEN: ArrayLength, N: ArrayLength>(
 
     // 19: return pksig
     WotsPk(pk)
-}
-
-
-#[allow(clippy::similar_names)] // lnode and rnode
-pub(crate) fn h<N: ArrayLength>(
-    pk_seed: &[u8], adrs: &[u8], lnode: &[u8], rnode: &[u8],
-) -> GenericArray<u8, N> {
-    let mut hasher = Shake256::default();
-    [pk_seed, adrs, lnode, rnode]
-        .iter()
-        .for_each(|item| hasher.update(item));
-    let mut reader = hasher.finalize_xof();
-    let mut result = GenericArray::default();
-    reader.read(&mut result);
-    result
 }
 
 
@@ -478,7 +443,7 @@ pub(crate) fn xmss_node<H: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
         // 7:    node ← wots_PKgen(SK.seed, PK.seed, ADRS)
         wots_pkgen::<LEN, N>(sk_seed, pk_seed, &adrs).0.clone() // TODO remove clone?
 
-    // 8: else
+        // 8: else
     } else {
         //
         // 9:    lnode ← xmss_node(SK.seed, 2 * i, z − 1, PK.seed, ADRS)
@@ -497,7 +462,9 @@ pub(crate) fn xmss_node<H: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
         adrs.set_tree_index(i);
 
         // 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
-        h(pk_seed, &adrs.to_32_bytes(), &lnode, &rnode)
+        let mut node = GenericArray::default();
+        shake256_a(&[pk_seed, &adrs.to_32_bytes(), &lnode, &rnode], &mut node);
+        node
 
         // 15: end if
     };
@@ -590,14 +557,16 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
 
         // 11:   if idx/2^k is even then
         #[allow(clippy::if_not_else)] // Follows the algorithm as written
-        let node_1 = if ((idx >> k) & 1) == 0 {
+            let node_1 = if ((idx >> k) & 1) == 0 {
             //
             // 12:     ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
             let tmp = adrs.get_tree_index() / 2;
             adrs.set_tree_index(tmp);
 
             // 13:     node[1] ← H(PK.seed, ADRS, node[0] ∥ AUTH[k])
-            h(pk_seed, &adrs.to_32_bytes(), &node_0, &auth[k as usize])
+            let mut node_1 = GenericArray::default();
+            shake256_a(&[pk_seed, &adrs.to_32_bytes(), &node_0, &auth[k as usize]], &mut node_1);
+            node_1
 
             // 14:   else
         } else {
@@ -607,7 +576,9 @@ pub(crate) fn xmss_pk_from_sig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength
             adrs.set_tree_index(tmp);
 
             // 16:     node[1] ← H(PK.seed, ADRS, AUTH[k] ∥ node[0])
-            h(pk_seed, &adrs.to_32_bytes(), &auth[k as usize], &node_0)
+            let mut node_1 = GenericArray::default();
+            shake256_a(&[pk_seed, &adrs.to_32_bytes(), &auth[k as usize], &node_0], &mut node_1);
+            node_1
 
             // 17:   end if
         };
@@ -662,7 +633,8 @@ pub(crate) fn ht_sign<
     for j in 1..D::to_u32() {
         //
         // 8:    idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32())).map_err(|_| "Alg11: oversized idx leaf")?;
+        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32()))
+            .map_err(|_| "Alg11: oversized idx leaf")?;
 
         // 9:    idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
         idx_tree >>= HP::to_u32();
@@ -726,7 +698,9 @@ pub(crate) fn ht_verify<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: Ar
         //
         // 7:    idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
         let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32()));
-        if idx_leaf.is_err() {return false};
+        if idx_leaf.is_err() {
+            return false;
+        };
         let idx_leaf = idx_leaf.unwrap();
 
         // 8:    idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
@@ -778,7 +752,9 @@ pub(crate) fn fors_sk_gen<N: ArrayLength>(
     sk_adrs.set_tree_index(idx);
 
     // 5: return PRF(PK.seed, SK.seed, skADRS)
-    prf(pk_seed, sk_seed, &sk_adrs.to_32_bytes())
+    let mut res = GenericArray::default();
+    shake256_a(&[pk_seed, &sk_adrs.to_32_bytes(), sk_seed], &mut res);  // Note the spec swaps latter two parms
+    res
 }
 
 
@@ -807,7 +783,7 @@ pub(crate) fn fors_node<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
     let node = if z == 0 {
         //
         // 5:    sk ← fors_SKgen(SK.seed, PK.seed, ADRS, i)
-        let sk = fors_sk_gen(sk_seed, pk_seed, &adrs, i);
+        let sk: GenericArray<u8, N> = fors_sk_gen(sk_seed, pk_seed, &adrs, i);
 
         // 6:    ADRS.setTreeHeight(0)
         adrs.set_tree_height(0);
@@ -816,7 +792,9 @@ pub(crate) fn fors_node<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
         adrs.set_tree_index(i);
 
         // 8:    node ← F(PK.seed, ADRS, sk)
-        f(pk_seed, &adrs, &sk)
+        let mut node = GenericArray::default();
+        shake256_a(&[pk_seed, &adrs.to_32_bytes(), &sk], &mut node);
+        node
 
         // 9:  else
     } else {
@@ -834,7 +812,9 @@ pub(crate) fn fors_node<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
         adrs.set_tree_index(i);
 
         // 14:   node ← H(PK.seed, ADRS, lnode ∥ rnode)
-        h(pk_seed, &adrs.to_32_bytes(), &lnode, &rnode)
+        let mut node = GenericArray::default();
+        shake256_a(&[pk_seed, &adrs.to_32_bytes(), &lnode, &rnode], &mut node);
+        node
 
         // 15: end if
     };
@@ -933,7 +913,8 @@ pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
         adrs.set_tree_index(i * 2u32.pow(A::to_u32()) + indices[i as usize] as u32);
 
         // 6:   node[0] ← F(PK.seed, ADRS, sk)
-        let mut node_0 = f(pk_seed, &adrs, &sk);
+        let mut node_0 = GenericArray::default();
+        shake256_a(&[pk_seed, &adrs.to_32_bytes(), &sk], &mut node_0);
 
         // 7:
         // 8: auth ← SIGFORS.getAUTH(i)    ▷ SIGFORS [(i · (a + 1) + 1) · n : (i + 1) · (a + 1) · n]
@@ -953,7 +934,9 @@ pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
                 adrs.set_tree_index(tmp);
 
                 // 13:    node[1] ← H(PK.seed, ADRS, node[0] ∥ auth[j])
-                h(pk_seed, &adrs.to_32_bytes(), &node_0, &auth.tree[j as usize])
+                let mut node_1 = GenericArray::default();
+                shake256_a(&[pk_seed, &adrs.to_32_bytes(), &node_0, &auth.tree[j as usize]], &mut node_1);
+                node_1
 
                 // 14:  else
             } else {
@@ -963,7 +946,9 @@ pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
                 adrs.set_tree_index(tmp);
 
                 // 16:    node[1] ← H(PK.seed, ADRS, auth[j] ∥ node[0])
-                h(pk_seed, &adrs.to_32_bytes(), &auth.tree[j as usize], &node_0)
+                let mut node_1 = GenericArray::default();
+                shake256_a(&[pk_seed, &adrs.to_32_bytes(), &auth.tree[j as usize], &node_0], &mut node_1);
+                node_1
 
                 // 17:  end if
             };
@@ -990,7 +975,13 @@ pub(crate) fn fors_pk_from_sig<A: ArrayLength, K: ArrayLength, N: ArrayLength>(
     fors_pk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 25: pk ← Tk(PK.seed, forspkADRS, root)
-    let pk = tlen(pk_seed, &fors_pk_adrs, &root);
+    let mut pk = GenericArray::default();  // TODO: UGLY UGLY UGLY!!
+    let mut root_refs: GenericArray<&[u8], U33> = GenericArray::default();
+    root_refs[0] = &pk_seed;
+    let binding = fors_pk_adrs.to_32_bytes();
+    root_refs[1] = &binding;
+    root.iter().enumerate().for_each(|(a, b)| root_refs[a + 2] = b);
+    shake256_a(&root_refs[0..K::to_usize() + 2], &mut pk);
 
     // 26: return pk;
     ForsPk { key: pk }
@@ -1080,7 +1071,8 @@ pub(crate) fn slh_sign_with_rng<
     }
 
     // 7: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
-    let r = prf2(&sk.sk_prf, &opt_rand, m);
+    let mut r = GenericArray::default();
+    shake256_a(&[&sk.sk_prf, &opt_rand, m], &mut r);
 
 
     // 8: SIG ← R
@@ -1089,7 +1081,8 @@ pub(crate) fn slh_sign_with_rng<
 
     // 9:
     // 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-    let digest = h::<M>(&r, &sk.pk_seed, &sk.pk_root, m);
+    let mut digest: generic_array::GenericArray<u8, M> = GenericArray::default();
+    shake256_a(&[&r, &sk.pk_seed, &sk.pk_root, m], &mut digest);
 
 
     // 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
@@ -1169,7 +1162,7 @@ pub(crate) fn slh_verify<
     // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
     // 2:   return false
     // 3: end if
-    // TODO: THIS FUNCTION PROBABLY WANTS A BYTE ARRAY SIGNATURE, THEN DESERIALIZE (??)
+    // The above size is performed in the wrapper/adapter deserialize function
 
     // 4: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -1185,7 +1178,8 @@ pub(crate) fn slh_verify<
 
     // 8:
     // 9: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-    let digest = h::<M>(r, &pk.pk_seed, &pk.pk_root, m);
+    let mut digest: generic_array::GenericArray<u8, M> = GenericArray::default();
+    shake256_a(&[&r, &pk.pk_seed, &pk.pk_root, m], &mut digest);
 
     // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K::to_usize() * A::to_usize()).div_ceil(8);

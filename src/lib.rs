@@ -3,13 +3,11 @@
 #![deny(warnings)]
 #![deny(missing_docs)]
 // TODO
-//  1. Get one instance working (or at least not erroring)
-//  3. revisit/clean hash functions
+//  1. General clean-up
+//  2. revisit/clean hash functions
+//  3. Doc, of course!
 
 //! TKTK crate doc
-
-//extern crate alloc;
-//extern crate core; // TODO: remove (with vecs)
 
 mod algs;
 mod test;
@@ -30,7 +28,6 @@ macro_rules! functionality {
 
         /// blah
         /// # Errors
-        ///
         pub fn slh_keygen_with_rng(
             rng: &mut impl CryptoRngCore,
         ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
@@ -39,20 +36,19 @@ macro_rules! functionality {
 
         /// blah
         /// # Errors
-        ///
         pub fn slh_sign_with_rng(
             rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>, randomize: bool,
-        ) -> Result<SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, &'static str> {
-            crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
-                rng, &m, &sk, randomize,
-            )
+        ) -> Result<[u8; SIG_LEN], &'static str> {
+            let sig = crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(rng, &m, &sk, randomize);
+            sig.map(|s| s.deserialize())
         }
 
         /// blah
         #[must_use]
         pub fn slh_verify(
-            m: &[u8], sig: &SlhDsaSig<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>, pk: &SlhPublicKey<N>,
+            m: &[u8], sig_bytes: &[u8; SIG_LEN], pk: &SlhPublicKey<N>
         ) -> bool {
+            let sig = SlhDsaSig::<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>::serialize(sig_bytes);
             crate::algs::slh_verify::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(&m, &sig, &pk)
         }
 
@@ -71,9 +67,9 @@ macro_rules! functionality {
                     let sig = slh_sign_with_rng(&mut rng, &message, &sk, false).unwrap();
                     let result = slh_verify(&message, &sig, &pk);
                     assert_eq!(result, true, "Signature failed to verify");
-                    message[3] = i + 1 as u8;
+                    message[3] = (i + 1) as u8;
                     let result = slh_verify(&message, &sig, &pk);
-                    assert_eq!(result, false, "Signature should not have verifed");
+                    assert_eq!(result, false, "Signature should not have verified");
                 }
             }
         }
@@ -93,7 +89,7 @@ pub mod slh_dsa_sha2_128s {
     type K = U14;
     type M = U30;
     //const PK_LEN: usize = 32;
-    //const SIG_LEN: usize = 7856;
+    const SIG_LEN: usize = 7856;
     //const SK_LEN: usize = 0000;
 
     functionality!();
