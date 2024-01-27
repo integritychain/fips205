@@ -1,15 +1,19 @@
 #![no_std]
 #![deny(clippy::pedantic)]
 #![deny(warnings)]
-#![deny(missing_docs)]
+
+
+//#![deny(missing_docs)]
+#[allow(dead_code)]
 // TODO
 //  1. General clean-up
 //  2. revisit/clean hash functions
 //  3. Doc, of course!
 
-//! TKTK crate doc
-
+// TKTK crate doc
+/// crate doc?
 mod algs;
+mod hashers;
 mod test;
 mod traits;
 mod types;
@@ -31,7 +35,7 @@ macro_rules! functionality {
         pub fn slh_keygen_with_rng(
             rng: &mut impl CryptoRngCore,
         ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
-            crate::algs::slh_keygen_with_rng::<D, H, HP, Sum<Prod<U2, N>, U3>, N>(rng)
+            crate::algs::slh_keygen_with_rng::<D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(rng, &HASHERS)
         }
 
         /// blah
@@ -39,17 +43,19 @@ macro_rules! functionality {
         pub fn slh_sign_with_rng(
             rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>, randomize: bool,
         ) -> Result<[u8; SIG_LEN], &'static str> {
-            let sig = crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(rng, &m, &sk, randomize);
+            let sig = crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
+                rng, &HASHERS, &m, &sk, randomize,
+            );
             sig.map(|s| s.deserialize())
         }
 
         /// blah
         #[must_use]
-        pub fn slh_verify(
-            m: &[u8], sig_bytes: &[u8; SIG_LEN], pk: &SlhPublicKey<N>
-        ) -> bool {
+        pub fn slh_verify(m: &[u8], sig_bytes: &[u8; SIG_LEN], pk: &SlhPublicKey<N>) -> bool {
             let sig = SlhDsaSig::<A, D, HP, K, Sum<Prod<U2, N>, U3>, N>::serialize(sig_bytes);
-            crate::algs::slh_verify::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(&m, &sig, &pk)
+            crate::algs::slh_verify::<A, D, H, HP, K, Sum<Prod<U2, N>, U3>, M, N>(
+                &HASHERS, &m, &sig, &pk,
+            )
         }
 
         #[cfg(test)]
@@ -79,6 +85,8 @@ macro_rules! functionality {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_128s")]
 pub mod slh_dsa_sha2_128s {
+    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::Hashers;
     use generic_array::typenum::{U12, U14, U16, U30, U63, U7, U9};
 
     type N = U16;
@@ -88,9 +96,11 @@ pub mod slh_dsa_sha2_128s {
     type A = U12;
     type K = U14;
     type M = U30;
+    type LEN = Sum<Prod<U2, N>, U3>;
     //const PK_LEN: usize = 32;
     const SIG_LEN: usize = 7856;
     //const SK_LEN: usize = 0000;
+    static HASHERS: Hashers<K, LEN, M, N> = Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len };
 
     functionality!();
 }
