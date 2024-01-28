@@ -31,7 +31,7 @@ pub(crate) mod shake {
     use sha3::Shake256;
 
 
-    pub(crate) fn shake256_a(input: &[&[u8]], out: &mut [u8]) {
+    fn shake256_a(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Shake256::default();
         input.iter().for_each(|item| hasher.update(item));
         let mut reader = hasher.finalize_xof();
@@ -104,5 +104,53 @@ pub(crate) mod shake {
         reader.read(&mut result);
         result
     }
+}
 
+pub(crate) mod sha2_cat1 {
+    use crate::types::Adrs;
+    use generic_array::{ArrayLength, GenericArray};
+
+
+    pub(crate) fn h_msg<M: ArrayLength>(
+        _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
+    ) -> GenericArray<u8, M> {
+        unimplemented!()
+    }
+
+    pub(crate) fn prf<N: ArrayLength>(
+        _pk_seed: &[u8], _sk_seed: &[u8], _adrs: &Adrs,
+    ) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
+
+    pub(crate) fn prf_msg<N: ArrayLength>(
+        _sk_prf: &[u8], _opt_rand: &[u8], _m: &[u8],
+    ) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
+
+    pub(crate) fn f<N: ArrayLength>(_pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8]) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
+
+    pub(crate) fn h<N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8], _m2: &[u8],
+    ) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
+
+    // Until a more elegant way is found to covert ml into list of bytes
+    pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, LEN>,
+    ) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
+
+    // TODO: Squash K and LEN versions
+    // Until a more elegant way is found to covert ml into list of bytes
+    pub(crate) fn t_len<K: ArrayLength, N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, K>,
+    ) -> GenericArray<u8, N> {
+        unimplemented!()
+    }
 }

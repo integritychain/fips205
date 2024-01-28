@@ -125,8 +125,8 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
 pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
-    hashers: &Hashers<K, LEN, M, N>, cap_x: GenericArray<u8, N>, i: usize, s: usize, pk_seed: &[u8],
-    adrs: &Adrs,
+    hashers: &Hashers<K, LEN, M, N>, cap_x: GenericArray<u8, N>, i: usize, s: usize,
+    pk_seed: &[u8], adrs: &Adrs,
 ) -> Option<GenericArray<u8, N>> {
     let mut adrs = adrs.clone();
 
@@ -427,7 +427,8 @@ pub(crate) fn xmss_node<
     } else {
         //
         // 9:    lnode ← xmss_node(SK.seed, 2 * i, z − 1, PK.seed, ADRS)
-        let lnode = xmss_node::<H, HP, K, LEN, M, N>(hashers, sk_seed, 2 * i, z - 1, pk_seed, &adrs)?;
+        let lnode =
+            xmss_node::<H, HP, K, LEN, M, N>(hashers, sk_seed, 2 * i, z - 1, pk_seed, &adrs)?;
 
         // 10:   rnode ← xmss_node(SK.seed, 2 * i + 1, z − 1, PK.seed, ADRS)
         let rnode =
@@ -467,7 +468,8 @@ pub(crate) fn xmss_sign<
     M: ArrayLength,
     N: ArrayLength,
 >(
-    hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], idx: u32, pk_seed: &[u8], adrs: &Adrs,
+    hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], idx: u32, pk_seed: &[u8],
+    adrs: &Adrs,
 ) -> Result<XmssSig<HP, LEN, N>, &'static str> {
     let mut adrs = adrs.clone();
     let mut sig_xmss = XmssSig::default();
@@ -615,7 +617,8 @@ pub(crate) fn ht_sign<
     adrs.set_tree_address(idx_tree);
 
     // 4: SIG_tmp ← xmss_sign(M, SK.seed, idxleaf, PK.seed, ADRS)
-    let mut sig_tmp = xmss_sign::<H, HP, K, LEN, M, N>(hashers, m, sk_seed, idx_leaf, pk_seed, &adrs)?;
+    let mut sig_tmp =
+        xmss_sign::<H, HP, K, LEN, M, N>(hashers, m, sk_seed, idx_leaf, pk_seed, &adrs)?;
 
     // 5: SIG_HT ← SIG_tmp
     let mut sig_ht = HtSig::default();
@@ -642,7 +645,8 @@ pub(crate) fn ht_sign<
         adrs.set_tree_address(idx_tree);
 
         // 12:   SIG_tmp ← xmss_sign(root, SK.seed, idx_leaf, PK.seed, ADRS)
-        sig_tmp = xmss_sign::<H, HP, K, LEN, M, N>(hashers, &root, sk_seed, idx_leaf, pk_seed, &adrs)?;
+        sig_tmp =
+            xmss_sign::<H, HP, K, LEN, M, N>(hashers, &root, sk_seed, idx_leaf, pk_seed, &adrs)?;
 
         // 13:   SIG_HT ← SIG_HT ∥ SIG_tmp
         sig_ht.xmss_sigs[j as usize] = sig_tmp.clone();
