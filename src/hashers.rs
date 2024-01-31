@@ -31,7 +31,7 @@ pub(crate) mod shake {
     use sha3::Shake256;
 
 
-    fn shake256_a(input: &[&[u8]], out: &mut [u8]) {
+    pub fn shake256_a(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Shake256::default();
         input.iter().for_each(|item| hasher.update(item));
         let mut reader = hasher.finalize_xof();
@@ -106,15 +106,26 @@ pub(crate) mod shake {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) mod sha2_cat_1 {
+    use crate::hashers::shake::shake256_a;
     use crate::types::Adrs;
     use generic_array::{ArrayLength, GenericArray};
 
+    // a non-zero hash function to allow placeholder tests to pass
     pub(crate) fn h_msg<M: ArrayLength>(
-        _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
+        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
     ) -> GenericArray<u8, M> {
-        GenericArray::default()
+        let mut digest: GenericArray<u8, M> = GenericArray::default();
+        shake256_a(&[&r, &pk_seed, &pk_root, m], &mut digest);
+        digest
     }
+
+    // pub(crate) fn h_msg<M: ArrayLength>(
+    //     _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
+    // ) -> GenericArray<u8, M> {
+    //     GenericArray::default()
+    // }
 
     pub(crate) fn prf<N: ArrayLength>(
         _pk_seed: &[u8], _sk_seed: &[u8], _adrs: &Adrs,
@@ -156,7 +167,7 @@ pub(crate) mod sha2_cat_1 {
     }
 }
 
-
+#[allow(dead_code)]
 pub(crate) mod sha2_cat_3_5 {
     use crate::types::Adrs;
     use generic_array::{ArrayLength, GenericArray};
