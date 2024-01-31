@@ -40,7 +40,7 @@ mod tests {
     }
 
 
-    use crate::slh_dsa_sha2_128s::{slh_keygen_with_rng, slh_sign_with_rng, slh_verify};
+    use crate::slh_dsa_shake_128s::{slh_keygen_with_rng, slh_sign_with_rng, slh_verify};
 
     #[test]
     fn vector_debug() {

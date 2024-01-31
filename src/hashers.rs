@@ -106,44 +106,45 @@ pub(crate) mod shake {
     }
 }
 
-pub(crate) mod sha2_cat1 {
+pub(crate) mod sha2_cat_1 {
     use crate::types::Adrs;
     use generic_array::{ArrayLength, GenericArray};
-
 
     pub(crate) fn h_msg<M: ArrayLength>(
         _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
     ) -> GenericArray<u8, M> {
-        unimplemented!()
+        GenericArray::default()
     }
 
     pub(crate) fn prf<N: ArrayLength>(
         _pk_seed: &[u8], _sk_seed: &[u8], _adrs: &Adrs,
     ) -> GenericArray<u8, N> {
-        unimplemented!()
+        GenericArray::default()
     }
 
     pub(crate) fn prf_msg<N: ArrayLength>(
         _sk_prf: &[u8], _opt_rand: &[u8], _m: &[u8],
     ) -> GenericArray<u8, N> {
-        unimplemented!()
+        GenericArray::default()
     }
 
-    pub(crate) fn f<N: ArrayLength>(_pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8]) -> GenericArray<u8, N> {
-        unimplemented!()
+    pub(crate) fn f<N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8],
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
     }
 
     pub(crate) fn h<N: ArrayLength>(
         _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8], _m2: &[u8],
     ) -> GenericArray<u8, N> {
-        unimplemented!()
+        GenericArray::default()
     }
 
     // Until a more elegant way is found to covert ml into list of bytes
     pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
         _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, LEN>,
     ) -> GenericArray<u8, N> {
-        unimplemented!()
+        GenericArray::default()
     }
 
     // TODO: Squash K and LEN versions
@@ -151,6 +152,57 @@ pub(crate) mod sha2_cat1 {
     pub(crate) fn t_len<K: ArrayLength, N: ArrayLength>(
         _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, K>,
     ) -> GenericArray<u8, N> {
-        unimplemented!()
+        GenericArray::default()
+    }
+}
+
+
+pub(crate) mod sha2_cat_3_5 {
+    use crate::types::Adrs;
+    use generic_array::{ArrayLength, GenericArray};
+
+    pub(crate) fn h_msg<M: ArrayLength>(
+        _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
+    ) -> GenericArray<u8, M> {
+        GenericArray::default()
+    }
+
+    pub(crate) fn prf<N: ArrayLength>(
+        _pk_seed: &[u8], _sk_seed: &[u8], _adrs: &Adrs,
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
+    }
+
+    pub(crate) fn prf_msg<N: ArrayLength>(
+        _sk_prf: &[u8], _opt_rand: &[u8], _m: &[u8],
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
+    }
+
+    pub(crate) fn f<N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8],
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
+    }
+
+    pub(crate) fn h<N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8], _m2: &[u8],
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
+    }
+
+    // Until a more elegant way is found to covert ml into list of bytes
+    pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, LEN>,
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
+    }
+
+    // TODO: Squash K and LEN versions
+    // Until a more elegant way is found to covert ml into list of bytes
+    pub(crate) fn t_len<K: ArrayLength, N: ArrayLength>(
+        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, K>,
+    ) -> GenericArray<u8, N> {
+        GenericArray::default()
     }
 }

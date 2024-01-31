@@ -1116,7 +1116,8 @@ pub(crate) fn slh_sign_with_rng<
     // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
     let idx_tree =
         to_int(tmp_idx_tree, (H::to_usize() - H::to_usize() / D::to_usize()).div_ceil(8))
-            % 2u64.pow(H::to_u32() - H::to_u32() / D::to_u32());
+            & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    // % 2u64.pow(H::to_u32() - H::to_u32() / D::to_u32()); // Can be 2^64
 
     // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
     let idx_leaf = to_int(tmp_idx_leaf, H::to_usize().div_ceil(8 * D::to_usize()))
@@ -1214,7 +1215,8 @@ pub(crate) fn slh_verify<
     // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
     let idx_tree =
         to_int(tmp_idx_tree, (H::to_usize() - H::to_usize() / D::to_usize()).div_ceil(8))
-            % 2u64.pow(H::to_u32() - H::to_u32() / D::to_u32());
+            & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    // % 2u64.pow(H::to_u32() - H::to_u32() / D::to_u32());  // Can be 2^64
 
     // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
     let idx_leaf = to_int(tmp_idx_leaf, H::to_usize().div_ceil(8 * D::to_usize()))
