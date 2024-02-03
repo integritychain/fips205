@@ -224,4 +224,16 @@ impl Adrs {
         }
         ret
     }
+
+    pub(crate) fn to_22_bytes(&self) -> [u8; 22] {
+        let mut ret = [0u8; 22];
+        ret[0] = self.f0[3];
+        ret[1..5].copy_from_slice(&self.f2);
+        ret[5..9].copy_from_slice(&self.f3);
+        ret[9] = self.f4[3];
+        ret[10..14].copy_from_slice(&self.f5);
+        ret[14..18].copy_from_slice(&self.f6);
+        ret[18..22].copy_from_slice(&self.f7);
+        ret
+    }
 }

@@ -82,8 +82,7 @@ macro_rules! functionality {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_128s")]
 pub mod slh_dsa_sha2_128s {
-    //use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l, t_len};
 
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U12, U14, U16, U2, U3, U30, U63, U7, U9};
@@ -132,8 +131,7 @@ pub mod slh_dsa_shake_128s {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_128f")]
 pub mod slh_dsa_sha2_128f {
-    //use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l, t_len};
 
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U16, U2, U22, U3, U33, U34, U6, U66};
