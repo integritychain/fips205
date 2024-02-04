@@ -180,8 +180,7 @@ pub mod slh_dsa_shake_128f {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_192s")]
 pub mod slh_dsa_sha2_192s {
-    //use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
 
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U14, U17, U2, U24, U3, U39, U63, U7, U9};
@@ -231,8 +230,7 @@ pub mod slh_dsa_shake_192s {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_192f")]
 pub mod slh_dsa_sha2_192f {
-    //use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U2, U22, U24, U3, U33, U42, U66, U8};
 
@@ -280,8 +278,7 @@ pub mod slh_dsa_shake_192f {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_256s")]
 pub mod slh_dsa_sha2_256s {
-    //use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
 
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U14, U2, U22, U3, U32, U47, U64, U8};
@@ -330,8 +327,7 @@ pub mod slh_dsa_shake_256s {
 /// TKTK
 #[cfg(feature = "slh_dsa_sha2_256f")]
 pub mod slh_dsa_sha2_256f {
-    //use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
-    use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l, t_len};
+    use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l, t_len};
 
     use crate::hashers::Hashers;
     use generic_array::typenum::{Prod, Sum, U17, U2, U3, U32, U35, U4, U49, U68, U9};

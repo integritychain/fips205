@@ -121,7 +121,6 @@ pub(crate) mod sha2_cat_1 {
     pub(crate) fn h_msg<M: ArrayLength>(
         r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
     ) -> GenericArray<u8, M> {
-        //let mut digest1: GenericArray<u8, N> = GenericArray::default();
         let mut digest1 = [0u8; 32];
         sha2_256(&[&r, &pk_seed, &pk_root, m], &mut digest1);
         let mut result: GenericArray<u8, M> = GenericArray::default();
@@ -176,7 +175,6 @@ pub(crate) mod sha2_cat_1 {
     }
 
 
-    // TODO - HMAC <<<<<<<---------------------
     pub(crate) fn prf_msg<N: ArrayLength>(
         sk_prf: &[u8], opt_rand: &[u8], m: &[u8],
     ) -> GenericArray<u8, N> {
@@ -229,7 +227,7 @@ pub(crate) mod sha2_cat_1 {
         let mut hasher = Sha256::new();
         hasher.update(pk_seed);
         hasher.update(&to_byte[0..(64 - N::to_usize())]);
-        hasher.update(&adrs.to_32_bytes());
+        hasher.update(&adrs.to_22_bytes());
         ml.iter().for_each(|item| hasher.update(item));
         let digest = hasher.finalize();
         result.copy_from_slice(&digest[0..N::to_usize()]);
@@ -246,76 +244,165 @@ pub(crate) mod sha2_cat_1 {
         let mut hasher = Sha256::new();
         hasher.update(pk_seed);
         hasher.update(&to_byte[0..(64 - N::to_usize())]);
-        hasher.update(&adrs.to_32_bytes());
+        hasher.update(&adrs.to_22_bytes());
+        ml.iter().for_each(|item| hasher.update(item));
+        let digest = hasher.finalize();
+        result.copy_from_slice(&digest[0..N::to_usize()]);
+        result
+    }
+}
+
+pub(crate) mod sha2_cat_3_5 {
+    use crate::types::Adrs;
+    use core::cmp::min;
+    use generic_array::{ArrayLength, GenericArray};
+    use sha2::{Digest, Sha256, Sha512};
+
+    // Requires length of output less than or equal to 32 byte digeest
+    pub fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
+        let mut hasher = Sha256::new();
+        input.iter().for_each(|item| hasher.update(item));
+        let result = hasher.finalize();
+        out.copy_from_slice(&result[0..out.len()]);
+    }
+
+    // Requires length of output less than or equal to 32 byte digeest
+    pub fn sha2_512(input: &[&[u8]], out: &mut [u8]) {
+        let mut hasher = Sha512::new();
+        input.iter().for_each(|item| hasher.update(item));
+        let result = hasher.finalize();
+        out.copy_from_slice(&result[0..out.len()]);
+    }
+
+    pub(crate) fn h_msg<M: ArrayLength>(
+        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
+    ) -> GenericArray<u8, M> {
+        let mut digest1 = [0u8; 64];
+        sha2_512(&[&r, &pk_seed, &pk_root, m], &mut digest1);
+        let mut result: GenericArray<u8, M> = GenericArray::default();
+        let mut start = 0;
+        let mut counter = 0u32;
+        while start < M::to_usize() {
+            let mut tmp = [0u8; 64];
+            sha2_512(&[&r, &pk_seed, &digest1, &counter.to_be_bytes()], &mut tmp);
+            let len = min(M::to_usize() - start, 64);
+            result[start..start + len].copy_from_slice(&tmp[0..len]);
+            start += 64;
+            counter += 1;
+        }
+        result
+    }
+
+    pub(crate) fn prf<N: ArrayLength>(
+        pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
+    ) -> GenericArray<u8, N> {
+        let mut digest: GenericArray<u8, N> = GenericArray::default();
+        let to_byte = [0u8; 64];
+        sha2_256(
+            &[
+                pk_seed,
+                &to_byte[0..(64 - N::to_usize())],
+                &adrs.to_22_bytes(),
+                sk_seed,
+            ],
+            &mut digest,
+        ); // Note that the spec swaps order of last to params
+        digest
+    }
+
+    pub fn hmac_sha_512(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 64] {
+        let k2 = key;
+        let mut padded = [0x36; 64];
+        for (p, &k) in padded.iter_mut().zip(k2.iter()) {
+            *p ^= k;
+        }
+        let mut inner_hasher = Sha512::new();
+        inner_hasher.update(&padded[..]);
+        inner_hasher.update(a0);
+        inner_hasher.update(b1);
+        for p in padded.iter_mut() {
+            *p ^= 0x6a;
+        }
+        let mut outer_hasher = Sha512::new();
+        outer_hasher.update(&padded[..]);
+        outer_hasher.update(inner_hasher.finalize());
+        outer_hasher.finalize().into()
+    }
+
+
+    pub(crate) fn prf_msg<N: ArrayLength>(
+        sk_prf: &[u8], opt_rand: &[u8], m: &[u8],
+    ) -> GenericArray<u8, N> {
+        let mut digest: GenericArray<u8, N> = GenericArray::default();
+        //sha2_256(&[sk_prf, opt_rand, m], &mut digest);
+        let xxx = hmac_sha_512(sk_prf, opt_rand, m);
+        digest.copy_from_slice(&xxx[0..N::to_usize()]);
+        digest
+    }
+
+    pub(crate) fn f<N: ArrayLength>(pk_seed: &[u8], adrs: &Adrs, m1: &[u8]) -> GenericArray<u8, N> {
+        let mut digest: GenericArray<u8, N> = GenericArray::default();
+        let to_byte = [0u8; 64];
+        sha2_256(
+            &[
+                pk_seed,
+                &to_byte[0..(64 - N::to_usize())],
+                &adrs.to_22_bytes(),
+                m1,
+            ],
+            &mut digest,
+        );
+        digest
+    }
+
+    pub(crate) fn h<N: ArrayLength>(
+        pk_seed: &[u8], adrs: &Adrs, m1: &[u8], m2: &[u8],
+    ) -> GenericArray<u8, N> {
+        let mut digest: GenericArray<u8, N> = GenericArray::default();
+        let to_byte = [0u8; 128];
+        sha2_512(
+            &[
+                pk_seed,
+                &to_byte[0..(128 - N::to_usize())],
+                &adrs.to_22_bytes(),
+                m1,
+                m2,
+            ],
+            &mut digest,
+        );
+        digest
+    }
+
+    // Until a more elegant way is found to covert ml into list of bytes
+    pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
+        pk_seed: &[u8], adrs: &Adrs, ml: &GenericArray<GenericArray<u8, N>, LEN>,
+    ) -> GenericArray<u8, N> {
+        let mut result = GenericArray::default();
+        let to_byte = [0u8; 128];
+        let mut hasher = Sha512::new();
+        hasher.update(pk_seed);
+        hasher.update(&to_byte[0..(128 - N::to_usize())]);
+        hasher.update(&adrs.to_22_bytes());
         ml.iter().for_each(|item| hasher.update(item));
         let digest = hasher.finalize();
         result.copy_from_slice(&digest[0..N::to_usize()]);
         result
     }
 
-    // // Until a more elegant way is found to covert ml into list of bytes
-    // pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
-    //     _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, LEN>,
-    // ) -> GenericArray<u8, N> {
-    //     GenericArray::default()
-    // }
-    //
-    // // TODO: Squash K and LEN versions
-    // // Until a more elegant way is found to covert ml into list of bytes
-    // pub(crate) fn t_len<K: ArrayLength, N: ArrayLength>(
-    //     _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, K>,
-    // ) -> GenericArray<u8, N> {
-    //     GenericArray::default()
-    // }
-}
-
-#[allow(dead_code)]
-pub(crate) mod sha2_cat_3_5 {
-    use crate::types::Adrs;
-    use generic_array::{ArrayLength, GenericArray};
-
-    pub(crate) fn h_msg<M: ArrayLength>(
-        _r: &[u8], _pk_seed: &[u8], _pk_root: &[u8], _m: &[u8],
-    ) -> GenericArray<u8, M> {
-        GenericArray::default()
-    }
-
-    pub(crate) fn prf<N: ArrayLength>(
-        _pk_seed: &[u8], _sk_seed: &[u8], _adrs: &Adrs,
-    ) -> GenericArray<u8, N> {
-        GenericArray::default()
-    }
-
-    pub(crate) fn prf_msg<N: ArrayLength>(
-        _sk_prf: &[u8], _opt_rand: &[u8], _m: &[u8],
-    ) -> GenericArray<u8, N> {
-        GenericArray::default()
-    }
-
-    pub(crate) fn f<N: ArrayLength>(
-        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8],
-    ) -> GenericArray<u8, N> {
-        GenericArray::default()
-    }
-
-    pub(crate) fn h<N: ArrayLength>(
-        _pk_seed: &[u8], _adrs: &Adrs, _m1: &[u8], _m2: &[u8],
-    ) -> GenericArray<u8, N> {
-        GenericArray::default()
-    }
-
-    // Until a more elegant way is found to covert ml into list of bytes
-    pub(crate) fn t_l<LEN: ArrayLength, N: ArrayLength>(
-        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, LEN>,
-    ) -> GenericArray<u8, N> {
-        GenericArray::default()
-    }
-
     // TODO: Squash K and LEN versions
     // Until a more elegant way is found to covert ml into list of bytes
     pub(crate) fn t_len<K: ArrayLength, N: ArrayLength>(
-        _pk_seed: &[u8], _adrs: &Adrs, _ml: &GenericArray<GenericArray<u8, N>, K>,
+        pk_seed: &[u8], adrs: &Adrs, ml: &GenericArray<GenericArray<u8, N>, K>,
     ) -> GenericArray<u8, N> {
-        GenericArray::default()
+        let mut result = GenericArray::default();
+        let to_byte = [0u8; 128];
+        let mut hasher = Sha512::new();
+        hasher.update(pk_seed);
+        hasher.update(&to_byte[0..(128 - N::to_usize())]);
+        hasher.update(&adrs.to_22_bytes());
+        ml.iter().for_each(|item| hasher.update(item));
+        let digest = hasher.finalize();
+        result.copy_from_slice(&digest[0..N::to_usize()]);
+        result
     }
 }
