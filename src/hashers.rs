@@ -308,7 +308,7 @@ pub(crate) mod sha2_cat_3_5 {
             ],
             &mut digest,
         ); // Note that the spec swaps order of last to params
-        //println!("prf: {:?}", &digest[0..4]);
+           //println!("prf: {:?}", &digest[0..4]);
         digest
     }
 
