@@ -38,8 +38,8 @@ pub(crate) fn to_int(x: &[u8], n: usize) -> u64 {
 ///
 /// Input: Integer `x`, string length `n`. <br>
 /// Output: Byte string of length `n` containing binary representation of `x` in big-endian byte-order.
-pub(crate) fn to_byte(x: u64, n: usize) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize] {
-    let mut s = [0u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize]; // Size fixed across all profiles
+pub(crate) fn to_byte(x: u16, n: usize) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize] {
+    let mut s = [0u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize]; // Size fixed across all profiles (2)
     debug_assert_eq!(n, ((crate::LEN2 * crate::LGW + 7) / 8) as usize); // just in case life changes
 
     // 1: total ← x
@@ -68,10 +68,10 @@ pub(crate) fn to_byte(x: u64, n: usize) -> [u8; ((crate::LEN2 * crate::LGW + 7) 
 ///
 /// Input: Byte string `X` of length at least ceil(out_len·b/8), integer `b`, output length `out_len`. <br>
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
-pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
-    debug_assert!(x.len() >= out_len * b as usize / 8);
+pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
+    debug_assert!(x.len() >= (out_len * b / 8) as usize);
     debug_assert!(b < 16);
-    debug_assert_eq!(out_len, baseb.len());
+    debug_assert_eq!(out_len as usize, baseb.len());
 
     // 1: in ← 0
     let mut inn = 0;
@@ -84,13 +84,13 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
 
     // 4:
     // 5: for out from 0 to out_len − 1 do
-    for item in baseb.iter_mut().take(out_len) {
+    for item in baseb.iter_mut().take(out_len as usize) {
         //
         // 6:    while bits < b do
         while bits < b {
             //
             // 7:      total ← (total ≪ 8) + X[in]
-            total = (total << 8) + u64::from(x[inn]);
+            total = (total << 8) + u32::from(x[inn]);
 
             // 8:      in ← in + 1
             inn += 1;
@@ -105,8 +105,9 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
         bits -= b;
 
         // 12:   baseb[out] ← (total ≫ bits) mod 2^b
-        *item = (total >> bits) & (u64::MAX >> (16 - b));
+        *item = (total >> bits) & (u32::MAX >> (32 - b));
 
+        assert!(*item < u32::MAX);
         // 13: end for
     }
 
@@ -125,14 +126,14 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: usize, baseb: &mut [u64]) {
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
 pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
-    hashers: &Hashers<K, LEN, M, N>, cap_x: GenericArray<u8, N>, i: usize, s: usize,
+    hashers: &Hashers<K, LEN, M, N>, cap_x: GenericArray<u8, N>, i: u32, s: u32,
     pk_seed: &[u8], adrs: &Adrs,
 ) -> Option<GenericArray<u8, N>> {
-    debug_assert!(i + s < u32::MAX as usize);
+    debug_assert!(i + s < u32::MAX);
     let mut adrs = adrs.clone();
 
     // 1: if (i + s) ≥ w then
-    if (i + s) >= crate::W as usize {
+    if (i + s) >= crate::W {
         //
         // 2:   return NULL
         return None;
@@ -149,7 +150,7 @@ pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLe
     for j in i..(i + s) {
         //
         // 8:    ADRS.setHashAddress(j)
-        adrs.set_hash_address(j as u32);
+        adrs.set_hash_address(j);
 
         // 9:    tmp ← F(PK.seed, ADRS, tmp)
         tmp = (hashers.f)(pk_seed, &adrs, &tmp);
@@ -200,7 +201,7 @@ pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Ar
 
         // 8:   tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
         tmp[i as usize] =
-            chain(hashers, sk, 0, crate::W as usize - 1, pk_seed, &adrs).ok_or("chain broke")?;
+            chain(hashers, sk, 0, crate::W - 1, pk_seed, &adrs).ok_or("chain broke")?;
 
         // 9: end for
     }
@@ -235,31 +236,31 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
     let mut sig: WotsSig<LEN, N> = WotsSig::default();
 
     // 1: csum ← 0
-    let mut csum = 0;
+    let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b(M, lgw, len1)    ▷ Convert message to base w
-    let mut msg = GenericArray::<u64, LEN>::default(); // note: 3 bytes left over, used step 10
-    base_2b(m, crate::LGW, 2 * N::to_usize(), &mut msg[0..(2 * N::to_usize())]);
+    let mut msg = GenericArray::<u32, LEN>::default(); // note: 3 entries left over, used step 10
+    base_2b(m, crate::LGW, 2 * N::to_u32(), &mut msg[0..(2 * N::to_usize())]);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
     for item in msg.iter().take(2 * N::to_usize()) {
         //
         // 6:   csum ← csum + w − 1 − msg[i]
-        csum += u64::from(crate::W) - 1 - item;
+        csum += crate::W - 1 - *item;
 
         // 7: end for
     }
 
     // 8:
     // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-    let len2 = 3_usize; //
-    csum <<= (8 - ((len2 as u64 * u64::from(crate::LGW)) & 0x07)) & 0x07;
+    let len2 = 3_u32; //
+    csum <<= (8 - ((len2 * crate::LGW) & 0x07)) & 0x07;
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum as u64, (len2 * crate::LGW as usize).div_ceil(8)),
+        &to_byte(csum as u16, ((len2 * crate::LGW) as usize).div_ceil(8)),
         crate::LGW,
         len2,
         &mut msg[(2 * N::to_usize())..],
@@ -277,7 +278,7 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
 
     // 15: for i from 0 to len − 1 do
     let len = 2 * N::to_usize() + 3;
-    #[allow(clippy::cast_possible_truncation)] // step 19
+    //#[allow(clippy::cast_possible_truncation)] // step 19
     for (item, i) in msg.iter().zip(0u32..).take(len) {
         //
         // 16:   skADRS.setChainAddress(i)
@@ -290,7 +291,7 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
         adrs.set_chain_address(i);
 
         // 19:   sig[i] ← chain(sk, 0, msg[i], PK.seed, ADRS)    ▷ Compute signature value for chain i
-        sig.data[i as usize] = chain(hashers, sk, 0, *item as usize, pk_seed, &adrs).unwrap();
+        sig.data[i as usize] = chain(hashers, sk, 0, *item, pk_seed, &adrs).unwrap();
 
         // 20: end for
     }
@@ -312,31 +313,31 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
     let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
 
     // 1: csum ← 0
-    let mut csum = 0;
+    let mut csum = 0_u64;
 
     // 2:
     // 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
-    let mut msg: GenericArray<u64, LEN> = GenericArray::default();
-    base_2b(m, crate::LGW, 2 * N::to_usize(), &mut msg[0..(2 * N::to_usize())]);
+    let mut msg: GenericArray<u32, LEN> = GenericArray::default();
+    base_2b(m, crate::LGW, 2 * N::to_u32(), &mut msg[0..(2 * N::to_usize())]);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
     for item in msg.iter().take(2 * N::to_usize()) {
         //
         // 6:   csum ← csum + w − 1 − msg[i]
-        csum += u64::from(crate::W) - 1 - item;
+        csum += u64::from(crate::W) - 1 - *item as u64;
 
         // 7: end for
     }
 
     // 8:
     // 9: csum ← csum ≪ ((8 − ((len2·lgw) mod 8)) mod 8)    ▷ For lgw = 4 left shift by 4
-    let len2 = 3;
-    csum <<= (8 - ((len2 * crate::LGW as usize) & 0x07)) & 0x07;
+    let len2 = 3_u32;
+    csum <<= (8 - ((len2 * crate::LGW) & 0x07)) & 0x07;
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum as u64, (len2 * crate::LGW as usize).div_ceil(8)),
+        &to_byte(csum as u16, (len2 * crate::LGW).div_ceil(8) as usize),
         crate::LGW,
         len2,
         &mut msg[(2 * N::to_usize())..],
@@ -353,8 +354,8 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
         tmp[i] = chain::<K, LEN, M, N>(
             hashers,
             sig.data[i].clone(),
-            usize::try_from(msg[i]).unwrap(),
-            crate::W as usize - 1 - msg[i] as usize,
+            msg[i],
+            crate::W - 1 - msg[i],
             pk_seed,
             &adrs,
         )
@@ -852,8 +853,8 @@ pub(crate) fn fors_sign<
     let mut sig_fors = ForsSig::default();
 
     // 2: indices ← base_2^b(md, a, k)
-    let mut indices: GenericArray<u64, K> = GenericArray::default();
-    base_2b(md, A::to_u32(), K::to_usize(), &mut indices);
+    let mut indices: GenericArray<u32, K> = GenericArray::default();
+    base_2b(md, A::to_u32(), K::to_u32(), &mut indices);
 
 
     // 3: for i from 0 to k − 1 do    ▷ Compute signature elements
@@ -918,8 +919,8 @@ pub(crate) fn fors_pk_from_sig<
     let mut adrs = adrs.clone();
 
     // 1: indices ← base_2^b(md, a, k)
-    let mut indices: GenericArray<u64, K> = GenericArray::default();
-    base_2b(md, A::to_u32(), K::to_usize(), &mut indices);
+    let mut indices: GenericArray<u32, K> = GenericArray::default();
+    base_2b(md, A::to_u32(), K::to_u32(), &mut indices);
 
 
     // 2: for i from 0 to k − 1 do
