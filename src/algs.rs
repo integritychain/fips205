@@ -214,7 +214,7 @@ pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Ar
     // 12: wotspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
     wotspk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
-    // 13: pk ← Tlen (PK.seed, wotspkADRS,tmp)    ▷ Compress public key
+    // 13: pk ← Tlen (PK.seed, wotspkADRS, tmp)    ▷ Compress public key
     let pk = (hashers.t_l)(pk_seed, &wotspk_adrs, &tmp);
 
     // 14: return pk

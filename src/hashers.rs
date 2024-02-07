@@ -290,6 +290,7 @@ pub(crate) mod sha2_cat_3_5 {
             start += 64;
             counter += 1;
         }
+        println!("h_msg: {:?}", &result[0..4]);
         result
     }
 
@@ -307,6 +308,7 @@ pub(crate) mod sha2_cat_3_5 {
             ],
             &mut digest,
         ); // Note that the spec swaps order of last to params
+        println!("prf: {:?}", &digest[0..4]);
         digest
     }
 
@@ -337,6 +339,7 @@ pub(crate) mod sha2_cat_3_5 {
         //sha2_256(&[sk_prf, opt_rand, m], &mut digest);
         let xxx = hmac_sha_512(sk_prf, opt_rand, m);
         digest.copy_from_slice(&xxx[0..N::to_usize()]);
+        println!("prf_msg: {:?}", &digest[0..4]);
         digest
     }
 
@@ -352,6 +355,7 @@ pub(crate) mod sha2_cat_3_5 {
             ],
             &mut digest,
         );
+        //println!("f: {:?}", &digest[0..4]);
         digest
     }
 
@@ -370,6 +374,7 @@ pub(crate) mod sha2_cat_3_5 {
             ],
             &mut digest,
         );
+        println!("h: {:?}   pkseed {:?}    m1 {:?}", &digest[0..4], pk_seed[0], m1[0]);
         digest
     }
 

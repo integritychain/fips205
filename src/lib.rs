@@ -1,4 +1,4 @@
-#![no_std]
+//#![no_std]
 #![deny(clippy::pedantic)]
 #![deny(warnings)]
 //#![deny(missing_docs)]
