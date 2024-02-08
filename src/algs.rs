@@ -39,7 +39,7 @@ pub(crate) fn to_int(x: &[u8], n: u32) -> u64 {
 ///
 /// Input: Integer `x`, string length `n`. <br>
 /// Output: Byte string of length `n` containing binary representation of `x` in big-endian byte-order.
-pub(crate) fn to_byte(x: u16, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize] {
+pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize] {
     let mut s = [0u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize]; // Size fixed across all profiles (2)
     debug_assert_eq!(n, ((crate::LEN2 * crate::LGW + 7) / 8)); // just in case life changes
     debug_assert_eq!(n, 2); // optimize: this resolves into a two-byte (be) write!
@@ -68,7 +68,7 @@ pub(crate) fn to_byte(x: u16, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 
 /// Algorithm 3: `base_2^b(X, b, out_len)` on page 15.
 /// Compute the base 2^b representation of X.
 ///
-/// Input: Byte string `X` of length at least ceil(out_len·b/8), integer `b`, output length `out_len`. <br>
+/// Input: Byte string `X` of length at least `ceil(out_len·b/8)`, integer `b`, output length `out_len`. <br>
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
     debug_assert!(x.len() >= (out_len * b).div_ceil(8) as usize);
@@ -260,7 +260,7 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum as u16, (crate::LEN2 * crate::LGW).div_ceil(8)),
+        &to_byte(csum, (crate::LEN2 * crate::LGW).div_ceil(8)),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N::to_usize())..],
@@ -312,7 +312,7 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
     let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
 
     // 1: csum ← 0
-    let mut csum = 0;
+    let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
@@ -324,7 +324,7 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
     for item in msg.iter().take(2 * N::to_usize()) {
         //
         // 6:   csum ← csum + w − 1 − msg[i]
-        csum += u64::from(crate::W) - 1 - *item as u64;
+        csum += crate::W - 1 - item;
 
         // 7: end for
     }
@@ -335,7 +335,7 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum as u16, (crate::LEN2 * crate::LGW).div_ceil(8)),
+        &to_byte(csum, (crate::LEN2 * crate::LGW).div_ceil(8)),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N::to_usize())..],
@@ -865,7 +865,7 @@ pub(crate) fn fors_sign<
             sk_seed,
             pk_seed,
             adrs,
-            i * 2u32.pow(A::to_u32()) + indices[i as usize] as u32,
+            i * 2u32.pow(A::to_u32()) + indices[i as usize],
         );
 
         // 5:
@@ -879,7 +879,7 @@ pub(crate) fn fors_sign<
             sig_fors.auth[i as usize].tree[j as usize] = fors_node::<A, K, LEN, M, N>(
                 hashers,
                 sk_seed,
-                i * 2u32.pow(A::to_u32() - j) + s as u32,
+                i * 2u32.pow(A::to_u32() - j) + s,
                 j,
                 pk_seed,
                 adrs,
@@ -933,7 +933,7 @@ pub(crate) fn fors_pk_from_sig<
         adrs.set_tree_height(0);
 
         // 5: ADRS.setTreeIndex(i · 2^a + indices[i])
-        adrs.set_tree_index(i * 2u32.pow(A::to_u32()) + indices[i as usize] as u32);
+        adrs.set_tree_index(i * 2u32.pow(A::to_u32()) + indices[i as usize]);
 
         // 6: node[0] ← F(PK.seed, ADRS, sk)
         let mut node_0 = (hashers.f)(pk_seed, &adrs, &sk);
@@ -1192,7 +1192,7 @@ pub(crate) fn slh_verify<
 
     // 8:
     // 9: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-    let digest = (hashers.h_msg)(&r, &pk.pk_seed, &pk.pk_root, m);
+    let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
 
     // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K::to_usize() * A::to_usize()).div_ceil(8);
