@@ -1,5 +1,5 @@
-use generic_array::ArrayLength;
 use crate::types::{Adrs, SlhDsaSig};
+use generic_array::ArrayLength;
 
 
 /// Algorithm 1: `toInt(X, n)` on page 14.
@@ -120,7 +120,7 @@ impl<
         N: ArrayLength,
     > SlhDsaSig<A, D, HP, K, LEN, N>
 {
-    pub fn deserialize<const SIG_LEN: usize>(self) -> [u8; SIG_LEN] {
+    pub(crate) fn deserialize<const SIG_LEN: usize>(self) -> [u8; SIG_LEN] {
         let mut out = [0u8; SIG_LEN];
         debug_assert_eq!(
             out.len(),
@@ -156,8 +156,7 @@ impl<
         out
     }
 
-
-    pub fn serialize(bytes: &[u8]) -> Self {
+    pub(crate) fn serialize(bytes: &[u8]) -> Self {
         debug_assert_eq!(
             bytes.len(),
             N::to_usize() +  // randomness

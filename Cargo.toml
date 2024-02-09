@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "FIPS 205 (draft): Stateless Hash-Based Digital Signature Standard"
 repository = "https://github.com/integritychain/fips205"
-rust-version = "1.73"
+rust-version = "1.70"
 
 
 [dependencies]

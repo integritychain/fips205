@@ -1,7 +1,7 @@
-use generic_array::{ArrayLength, GenericArray};
 use crate::hashers::Hashers;
 use crate::types::{Adrs, HtSig};
 use crate::xmss;
+use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 11: `ht_sign(M, SK.seed, PK.seed, idx_tree, idx_leaf)` on page 27.

@@ -1,5 +1,5 @@
-use generic_array::{ArrayLength, GenericArray};
 use crate::types::Adrs;
+use generic_array::{ArrayLength, GenericArray};
 
 
 // Holds hasher function references; constructed by each wrapper
@@ -26,14 +26,14 @@ pub(crate) struct Hashers<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: A
     feature = "slh_dsa_shake_256s"
 ))]
 pub(crate) mod shake {
+    use crate::types::Adrs;
     use generic_array::{ArrayLength, GenericArray};
     use sha3::digest::{ExtendableOutput, Update, XofReader};
     use sha3::Shake256;
-    use crate::types::Adrs;
 
 
     #[allow(clippy::module_name_repetitions)]
-    pub fn shake256(input: &[&[u8]], out: &mut [u8]) {
+    fn shake256(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Shake256::default();
         input.iter().for_each(|item| hasher.update(item));
         let mut reader = hasher.finalize_xof();
@@ -103,13 +103,13 @@ pub(crate) mod shake {
 
 #[cfg(any(feature = "slh_dsa_sha2_128f", feature = "slh_dsa_sha2_128s"))]
 pub(crate) mod sha2_cat_1 {
+    use crate::types::Adrs;
     use core::cmp::min;
     use generic_array::{ArrayLength, GenericArray};
     use sha2::{Digest, Sha256};
-    use crate::types::Adrs;
 
 
-    pub fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
+    fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
         debug_assert!(out.len() <= 32);
         let mut hasher = Sha256::new();
         input.iter().for_each(|item| hasher.update(item));
@@ -157,7 +157,7 @@ pub(crate) mod sha2_cat_1 {
     }
 
 
-    pub fn hmac_sha_256(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 32] {
+    fn hmac_sha_256(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 32] {
         let k2 = key;
         let mut padded = [0x36; 64];
         for (p, &k) in padded.iter_mut().zip(k2.iter()) {
@@ -248,13 +248,13 @@ pub(crate) mod sha2_cat_1 {
     feature = "slh_dsa_sha2_256s"
 ))]
 pub(crate) mod sha2_cat_3_5 {
+    use crate::types::Adrs;
     use core::cmp::min;
     use generic_array::{ArrayLength, GenericArray};
     use sha2::{Digest, Sha256, Sha512};
-    use crate::types::Adrs;
 
 
-    pub fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
+    fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
         debug_assert!(out.len() <= 32);
         let mut hasher = Sha256::new();
         input.iter().for_each(|item| hasher.update(item));
@@ -263,7 +263,7 @@ pub(crate) mod sha2_cat_3_5 {
     }
 
 
-    pub fn sha2_512(input: &[&[u8]], out: &mut [u8]) {
+    fn sha2_512(input: &[&[u8]], out: &mut [u8]) {
         debug_assert!(out.len() <= 64);
         let mut hasher = Sha512::new();
         input.iter().for_each(|item| hasher.update(item));
@@ -311,7 +311,7 @@ pub(crate) mod sha2_cat_3_5 {
     }
 
 
-    pub fn hmac_sha_512(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 64] {
+    fn hmac_sha_512(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 64] {
         let k2 = key;
         let mut padded = [0x36; 128];
         for (p, &k) in padded.iter_mut().zip(k2.iter()) {

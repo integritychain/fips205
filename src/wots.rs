@@ -1,7 +1,7 @@
-use generic_array::{ArrayLength, GenericArray};
 use crate::hashers::Hashers;
 use crate::helpers;
 use crate::types::{Adrs, WotsPk, WotsSig, WOTS_PK, WOTS_PRF};
+use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 4: `chain(X, i, s, PK.seed, ADRS)` on page 17.

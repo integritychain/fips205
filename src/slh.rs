@@ -1,9 +1,9 @@
-use generic_array::{ArrayLength, GenericArray};
-use rand_core::CryptoRngCore;
 use crate::hashers::Hashers;
 use crate::types::FORS_TREE;
 use crate::types::{Adrs, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
 use crate::{fors, helpers, hypertree, xmss};
+use generic_array::{ArrayLength, GenericArray};
+use rand_core::CryptoRngCore;
 
 
 /// Algorithm 17: `slh_keygen()` on page 34.

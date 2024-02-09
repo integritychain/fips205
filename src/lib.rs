@@ -2,18 +2,23 @@
 #![deny(clippy::pedantic)]
 #![deny(warnings)]
 //#![deny(missing_docs)]
+#![doc = include_str!("../README.md")]
+
+
+/// Implements FIPS 205 draft Stateless Hash-Based Digital Signature Standard.
+/// See <https://csrc.nist.gov/pubs/fips/205/ipd>
 
 /// TKTK crate doc
 // TODO
 //  1. General clean-up
 //  7. Doc, of course!
+
 mod fors;
 mod hashers;
 mod helpers;
 mod hypertree;
 mod slh;
-mod test;
-mod traits;
+pub mod traits;
 mod types;
 mod wots;
 mod xmss;

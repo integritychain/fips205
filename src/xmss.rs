@@ -1,7 +1,7 @@
-use generic_array::{ArrayLength, GenericArray};
 use crate::hashers::Hashers;
 use crate::types::{Adrs, XmssSig, TREE, WOTS_HASH};
 use crate::wots;
+use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 8: `xmss_node(SK.seed, i, z, PK.seed, ADRS)` on page 22.
