@@ -53,8 +53,8 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * This crate is fully functional and corresponds to the first initial public draft of FIPS 205.    
 * Constant-time assurances target the source-code level only, and are a work in progress.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
-* Requires Rust **1.70** or higher. The minimum supported Rust version may be changed in the future, but 
-it will be done with a minor version bump.
+* Requires Rust **1.73** or higher due to `div_ceil()`. The minimum supported Rust version may be changed 
+in the future, but it will be done with a minor version bump.
 * All on-by-default features of this library are covered by SemVer.
 * This software is experimental and still under active development -- USE AT YOUR OWN RISK!
 
