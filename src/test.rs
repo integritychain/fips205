@@ -1,17 +1,17 @@
 #[cfg(test)]
 mod tests {
     extern crate alloc;
-    use hex::decode;
 
     use alloc::vec::Vec;
-    //use rand::{Rng, SeedableRng};
-    use crate::traits::{KeyGen, Signer, Verifier};
+    use hex::decode;
     use rand_core::{CryptoRng, RngCore};
+    use crate::traits::{KeyGen, Signer, Verifier};
 
 
     struct TestRng {
         data: Vec<Vec<u8>>,
     }
+
 
     impl RngCore for TestRng {
         fn next_u32(&mut self) -> u32 { unimplemented!() }
@@ -29,7 +29,9 @@ mod tests {
         }
     }
 
+
     impl CryptoRng for TestRng {}
+
 
     impl TestRng {
         fn new() -> Self { TestRng { data: Vec::new() } }
@@ -43,7 +45,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_128s() {
-        use crate::slh_dsa_shake_128s::{KG};
+        use crate::slh_dsa_shake_128s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -67,7 +69,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_128f() {
-        use crate::slh_dsa_shake_128f::{KG};
+        use crate::slh_dsa_shake_128f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -91,7 +93,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_192s() {
-        use crate::slh_dsa_shake_192s::{KG};
+        use crate::slh_dsa_shake_192s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -115,7 +117,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_192f() {
-        use crate::slh_dsa_shake_192f::{KG};
+        use crate::slh_dsa_shake_192f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -139,7 +141,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_256s() {
-        use crate::slh_dsa_shake_256s::{KG};
+        use crate::slh_dsa_shake_256s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -163,7 +165,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_shake_256f() {
-        use crate::slh_dsa_shake_256f::{KG};
+        use crate::slh_dsa_shake_256f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -187,7 +189,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_128s() {
-        use crate::slh_dsa_sha2_128s::{KG};
+        use crate::slh_dsa_sha2_128s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -211,7 +213,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_128f() {
-        use crate::slh_dsa_sha2_128f::{KG};
+        use crate::slh_dsa_sha2_128f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -235,7 +237,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_192s() {
-        use crate::slh_dsa_sha2_192s::{KG};
+        use crate::slh_dsa_sha2_192s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -259,7 +261,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_192f() {
-        use crate::slh_dsa_sha2_192f::{KG};
+        use crate::slh_dsa_sha2_192f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -283,7 +285,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_256s() {
-        use crate::slh_dsa_sha2_256s::{KG};
+        use crate::slh_dsa_sha2_256s::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();
@@ -307,7 +309,7 @@ mod tests {
 
     #[test]
     fn vector_slh_dsa_sha2_256f() {
-        use crate::slh_dsa_sha2_256f::{KG};
+        use crate::slh_dsa_sha2_256f::KG;
         let m =
             decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
         let mut rnd = TestRng::new();

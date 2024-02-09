@@ -1,7 +1,5 @@
-use crate::types::Adrs;
 use generic_array::{ArrayLength, GenericArray};
-
-// TODO: We can do a bit better extracting common functionality versus parameter sets...
+use crate::types::Adrs;
 
 
 // Holds hasher function references; constructed by each wrapper
@@ -28,10 +26,10 @@ pub(crate) struct Hashers<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: A
     feature = "slh_dsa_shake_256s"
 ))]
 pub(crate) mod shake {
-    use crate::types::Adrs;
     use generic_array::{ArrayLength, GenericArray};
     use sha3::digest::{ExtendableOutput, Update, XofReader};
     use sha3::Shake256;
+    use crate::types::Adrs;
 
 
     #[allow(clippy::module_name_repetitions)]
@@ -105,10 +103,10 @@ pub(crate) mod shake {
 
 #[cfg(any(feature = "slh_dsa_sha2_128f", feature = "slh_dsa_sha2_128s"))]
 pub(crate) mod sha2_cat_1 {
-    use crate::types::Adrs;
     use core::cmp::min;
     use generic_array::{ArrayLength, GenericArray};
     use sha2::{Digest, Sha256};
+    use crate::types::Adrs;
 
 
     pub fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
@@ -250,10 +248,10 @@ pub(crate) mod sha2_cat_1 {
     feature = "slh_dsa_sha2_256s"
 ))]
 pub(crate) mod sha2_cat_3_5 {
-    use crate::types::Adrs;
     use core::cmp::min;
     use generic_array::{ArrayLength, GenericArray};
     use sha2::{Digest, Sha256, Sha512};
+    use crate::types::Adrs;
 
 
     pub fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
