@@ -106,6 +106,27 @@ pub struct SlhPublicKey<N: ArrayLength> {
     pub(crate) pk_root: GenericArray<u8, N>,
 }
 
+#[allow(dead_code)]
+impl<N: ArrayLength> SlhPublicKey<N> {
+    pub fn serialize<const PK_LEN: usize>(self) -> [u8; PK_LEN] {
+        let mut out = [0u8; PK_LEN];
+        debug_assert_eq!(out.len(), 2 * N::to_usize());
+        out[0..N::to_usize()].copy_from_slice(&self.pk_seed);
+        out[N::to_usize()..2 * N::to_usize()].copy_from_slice(&self.pk_root);
+        out
+    }
+
+    pub fn deserialize<const PK_LEN: usize>(bytes: [u8; PK_LEN]) -> Self {
+        let mut pub_key = Self::default();
+        pub_key.pk_seed.copy_from_slice(&bytes[0..N::to_usize()]);
+        pub_key
+            .pk_root
+            .copy_from_slice(&bytes[N::to_usize()..2 * N::to_usize()]);
+        pub_key
+    }
+}
+
+#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
 pub struct SlhPrivateKey<N: ArrayLength> {
     pub(crate) sk_seed: GenericArray<u8, N>,
     pub(crate) sk_prf: GenericArray<u8, N>,

@@ -52,7 +52,7 @@ pub(crate) mod shake {
     }
 
 
-    #[allow(clippy::similar_names)]  // pk_seed and sk_seed
+    #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<N: ArrayLength>(
         pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
     ) -> GenericArray<u8, N> {
@@ -103,10 +103,7 @@ pub(crate) mod shake {
 }
 
 
-#[cfg(any(
-feature = "slh_dsa_sha2_128f",
-feature = "slh_dsa_sha2_128s"
-))]
+#[cfg(any(feature = "slh_dsa_sha2_128f", feature = "slh_dsa_sha2_128s"))]
 pub(crate) mod sha2_cat_1 {
     use crate::types::Adrs;
     use core::cmp::min;
@@ -143,7 +140,7 @@ pub(crate) mod sha2_cat_1 {
     }
 
 
-    #[allow(clippy::similar_names)]  // pk_seed and sk_seed
+    #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<N: ArrayLength>(
         pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
     ) -> GenericArray<u8, N> {
@@ -247,10 +244,10 @@ pub(crate) mod sha2_cat_1 {
 
 
 #[cfg(any(
-feature = "slh_dsa_sha2_192f",
-feature = "slh_dsa_sha2_192s",
-feature = "slh_dsa_sha2_256f",
-feature = "slh_dsa_sha2_256s"
+    feature = "slh_dsa_sha2_192f",
+    feature = "slh_dsa_sha2_192s",
+    feature = "slh_dsa_sha2_256f",
+    feature = "slh_dsa_sha2_256s"
 ))]
 pub(crate) mod sha2_cat_3_5 {
     use crate::types::Adrs;
@@ -297,7 +294,7 @@ pub(crate) mod sha2_cat_3_5 {
     }
 
 
-    #[allow(clippy::similar_names)]  // pk_seed and sk_seed
+    #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<N: ArrayLength>(
         pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs,
     ) -> GenericArray<u8, N> {

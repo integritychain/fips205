@@ -9,7 +9,6 @@
 //  2. SerDes on keys
 //  3. Proper traits and non-rng functions
 //  4. Adrs as raw bytes
-//  5. clippy
 //  6. Separate into proper files
 //  7. Doc, of course!
 mod algs;
@@ -27,33 +26,111 @@ const LEN2: u32 = 3;
 /// blah
 macro_rules! functionality {
     () => {
+        use crate::traits::{KeyGen, SerDes, Signer, Verifier};
         use crate::types::{SlhDsaSig, SlhPrivateKey, SlhPublicKey};
         use rand_core::CryptoRngCore;
+        use zeroize::{Zeroize, ZeroizeOnDrop};
+
+        #[derive(Zeroize, ZeroizeOnDrop)]
+        pub struct PublicKey(SlhPublicKey<N>);
+
+        #[derive(Zeroize, ZeroizeOnDrop)]
+        pub struct PrivateKey(SlhPrivateKey<N>);
+
+        #[derive(Zeroize, ZeroizeOnDrop)]
+        pub struct KG(); // Arguable how useful an empty struct+trait is...
 
         /// blah
         /// # Errors
-        pub fn slh_keygen_with_rng(
-            rng: &mut impl CryptoRngCore,
-        ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
-            crate::algs::slh_keygen_with_rng::<D, H, HP, K, Len, M, N>(rng, &HASHERS)
+        impl KeyGen for KG {
+            type PrivateKey = PrivateKey;
+            type PublicKey = PublicKey;
+
+            fn try_keygen_with_rng_vt(
+                rng: &mut impl CryptoRngCore,
+            ) -> Result<(PublicKey, PrivateKey), &'static str> {
+                let res = crate::algs::slh_keygen_with_rng::<D, H, HP, K, Len, M, N>(rng, &HASHERS);
+                res.map(|(sk, pk)| (PublicKey(pk), PrivateKey(sk)))
+            }
         }
 
-        /// blah
-        /// # Errors
-        pub fn slh_sign_with_rng(
-            rng: &mut impl CryptoRngCore, m: &[u8], sk: &SlhPrivateKey<N>, randomize: bool,
-        ) -> Result<[u8; SIG_LEN], &'static str> {
-            let sig = crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Len, M, N>(
-                rng, &HASHERS, &m, &sk, randomize,
-            );
-            sig.map(|s| s.deserialize())
+        #[cfg(feature = "default-rng")]
+        pub fn try_keygen_vt() -> Result<(PublicKey, PrivateKey), &'static str> {
+            KG::try_keygen_vt()
         }
 
-        /// blah
-        #[must_use]
-        pub fn slh_verify(m: &[u8], sig_bytes: &[u8; SIG_LEN], pk: &SlhPublicKey<N>) -> bool {
-            let sig = SlhDsaSig::<A, D, HP, K, Len, N>::serialize(sig_bytes);
-            crate::algs::slh_verify::<A, D, H, HP, K, Len, M, N>(&HASHERS, &m, &sig, &pk)
+        impl Signer for PrivateKey {
+            type Signature = [u8; SIG_LEN];
+
+            /// blah
+            /// # Errors
+            fn try_sign_with_rng_ct(
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+            ) -> Result<[u8; SIG_LEN], &'static str> {
+                let sig = crate::algs::slh_sign_with_rng::<A, D, H, HP, K, Len, M, N>(
+                    rng, &HASHERS, &m, &self.0, randomize,
+                );
+                sig.map(|s| s.deserialize())
+            }
+        }
+
+        impl Verifier for PublicKey {
+            type Signature = [u8; SIG_LEN];
+
+            /// blah
+            #[must_use]
+            fn try_verify_vt(&self,
+                m: &[u8], sig_bytes: &[u8; SIG_LEN],
+            ) -> Result<bool, &'static str> {
+                let sig = SlhDsaSig::<A, D, HP, K, Len, N>::serialize(sig_bytes);
+                let res =
+                    crate::algs::slh_verify::<A, D, H, HP, K, Len, M, N>(&HASHERS, &m, &sig, &self.0);
+                Ok(res)
+            }
+        }
+
+        impl SerDes for PublicKey {
+            type ByteArray = [u8; PK_LEN];
+
+            fn into_bytes(self) -> Self::ByteArray {
+                let mut out = [0u8; PK_LEN];
+                out[0..(PK_LEN / 2)].copy_from_slice(&self.0.pk_seed);
+                out[(PK_LEN / 2)..].copy_from_slice(&self.0.pk_root);
+                out
+            }
+
+            fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
+                // Result: opportunity for validation
+                let mut pk = SlhPublicKey::default();
+                pk.pk_seed.copy_from_slice(&bytes[..(PK_LEN / 2)]);
+                pk.pk_root.copy_from_slice(&bytes[(PK_LEN / 2)..]);
+                Ok(PublicKey(pk))
+            }
+        }
+
+        impl SerDes for PrivateKey {
+            type ByteArray = [u8; SK_LEN];
+
+            fn into_bytes(self) -> Self::ByteArray {
+                let mut bytes = [0u8; SK_LEN];
+                bytes[0..(SK_LEN / 4)].copy_from_slice(&self.0.sk_seed);
+                bytes[(SK_LEN / 4)..(SK_LEN / 2)].copy_from_slice(&self.0.sk_prf);
+                bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)].copy_from_slice(&self.0.pk_seed);
+                bytes[(3 * SK_LEN / 4)..].copy_from_slice(&self.0.pk_root);
+                bytes
+            }
+
+            fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
+                // Result: opportunity for validation
+                let mut sk = SlhPrivateKey::default();
+                sk.sk_seed.copy_from_slice(&bytes[0..(SK_LEN / 4)]);
+                sk.sk_prf
+                    .copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
+                sk.pk_seed
+                    .copy_from_slice(&bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
+                sk.pk_root.copy_from_slice(&bytes[(3 * SK_LEN / 4)..]);
+                Ok(PrivateKey(sk))
+            }
         }
 
         #[cfg(test)]
@@ -67,12 +144,16 @@ macro_rules! functionality {
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
                 for i in 0..5 {
                     message[3] = i as u8;
-                    let (sk, pk) = slh_keygen_with_rng(&mut rng).unwrap();
-                    let sig = slh_sign_with_rng(&mut rng, &message, &sk, true).unwrap();
-                    let result = slh_verify(&message, &sig, &pk);
+                    let (pk1, sk1) = KG::try_keygen_with_rng_vt(&mut rng).unwrap();
+                    let pk1_bytes = pk1.into_bytes();
+                    let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
+                    let sk1_bytes = sk1.into_bytes();
+                    let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
+                    let sig = sk2.try_sign_with_rng_ct(&mut rng, &message, true).unwrap();
+                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
                     assert_eq!(result, true, "Signature failed to verify");
                     message[3] = (i + 1) as u8;
-                    let result = slh_verify(&message, &sig, &pk);
+                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
                     assert_eq!(result, false, "Signature should not have verified");
                 }
             }
@@ -96,9 +177,9 @@ pub mod slh_dsa_sha2_128s {
     type K = U14;
     type M = U30;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 7856;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 32;
+    pub const SIG_LEN: usize = 7856;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -121,9 +202,9 @@ pub mod slh_dsa_shake_128s {
     type K = U14;
     type M = U30;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 7856;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 32;
+    pub const SIG_LEN: usize = 7856;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -146,9 +227,9 @@ pub mod slh_dsa_sha2_128f {
     type K = U33;
     type M = U34;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 17088;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 32;
+    pub const SIG_LEN: usize = 17088;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -171,9 +252,9 @@ pub mod slh_dsa_shake_128f {
     type K = U33;
     type M = U34;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 17088;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 32;
+    pub const SIG_LEN: usize = 17088;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -196,9 +277,9 @@ pub mod slh_dsa_sha2_192s {
     type K = U17;
     type M = U39;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 16224;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 48;
+    pub const SIG_LEN: usize = 16224;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -221,9 +302,9 @@ pub mod slh_dsa_shake_192s {
     type K = U17;
     type M = U39;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 16224;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 48;
+    pub const SIG_LEN: usize = 16224;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -246,9 +327,9 @@ pub mod slh_dsa_sha2_192f {
     type K = U33;
     type M = U42;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 35664;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 48;
+    pub const SIG_LEN: usize = 35664;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -271,9 +352,9 @@ pub mod slh_dsa_shake_192f {
     type K = U33;
     type M = U42;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 35664;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 48;
+    pub const SIG_LEN: usize = 35664;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -296,9 +377,9 @@ pub mod slh_dsa_sha2_256s {
     type K = U22;
     type M = U47;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 29792;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 64;
+    pub const SIG_LEN: usize = 29792;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -321,9 +402,9 @@ pub mod slh_dsa_shake_256s {
     type K = U22;
     type M = U47;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 29792;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 64;
+    pub const SIG_LEN: usize = 29792;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -346,9 +427,9 @@ pub mod slh_dsa_sha2_256f {
     type K = U35;
     type M = U49;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 49856;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 64;
+    pub const SIG_LEN: usize = 49856;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
@@ -371,9 +452,9 @@ pub mod slh_dsa_shake_256f {
     type K = U35;
     type M = U49;
     type Len = Sum<Prod<U2, N>, U3>;
-    //const PK_LEN: usize = 32;
-    const SIG_LEN: usize = 49856;
-    //const SK_LEN: usize = 0000;
+    pub const PK_LEN: usize = 64;
+    pub const SIG_LEN: usize = 49856;
+    pub const SK_LEN: usize = PK_LEN * 2;
     static HASHERS: Hashers<K, Len, M, N> =
         Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 

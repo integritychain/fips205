@@ -704,7 +704,7 @@ pub(crate) fn ht_verify<
     for j in 1..D::to_u32() {
         //
         // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32()));  // TODO: clean
+        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32())); // TODO: clean
         if idx_leaf.is_err() {
             return false;
         };
