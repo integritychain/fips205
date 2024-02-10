@@ -57,7 +57,7 @@ fn vector_slh_dsa_shake_128s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -80,7 +80,7 @@ fn vector_slh_dsa_shake_128f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -103,7 +103,7 @@ fn vector_slh_dsa_shake_192s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert(result, "Signature did not verify!");
 }
 
 
@@ -126,7 +126,7 @@ fn vector_slh_dsa_shake_192f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert(result, "Signature did not verify!");
 }
 
 
@@ -149,7 +149,7 @@ fn vector_slh_dsa_shake_256s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert(result, "Signature did not verify!");
 }
 
 
@@ -172,7 +172,7 @@ fn vector_slh_dsa_shake_256f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -195,7 +195,7 @@ fn vector_slh_dsa_sha2_128s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -218,7 +218,7 @@ fn vector_slh_dsa_sha2_128f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -241,7 +241,7 @@ fn vector_slh_dsa_sha2_192s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -264,7 +264,7 @@ fn vector_slh_dsa_sha2_192f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -287,7 +287,7 @@ fn vector_slh_dsa_sha2_256s() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }
 
 
@@ -310,5 +310,5 @@ fn vector_slh_dsa_sha2_256f() {
     assert_eq!(sig_act.len(), sig_exp.len());
     assert_eq!(sig_act, *sig_exp);
     let result = pk.try_verify_vt(&m, &sig_act).unwrap();
-    assert_eq!(result, true, "Signature did not verify!");
+    assert!(result, "Signature did not verify!");
 }

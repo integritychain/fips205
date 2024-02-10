@@ -12,6 +12,7 @@ pub trait SerDes {
     /// Produces a byte array of fixed-size specific to the struct being serialized.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     fn into_bytes(self) -> Self::ByteArray;
 
@@ -20,6 +21,7 @@ pub trait SerDes {
     /// Returns an error on malformed input.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str>
     where
@@ -41,6 +43,7 @@ pub trait KeyGen {
     /// Returns an error when the random number generator fails; propagates internal errors.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     #[cfg(feature = "default-rng")]
     fn try_keygen_vt() -> Result<(Self::PublicKey, Self::PrivateKey), &'static str> {
@@ -54,6 +57,7 @@ pub trait KeyGen {
     /// Returns an error when the random number generator fails; propagates internal errors.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     fn try_keygen_with_rng_vt(
         rng: &mut impl CryptoRngCore,
@@ -74,6 +78,7 @@ pub trait Signer {
     /// Returns an error when the random number generator fails; propagates internal errors.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     #[cfg(feature = "default-rng")]
     fn try_sign_ct(
@@ -90,6 +95,7 @@ pub trait Signer {
     /// Returns an error when the random number generator fails; propagates internal errors.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     fn try_sign_with_rng_ct(
         &self, rng: &mut impl CryptoRngCore, message: &[u8], randomize: bool,
@@ -110,6 +116,7 @@ pub trait Verifier {
     /// Returns an error on a malformed signature; propagates internal errors.
     /// # Examples
     /// ```rust
+    /// println!("Placeholder");
     /// ```
     fn try_verify_vt(
         &self, message: &[u8], signature: &Self::Signature,
