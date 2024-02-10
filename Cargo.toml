@@ -22,7 +22,6 @@ hex = "0.4.3"
 
 
 [features]
-#default = ["default-rng", "slh_dsa_shake_128s", "slh_dsa_sha2_128s"]
 default = ["default-rng", "slh_dsa_sha2_128s", "slh_dsa_shake_128s", "slh_dsa_sha2_128f", "slh_dsa_shake_128f",
     "slh_dsa_sha2_192s", "slh_dsa_shake_192s", "slh_dsa_sha2_192f", "slh_dsa_shake_192f",
     "slh_dsa_sha2_256s", "slh_dsa_shake_256s", "slh_dsa_sha2_256f", "slh_dsa_shake_256f"]
@@ -43,3 +42,17 @@ slh_dsa_shake_256f = []
 
 [profile.dev]
 opt-level = 3
+
+
+#[[bench]]
+#name = "benchmark"
+#harness = false
+
+
+[profile.bench]
+debug = true
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
