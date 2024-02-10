@@ -3,5 +3,6 @@
 /.idea
 **/artifacts
 **/corpus
+**/target
 /fuzz/.gitignore
 **/Cargo.lock
