@@ -66,7 +66,7 @@ pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 
 /// Input: Byte string `X` of length at least `ceil(out_len·b/8)`, integer `b`, output length `out_len`. <br>
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
-    debug_assert!(x.len() >= (out_len * b).div_ceil(8) as usize);
+    debug_assert!(x.len() >= ((out_len * b + 7) / 8) as usize);
     debug_assert!(b < 16); // Consider optimizing `baseb` output to be u16
     debug_assert_eq!(out_len as usize, baseb.len());
 

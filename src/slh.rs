@@ -112,25 +112,25 @@ pub(crate) fn slh_sign_with_rng<
     let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, m);
 
     // 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K::to_usize() * A::to_usize()).div_ceil(8);
+    let index1 = (K::to_usize() * A::to_usize() + 7) / 8;
     let md = &digest[0..index1];
 
     // 12: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
-    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize()).div_ceil(8);
+    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize() + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
     // 13: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
-    let index3 = index2 + H::to_usize().div_ceil(8 * D::to_usize());
+    let index3 = index2 + (H::to_usize() + 8 * D::to_usize() - 1) / (8 * D::to_usize());
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 14:
     // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
     let idx_tree =
-        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32()).div_ceil(8))
+        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
             & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
 
     // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, H::to_u32().div_ceil(8 * D::to_u32()))
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
         & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
 
     // 17:
@@ -210,25 +210,25 @@ pub(crate) fn slh_verify<
     let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
 
     // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K::to_usize() * A::to_usize()).div_ceil(8);
+    let index1 = (K::to_usize() * A::to_usize() + 7) / 8;
     let md = &digest[0..index1];
 
     // 11: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
-    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize()).div_ceil(8);
+    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize() + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
     // 12: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
-    let index3 = index2 + H::to_usize().div_ceil(8 * D::to_usize());
+    let index3 = index2 + (H::to_usize() + 8 * D::to_usize() - 1) / (8 * D::to_usize());
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 13:
     // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
     let idx_tree =
-        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32()).div_ceil(8))
+        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) /8)
             & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
 
     // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, H::to_u32().div_ceil(8 * D::to_u32()))
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
         & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
 
     // 16:
