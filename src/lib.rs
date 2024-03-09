@@ -131,7 +131,7 @@ macro_rules! functionality {
             fn try_keygen_with_rng_vt(
                 rng: &mut impl CryptoRngCore,
             ) -> Result<(PublicKey, PrivateKey), &'static str> {
-                let res = crate::slh::slh_keygen_with_rng::<D, H, HP, K, Len, M, N>(rng, &HASHERS);
+                let res = crate::slh::slh_keygen_with_rng::<D, H, HP, K, LEN, M, N>(rng, &HASHERS);
                 res.map(|(sk, pk)| (PublicKey(pk), PrivateKey(sk)))
             }
         }
@@ -143,7 +143,7 @@ macro_rules! functionality {
             fn try_sign_with_rng_ct(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
-                let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, Len, M, N>(
+                let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &m, &self.0, randomize,
                 );
                 sig.map(|s| s.deserialize())
@@ -157,8 +157,8 @@ macro_rules! functionality {
             fn try_verify_vt(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
             ) -> Result<bool, &'static str> {
-                let sig = SlhDsaSig::<A, D, HP, K, Len, N>::serialize(sig_bytes);
-                let res = crate::slh::slh_verify::<A, D, H, HP, K, Len, M, N>(
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS, &m, &sig, &self.0,
                 );
                 Ok(res)
@@ -180,7 +180,8 @@ macro_rules! functionality {
 
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
                 // Result: opportunity for validation
-                let mut pk = SlhPublicKey::default();
+                //let mut pk = SlhPublicKey::default();
+                let mut pk = SlhPublicKey{pk_seed: [0u8; N], pk_root: [0u8; N]};
                 pk.pk_seed.copy_from_slice(&bytes[..(PK_LEN / 2)]);
                 pk.pk_root.copy_from_slice(&bytes[(PK_LEN / 2)..]);
                 Ok(PublicKey(pk))
@@ -202,7 +203,8 @@ macro_rules! functionality {
 
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
                 // Result: opportunity for validation
-                let mut sk = SlhPrivateKey::default();
+                //let mut sk = SlhPrivateKey::default();
+                let mut sk = SlhPrivateKey{sk_seed: [0u8; N], sk_prf: [0u8; N], pk_seed: [0u8; N], pk_root: [0u8; N]};
                 sk.sk_seed.copy_from_slice(&bytes[0..(SK_LEN / 4)]);
                 sk.sk_prf
                     .copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
@@ -266,16 +268,15 @@ macro_rules! functionality {
 pub mod slh_dsa_sha2_128s {
     use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U12, U14, U16, U2, U3, U30, U63, U7, U9};
 
-    type N = U16;
-    type H = U63;
-    type D = U7;
-    type HP = U9;
-    type A = U12;
-    type K = U14;
-    type M = U30;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 16;
+    const H: usize = 63;
+    const D: usize = 7;
+    const HP: usize = 9;
+    const A: usize = 12;
+    const K: usize = 14;
+    const M: usize = 30;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 32;
@@ -286,8 +287,8 @@ pub mod slh_dsa_sha2_128s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -315,16 +316,15 @@ pub mod slh_dsa_sha2_128s {
 pub mod slh_dsa_shake_128s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U12, U14, U16, U2, U3, U30, U63, U7, U9};
 
-    type N = U16;
-    type H = U63;
-    type D = U7;
-    type HP = U9;
-    type A = U12;
-    type K = U14;
-    type M = U30;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 16;
+    const H: usize = 63;
+    const D: usize = 7;
+    const HP: usize = 9;
+    const A: usize = 12;
+    const K: usize = 14;
+    const M: usize = 30;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 32;
@@ -335,8 +335,8 @@ pub mod slh_dsa_shake_128s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -364,16 +364,15 @@ pub mod slh_dsa_shake_128s {
 pub mod slh_dsa_sha2_128f {
     use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U16, U2, U22, U3, U33, U34, U6, U66};
 
-    type N = U16;
-    type H = U66;
-    type D = U22;
-    type HP = U3;
-    type A = U6;
-    type K = U33;
-    type M = U34;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 16;
+    const H: usize = 66;
+    const D: usize = 22;
+    const HP: usize = 3;
+    const A: usize = 6;
+    const K: usize = 33;
+    const M: usize = 34;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 32;
@@ -384,8 +383,8 @@ pub mod slh_dsa_sha2_128f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -413,16 +412,15 @@ pub mod slh_dsa_sha2_128f {
 pub mod slh_dsa_shake_128f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U16, U2, U22, U3, U33, U34, U6, U66};
 
-    type N = U16;
-    type H = U66;
-    type D = U22;
-    type HP = U3;
-    type A = U6;
-    type K = U33;
-    type M = U34;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 16;
+    const H: usize = 66;
+    const D: usize = 22;
+    const HP: usize = 3;
+    const A: usize = 6;
+    const K: usize = 33;
+    const M: usize = 34;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 32;
@@ -433,8 +431,8 @@ pub mod slh_dsa_shake_128f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -462,16 +460,15 @@ pub mod slh_dsa_shake_128f {
 pub mod slh_dsa_sha2_192s {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U14, U17, U2, U24, U3, U39, U63, U7, U9};
 
-    type N = U24;
-    type H = U63;
-    type D = U7;
-    type HP = U9;
-    type A = U14;
-    type K = U17;
-    type M = U39;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 24;
+    const H: usize = 63;
+    const D: usize = 7;
+    const HP: usize = 9;
+    const A: usize = 14;
+    const K: usize = 17;
+    const M: usize = 39;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 48;
@@ -482,8 +479,8 @@ pub mod slh_dsa_sha2_192s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -511,16 +508,15 @@ pub mod slh_dsa_sha2_192s {
 pub mod slh_dsa_shake_192s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U14, U17, U2, U24, U3, U39, U63, U7, U9};
 
-    type N = U24;
-    type H = U63;
-    type D = U7;
-    type HP = U9;
-    type A = U14;
-    type K = U17;
-    type M = U39;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 24;
+    const H: usize = 63;
+    const D: usize = 7;
+    const HP: usize = 9;
+    const A: usize = 14;
+    const K: usize = 17;
+    const M: usize = 39;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 48;
@@ -531,8 +527,8 @@ pub mod slh_dsa_shake_192s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -560,16 +556,15 @@ pub mod slh_dsa_shake_192s {
 pub mod slh_dsa_sha2_192f {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U2, U22, U24, U3, U33, U42, U66, U8};
 
-    type N = U24;
-    type H = U66;
-    type D = U22;
-    type HP = U3;
-    type A = U8;
-    type K = U33;
-    type M = U42;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 24;
+    const H: usize = 66;
+    const D: usize = 22;
+    const HP: usize = 3;
+    const A: usize = 8;
+    const K: usize = 33;
+    const M: usize = 42;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 48;
@@ -580,8 +575,8 @@ pub mod slh_dsa_sha2_192f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -609,16 +604,15 @@ pub mod slh_dsa_sha2_192f {
 pub mod slh_dsa_shake_192f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U2, U22, U24, U3, U33, U42, U66, U8};
 
-    type N = U24;
-    type H = U66;
-    type D = U22;
-    type HP = U3;
-    type A = U8;
-    type K = U33;
-    type M = U42;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 24;
+    const H: usize = 66;
+    const D: usize = 22;
+    const HP: usize = 3;
+    const A: usize = 8;
+    const K: usize = 33;
+    const M: usize = 42;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 48;
@@ -629,8 +623,8 @@ pub mod slh_dsa_shake_192f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -658,16 +652,15 @@ pub mod slh_dsa_shake_192f {
 pub mod slh_dsa_sha2_256s {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U14, U2, U22, U3, U32, U47, U64, U8};
 
-    type N = U32;
-    type H = U64;
-    type D = U8;
-    type HP = U8;
-    type A = U14;
-    type K = U22;
-    type M = U47;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 32;
+    const H: usize = 64;
+    const D: usize = 8;
+    const HP: usize = 8;
+    const A: usize = 14;
+    const K: usize = 22;
+    const M: usize = 47;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 64;
@@ -678,8 +671,8 @@ pub mod slh_dsa_sha2_256s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -707,16 +700,15 @@ pub mod slh_dsa_sha2_256s {
 pub mod slh_dsa_shake_256s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U14, U2, U22, U3, U32, U47, U64, U8};
 
-    type N = U32;
-    type H = U64;
-    type D = U8;
-    type HP = U8;
-    type A = U14;
-    type K = U22;
-    type M = U47;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 32;
+    const H: usize = 64;
+    const D: usize = 8;
+    const HP: usize = 8;
+    const A: usize = 14;
+    const K: usize = 22;
+    const M: usize = 47;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 64;
@@ -727,8 +719,8 @@ pub mod slh_dsa_shake_256s {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -756,16 +748,15 @@ pub mod slh_dsa_shake_256s {
 pub mod slh_dsa_sha2_256f {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U17, U2, U3, U32, U35, U4, U49, U68, U9};
 
-    type N = U32;
-    type H = U68;
-    type D = U17;
-    type HP = U4;
-    type A = U9;
-    type K = U35;
-    type M = U49;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 32;
+    const H: usize = 68;
+    const D: usize = 17;
+    const HP: usize = 4;
+    const A: usize = 9;
+    const K: usize = 35;
+    const M: usize = 49;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 64;
@@ -776,8 +767,8 @@ pub mod slh_dsa_sha2_256f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }
@@ -805,16 +796,15 @@ pub mod slh_dsa_sha2_256f {
 pub mod slh_dsa_shake_256f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
-    use generic_array::typenum::{Prod, Sum, U17, U2, U3, U32, U35, U4, U49, U68, U9};
 
-    type N = U32;
-    type H = U68;
-    type D = U17;
-    type HP = U4;
-    type A = U9;
-    type K = U35;
-    type M = U49;
-    type Len = Sum<Prod<U2, N>, U3>;
+    const N: usize = 32;
+    const H: usize = 68;
+    const D: usize = 17;
+    const HP: usize = 4;
+    const A: usize = 9;
+    const K: usize = 35;
+    const M: usize = 49;
+    const LEN: usize = 2 * N + 3;
 
     /// Length of public key
     pub const PK_LEN: usize = 64;
@@ -825,8 +815,8 @@ pub mod slh_dsa_shake_256f {
     /// Length of private/secret key
     pub const SK_LEN: usize = PK_LEN * 2;
 
-    static HASHERS: Hashers<K, Len, M, N> =
-        Hashers::<K, Len, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
+    static HASHERS: Hashers<K, LEN, M, N> =
+        Hashers::<K, LEN, M, N> { h_msg, prf, prf_msg, f, h, t_l, t_len: t_l };
 
     functionality!();
 }

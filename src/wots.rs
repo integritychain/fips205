@@ -1,7 +1,6 @@
 use crate::hashers::Hashers;
 use crate::helpers;
 use crate::types::{Adrs, WotsPk, WotsSig, WOTS_PK, WOTS_PRF};
-use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 4: `chain(X, i, s, PK.seed, ADRS)` on page 17.
@@ -14,10 +13,9 @@ use generic_array::{ArrayLength, GenericArray};
 ///
 /// Input: Input string `X`, start index `i`, number of steps `s`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: Value of `F` iterated `s` times on `X`.
-pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
-    hashers: &Hashers<K, LEN, M, N>, cap_x: GenericArray<u8, N>, i: u32, s: u32, pk_seed: &[u8],
-    adrs: &Adrs,
-) -> Option<GenericArray<u8, N>> {
+pub(crate) fn chain<const K: usize, const LEN: usize, const M: usize, const N: usize>(
+    hashers: &Hashers<K, LEN, M, N>, cap_x: [u8; N], i: u32, s: u32, pk_seed: &[u8], adrs: &Adrs,
+) -> Option<[u8; N]> {
     debug_assert!(i + s < u32::MAX);
     let mut adrs = adrs.clone();
 
@@ -61,11 +59,12 @@ pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLe
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pk`.
 #[allow(clippy::similar_names)] // pk_seed and sk_seed
-pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
+pub(crate) fn wots_pkgen<const K: usize, const LEN: usize, const M: usize, const N: usize>(
     hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> Result<WotsPk<N>, &'static str> {
     let mut adrs = adrs.clone();
-    let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
+    let mut tmp = [[0u8; N]; LEN];
+    let len32 = u32::try_from(LEN).unwrap();
 
     // 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
     let mut sk_adrs = adrs.clone();
@@ -77,7 +76,7 @@ pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Ar
     sk_adrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 4: for i from 0 to len − 1 do
-    for i in 0..LEN::to_u32() {
+    for i in 0..len32 {
         //
         // 5: skADRS.setChainAddress(i)
         sk_adrs.set_chain_address(i);
@@ -118,23 +117,25 @@ pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Ar
 /// Input: Message `M`, secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ signature sig.
 #[allow(clippy::similar_names)] // pk_seed and sk_seed
-pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
+pub(crate) fn wots_sign<const K: usize, const LEN: usize, const M: usize, const N: usize>(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> WotsSig<LEN, N> {
+    let n32 = u32::try_from(N).unwrap();
     let mut adrs = adrs.clone();
-    let mut sig: WotsSig<LEN, N> = WotsSig::default();
+    //let mut sig: WotsSig<LEN, N> = WotsSig::default();
+    let mut sig: WotsSig<LEN, N> = WotsSig{ data: [[0u8; N]; LEN] };
 
     // 1: csum ← 0
     let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b(M, lgw, len1)    ▷ Convert message to base w
-    let mut msg = GenericArray::<u32, LEN>::default(); // note: 3 entries left over, used step 10
-    helpers::base_2b(m, crate::LGW, 2 * N::to_u32(), &mut msg[0..(2 * N::to_usize())]);
+    let mut msg = [0u32; LEN]; //GenericArray::<u32, LEN>::default(); // note: 3 entries left over, used step 10
+    helpers::base_2b(m, crate::LGW, 2 * n32, &mut msg[0..(2 * N)]);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
-    for item in msg.iter().take(2 * N::to_usize()) {
+    for item in msg.iter().take(2 * N) {
         //
         // 6: csum ← csum + w − 1 − msg[i]
         csum += crate::W - 1 - *item;
@@ -151,7 +152,7 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
         &helpers::to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
         crate::LGW,
         crate::LEN2,
-        &mut msg[(2 * N::to_usize())..],
+        &mut msg[(2 * N)..],
     );
 
     // 11:
@@ -192,23 +193,24 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
 ///
 /// Input: WOTS+ signature `sig`, message `M`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pksig` derived from `sig`.
-pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
+pub(crate) fn wots_pk_from_sig<const K: usize, const LEN: usize, const M: usize, const N: usize>(
     hashers: &Hashers<K, LEN, M, N>, sig: &WotsSig<LEN, N>, m: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> WotsPk<N> {
+    let n32 = u32::try_from(N).unwrap();
     let mut adrs = adrs.clone();
-    let mut tmp: GenericArray<GenericArray<u8, N>, LEN> = GenericArray::default();
+    let mut tmp = [[0u8; N]; LEN]; //GenericArray::default();
 
     // 1: csum ← 0
     let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
-    let mut msg: GenericArray<u32, LEN> = GenericArray::default();
-    helpers::base_2b(m, crate::LGW, 2 * N::to_u32(), &mut msg[0..(2 * N::to_usize())]);
+    let mut msg = [0u32; LEN]; //GenericArray::default();
+    helpers::base_2b(m, crate::LGW, 2 * n32, &mut msg[0..(2 * N)]);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
-    for item in msg.iter().take(2 * N::to_usize()) {
+    for item in msg.iter().take(2 * N) {
         //
         // 6:   csum ← csum + w − 1 − msg[i]
         csum += crate::W - 1 - item;
@@ -225,12 +227,12 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
         &helpers::to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
         crate::LGW,
         crate::LEN2,
-        &mut msg[(2 * N::to_usize())..],
+        &mut msg[(2 * N)..],
     );
 
     // 11: for i from 0 to len − 1 do
     #[allow(clippy::cast_possible_truncation)] // steps 12 and 13
-    for i in 0..LEN::to_usize() {
+    for i in 0..LEN {
         //
         // 12: ADRS.setChainAddress(i)
         adrs.set_chain_address(i as u32);
@@ -238,7 +240,7 @@ pub(crate) fn wots_pk_from_sig<K: ArrayLength, LEN: ArrayLength, M: ArrayLength,
         // 13: tmp[i] ← chain(sig[i], msg[i], w − 1 − msg[i], PK.seed, ADRS)
         tmp[i] = chain::<K, LEN, M, N>(
             hashers,
-            sig.data[i].clone(),
+            sig.data[i],
             msg[i],
             crate::W - 1 - msg[i],
             pk_seed,

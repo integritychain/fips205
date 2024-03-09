@@ -1,7 +1,6 @@
 use crate::hashers::Hashers;
-use crate::types::{Adrs, HtSig};
+use crate::types::{Adrs, HtSig, WotsSig, XmssSig};
 use crate::xmss;
-use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 11: `ht_sign(M, SK.seed, PK.seed, idx_tree, idx_leaf)` on page 27.
@@ -12,18 +11,19 @@ use generic_array::{ArrayLength, GenericArray};
 /// Output: HT signature `SIG_HT`.
 #[allow(clippy::similar_names)] // sk_seed and pk_seed
 pub(crate) fn ht_sign<
-    D: ArrayLength,
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], idx_tree: u64,
     idx_leaf: u32,
 ) -> Result<HtSig<D, HP, LEN, N>, &'static str> {
     let mut idx_tree = idx_tree;
+    let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -37,7 +37,7 @@ pub(crate) fn ht_sign<
         xmss::xmss_sign::<H, HP, K, LEN, M, N>(hashers, m, sk_seed, idx_leaf, pk_seed, &adrs)?;
 
     // 5: SIG_HT ← SIG_tmp
-    let mut sig_ht = HtSig::default();
+    let mut sig_ht = HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) }; //HtSig::default();
     sig_ht.xmss_sigs[0] = sig_tmp.clone();
 
     // 6: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
@@ -45,14 +45,14 @@ pub(crate) fn ht_sign<
         xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
     // 7: for j from 1 to d − 1 do
-    for j in 1..D::to_u32() {
+    for j in 1..d32 {
         //
         // 8: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32()))
+        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(hp32))
             .map_err(|_| "Alg11: oversized idx leaf")?;
 
         // 9: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
-        idx_tree >>= HP::to_u32();
+        idx_tree >>= hp32;
 
         // 10: ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);
@@ -69,7 +69,7 @@ pub(crate) fn ht_sign<
         sig_ht.xmss_sigs[j as usize] = sig_tmp.clone();
 
         // 14: if j < d − 1 then
-        if j < (D::to_u32() - 1) {
+        if j < (d32 - 1) {
             //
             // 15: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
             root = xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(
@@ -94,17 +94,18 @@ pub(crate) fn ht_sign<
 /// HT public key `PK.root`. <br>
 /// Output: Boolean.
 pub(crate) fn ht_verify<
-    D: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const D: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig_ht: &HtSig<D, HP, LEN, N>, pk_seed: &[u8],
-    idx_tree: u64, idx_leaf: u32, pk_root: &GenericArray<u8, N>,
+    idx_tree: u64, idx_leaf: u32, pk_root: &[u8; N],
 ) -> bool {
     let mut idx_tree = idx_tree;
+    let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -120,17 +121,17 @@ pub(crate) fn ht_verify<
     let mut node = xmss::xmss_pk_from_sig(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
     // 6: for j from 1 to d − 1 do
-    for j in 1..D::to_u32() {
+    for j in 1..d32 {
         //
         // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(HP::to_u32())); // TODO: clean
+        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(hp32)); // TODO: clean
         if idx_leaf.is_err() {
             return false;
         };
         let idx_leaf = idx_leaf.unwrap();
 
         // 8: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
-        idx_tree >>= HP::to_u32();
+        idx_tree >>= hp32;
 
         // 9: ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);

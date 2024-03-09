@@ -1,5 +1,4 @@
-use crate::types::{Adrs, SlhDsaSig};
-use generic_array::ArrayLength;
+use crate::types::{Adrs, Auth, ForsSig, HtSig, SlhDsaSig, WotsSig, XmssSig};
 
 
 /// Algorithm 1: `toInt(X, n)` on page 14.
@@ -112,44 +111,42 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
 
 
 impl<
-        A: ArrayLength,
-        D: ArrayLength,
-        HP: ArrayLength,
-        K: ArrayLength,
-        LEN: ArrayLength,
-        N: ArrayLength,
+        const A: usize,
+        const D: usize,
+        const HP: usize,
+        const K: usize,
+        const LEN: usize,
+        const N: usize,
     > SlhDsaSig<A, D, HP, K, LEN, N>
 {
     pub(crate) fn deserialize<const SIG_LEN: usize>(self) -> [u8; SIG_LEN] {
         let mut out = [0u8; SIG_LEN];
         debug_assert_eq!(
             out.len(),
-            N::to_usize() +  // randomness
-                N::to_usize() * K::to_usize() + K::to_usize() * A::to_usize() * N::to_usize() + // ForsSig
-                D::to_usize() * (HP::to_usize() * N::to_usize() + LEN::to_usize() * N::to_usize())
+            N +  // randomness
+                N * K + K * A * N + // ForsSig
+                D * (HP * N + LEN * N)
         );
-        out[0..N::to_usize()].copy_from_slice(&self.randomness);
-        let mut start = N::to_usize();
-        for k in 0..K::to_usize() {
-            out[start..(start + N::to_usize())]
-                .copy_from_slice(&self.fors_sig.private_key_value[k]);
-            start += N::to_usize();
-            for a in 0..A::to_usize() {
-                out[start..(start + N::to_usize())].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
-                start += N::to_usize();
+        out[0..N].copy_from_slice(&self.randomness);
+        let mut start = N;
+        for k in 0..K {
+            out[start..(start + N)].copy_from_slice(&self.fors_sig.private_key_value[k]);
+            start += N;
+            for a in 0..A {
+                out[start..(start + N)].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
+                start += N;
             }
         }
-        for d in 0..D::to_usize() {
+        for d in 0..D {
             //println!("and we move to xmss {} starting at {}", d, start);
-            for len in 0..LEN::to_usize() {
-                out[start..(start + N::to_usize())]
+            for len in 0..LEN {
+                out[start..(start + N)]
                     .copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
-                start += N::to_usize();
+                start += N;
             }
-            for hp in 0..HP::to_usize() {
-                out[start..(start + N::to_usize())]
-                    .copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
-                start += N::to_usize();
+            for hp in 0..HP {
+                out[start..(start + N)].copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
+                start += N;
             }
         }
         debug_assert_eq!(start, out.len());
@@ -159,33 +156,35 @@ impl<
     pub(crate) fn serialize(bytes: &[u8]) -> Self {
         debug_assert_eq!(
             bytes.len(),
-            N::to_usize() +  // randomness
-                N::to_usize() * K::to_usize() + K::to_usize() * A::to_usize() * N::to_usize() + // ForsSig
-                D::to_usize() * (HP::to_usize() * N::to_usize() + LEN::to_usize() * N::to_usize())
+            N +  // randomness
+                N * K + K * A * N + // ForsSig
+                D * (HP * N + LEN * N)
         );
-        let mut output = Self::default();
-        output.randomness.copy_from_slice(&bytes[0..N::to_usize()]);
-        let mut start = N::to_usize();
-        for k in 0..K::to_usize() {
-            output.fors_sig.private_key_value[k]
-                .copy_from_slice(&bytes[start..(start + N::to_usize())]);
-            start += N::to_usize();
-            for a in 0..A::to_usize() {
-                output.fors_sig.auth[k].tree[a]
-                    .copy_from_slice(&bytes[start..(start + N::to_usize())]);
-                start += N::to_usize();
+        //let mut output = Self::default();
+        let mut output = SlhDsaSig{
+            randomness: [0u8; N], //r.clone(),
+            fors_sig: ForsSig { private_key_value: [[0u8; N]; K], auth: core::array::from_fn(|_| Auth{ tree: [[0u8; N]; A] }) },
+            ht_sig: HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) },
+        };
+        output.randomness.copy_from_slice(&bytes[0..N]);
+        let mut start = N;
+        for k in 0..K {
+            output.fors_sig.private_key_value[k].copy_from_slice(&bytes[start..(start + N)]);
+            start += N;
+            for a in 0..A {
+                output.fors_sig.auth[k].tree[a].copy_from_slice(&bytes[start..(start + N)]);
+                start += N;
             }
         }
-        for d in 0..D::to_usize() {
-            for len in 0..LEN::to_usize() {
+        for d in 0..D {
+            for len in 0..LEN {
                 output.ht_sig.xmss_sigs[d].sig_wots.data[len]
-                    .copy_from_slice(&bytes[start..(start + N::to_usize())]);
-                start += N::to_usize();
+                    .copy_from_slice(&bytes[start..(start + N)]);
+                start += N;
             }
-            for hp in 0..HP::to_usize() {
-                output.ht_sig.xmss_sigs[d].auth[hp]
-                    .copy_from_slice(&bytes[start..(start + N::to_usize())]);
-                start += N::to_usize();
+            for hp in 0..HP {
+                output.ht_sig.xmss_sigs[d].auth[hp].copy_from_slice(&bytes[start..(start + N)]);
+                start += N;
             }
         }
         debug_assert_eq!(start, bytes.len());

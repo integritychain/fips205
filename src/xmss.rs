@@ -1,7 +1,6 @@
 use crate::hashers::Hashers;
-use crate::types::{Adrs, XmssSig, TREE, WOTS_HASH};
+use crate::types::{Adrs, XmssSig, TREE, WOTS_HASH, WotsSig};
 use crate::wots;
-use generic_array::{ArrayLength, GenericArray};
 
 
 /// Algorithm 8: `xmss_node(SK.seed, i, z, PK.seed, ADRS)` on page 22.
@@ -12,19 +11,20 @@ use generic_array::{ArrayLength, GenericArray};
 /// Output: n-byte root `node`.
 #[allow(clippy::similar_names)] // sk_seed and pk_seed
 pub(crate) fn xmss_node<
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8], i: u32, z: u32, pk_seed: &[u8], adrs: &Adrs,
-) -> Result<GenericArray<u8, N>, &'static str> {
+) -> Result<[u8; N], &'static str> {
+    let hp32 = u32::try_from(HP).unwrap();
     let mut adrs = adrs.clone();
 
     // 1: if z > h′ or i ≥ 2^{h −z} then
-    if (z > HP::to_u32()) | (u64::from(i) >= 2u64.pow(HP::to_u32() - z)) {
+    if (z > hp32) | (u64::from(i) >= 2u64.pow(hp32 - z)) {
         //
         // 2: return NULL
         return Err("Alg8: fail");
@@ -44,7 +44,6 @@ pub(crate) fn xmss_node<
         // 7: node ← wots_PKgen(SK.seed, PK.seed, ADRS)
         wots::wots_pkgen::<K, LEN, M, N>(hashers, sk_seed, pk_seed, &adrs)?
             .0
-            .clone()
 
         // 8: else
     } else {
@@ -84,21 +83,23 @@ pub(crate) fn xmss_node<
 /// Output: XMSS signature SIGXMSS = (sig ∥ AUTH).
 #[allow(clippy::similar_names)] // sk_seed and pk_seed
 pub(crate) fn xmss_sign<
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], idx: u32, pk_seed: &[u8],
     adrs: &Adrs,
 ) -> Result<XmssSig<HP, LEN, N>, &'static str> {
+    let hp32 = u32::try_from(HP).unwrap();
     let mut adrs = adrs.clone();
-    let mut sig_xmss = XmssSig::default();
+    //let mut sig_xmss = XmssSig::default();
+    let mut sig_xmss = XmssSig{ sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth:  [[0u8; N]; HP] };
 
     // 1: for j from 0 to h′-1 do    ▷ Build authentication path
-    for j in 0..HP::to_u32() {
+    for j in 0..hp32 {
         //
         // 2: k ← idx/2 ^j xor 1
         let k = (idx >> j) ^ 1;
@@ -135,15 +136,16 @@ pub(crate) fn xmss_sign<
 /// address `ADRS`. <br>
 /// Output: n-byte root value `node[0]`.
 pub(crate) fn xmss_pk_from_sig<
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, idx: u32, sig_xmss: &XmssSig<HP, LEN, N>, m: &[u8],
     pk_seed: &[u8], adrs: &Adrs,
-) -> GenericArray<u8, N> {
+) -> [u8; N] {
+    let hp32 = u32::try_from(HP).unwrap();
     let mut adrs = adrs.clone();
 
     // 1: ADRS.setTypeAndClear(WOTS_HASH)    ▷ Compute WOTS+ pk from WOTS+ sig
@@ -160,8 +162,7 @@ pub(crate) fn xmss_pk_from_sig<
 
     // 5: node[0] ← wots_PKFromSig(sig, M, PK.seed, ADRS)
     let mut node_0 = wots::wots_pk_from_sig::<K, LEN, M, N>(hashers, sig, m, pk_seed, &adrs)
-        .0
-        .clone();
+        .0;
 
     // 6:
     // 7: ADRS.setTypeAndClear(TREE)    ▷ Compute root from WOTS+ pk and AUTH
@@ -171,7 +172,7 @@ pub(crate) fn xmss_pk_from_sig<
     adrs.set_tree_index(idx);
 
     // 9: for k from 0 to h′ − 1 do
-    for k in 0..HP::to_u32() {
+    for k in 0..hp32 {
         //
         // 10: ADRS.setTreeHeight(k + 1)
         adrs.set_tree_height(k + 1);

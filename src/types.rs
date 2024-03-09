@@ -1,87 +1,89 @@
-use generic_array::{ArrayLength, GenericArray};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 
 /// Fig 16 on page 34
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct SlhDsaSig<
-    A: ArrayLength,
-    D: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    N: ArrayLength,
+    const A: usize,
+    const D: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const N: usize,
 > {
-    pub(crate) randomness: GenericArray<u8, N>,
+    pub(crate) randomness: [u8; N],
     pub(crate) fors_sig: ForsSig<A, K, N>,
     pub(crate) ht_sig: HtSig<D, HP, LEN, N>,
 }
 
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-pub struct SlhPublicKey<N: ArrayLength> {
-    pub(crate) pk_seed: GenericArray<u8, N>,
-    pub(crate) pk_root: GenericArray<u8, N>,
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct SlhPublicKey<const N: usize> {
+    pub(crate) pk_seed: [u8; N],
+    pub(crate) pk_root: [u8; N],
 }
 
 
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub struct SlhPrivateKey<N: ArrayLength> {
-    pub(crate) sk_seed: GenericArray<u8, N>,
-    pub(crate) sk_prf: GenericArray<u8, N>,
-    pub(crate) pk_seed: GenericArray<u8, N>,
-    pub(crate) pk_root: GenericArray<u8, N>,
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub struct SlhPrivateKey<const N: usize> {
+    pub(crate) sk_seed: [u8; N],
+    pub(crate) sk_prf: [u8; N],
+    pub(crate) pk_seed: [u8; N],
+    pub(crate) pk_root: [u8; N],
 }
 
 
 /// Fig 13 on page 29
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub(crate) struct ForsSig<A: ArrayLength, K: ArrayLength, N: ArrayLength> {
-    pub(crate) private_key_value: GenericArray<GenericArray<u8, N>, K>,
-    pub(crate) auth: GenericArray<Auth<A, N>, K>,
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct ForsSig<const A: usize, const K: usize, const N: usize> {
+    pub(crate) private_key_value: [[u8; N]; K],
+    pub(crate) auth: [Auth<A, N>; K],
 }
 
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-pub(crate) struct ForsPk<N: ArrayLength> {
-    pub(crate) key: GenericArray<u8, N>,
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct ForsPk<const N: usize> {
+    pub(crate) key: [u8; N],
 }
 
 
 /// Fig 10?
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub(crate) struct Auth<A: ArrayLength, N: ArrayLength> {
-    pub(crate) tree: GenericArray<GenericArray<u8, N>, A>,
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct Auth<const A: usize, const N: usize> {
+    pub(crate) tree: [[u8; N]; A],
+}
+
+impl<const A: usize, const N: usize> Default for Auth<A, N> {
+    fn default() -> Self { Auth { tree: [[0u8; N]; A] } }
+}
+
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub(crate) struct HtSig<const D: usize, const HP: usize, const LEN: usize, const N: usize> {
+    pub(crate) xmss_sigs: [XmssSig<HP, LEN, N>; D],
 }
 
 
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub(crate) struct HtSig<D: ArrayLength, HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> {
-    pub(crate) xmss_sigs: GenericArray<XmssSig<HP, LEN, N>, D>,
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub struct WotsSig<const LEN: usize, const N: usize> {
+    pub(crate) data: [[u8; N]; LEN],
 }
 
 
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub struct WotsSig<LEN: ArrayLength, N: ArrayLength> {
-    pub(crate) data: GenericArray<GenericArray<u8, N>, LEN>,
-}
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct WotsPk<const N: usize>(pub(crate) [u8; N]);
 
 
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-pub struct WotsPk<N: ArrayLength>(pub(crate) GenericArray<u8, N>);
-
-
-#[derive(Clone, Debug, Default, Zeroize, ZeroizeOnDrop)]
-pub struct XmssSig<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> {
+#[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
+pub struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
     pub(crate) sig_wots: WotsSig<LEN, N>,
-    pub(crate) auth: GenericArray<GenericArray<u8, N>, HP>,
+    pub(crate) auth: [[u8; N]; HP],
 }
 
 
-impl<HP: ArrayLength, LEN: ArrayLength, N: ArrayLength> XmssSig<HP, LEN, N> {
+impl<const HP: usize, const LEN: usize, const N: usize> XmssSig<HP, LEN, N> {
     pub(crate) fn get_wots_sig(&self) -> &WotsSig<LEN, N> { &self.sig_wots }
 
-    pub(crate) fn get_xmss_auth(&self) -> &GenericArray<GenericArray<u8, N>, HP> { &self.auth }
+    pub(crate) fn get_xmss_auth(&self) -> &[[u8; N]; HP] { &self.auth }
 }
 
 

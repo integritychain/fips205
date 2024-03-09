@@ -1,8 +1,7 @@
 use crate::hashers::Hashers;
-use crate::types::FORS_TREE;
+use crate::types::{Auth, FORS_TREE, ForsSig, HtSig, WotsSig, XmssSig};
 use crate::types::{Adrs, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
 use crate::{fors, helpers, hypertree, xmss};
-use generic_array::{ArrayLength, GenericArray};
 use rand_core::CryptoRngCore;
 
 
@@ -13,29 +12,31 @@ use rand_core::CryptoRngCore;
 /// Output: SLH-DSA key pair `(SK, PK)`.
 #[allow(clippy::similar_names)] // sk_seed and pk_seed
 pub(crate) fn slh_keygen_with_rng<
-    D: ArrayLength,
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>,
 ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
+    let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
+
     //
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
-    let mut sk_seed = GenericArray::default();
+    let mut sk_seed = [0u8; N]; // = GenericArray::default();
     rng.try_fill_bytes(&mut sk_seed)
         .map_err(|_| "Alg17: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
-    let mut sk_prf = GenericArray::default();
+    let mut sk_prf = [0u8; N]; //GenericArray::default();
     rng.try_fill_bytes(&mut sk_prf)
         .map_err(|_| "Alg17: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
-    let mut pk_seed = GenericArray::default();
+    let mut pk_seed = [0u8; N]; //GenericArray::default();
     rng.try_fill_bytes(&mut pk_seed)
         .map_err(|_| "Alg17: rng failed3")?;
 
@@ -44,21 +45,15 @@ pub(crate) fn slh_keygen_with_rng<
     let mut adrs = Adrs::default();
 
     // 6: ADRS.setLayerAddress(d − 1)
-    adrs.set_layer_address(D::to_u32() - 1);
+    adrs.set_layer_address(d32 - 1);
 
     // 7: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
-    let pk_root = xmss::xmss_node::<H, HP, K, LEN, M, N>(
-        hashers,
-        &sk_seed,
-        0,
-        HP::to_u32(),
-        &pk_seed,
-        &adrs,
-    )?;
+    let pk_root =
+        xmss::xmss_node::<H, HP, K, LEN, M, N>(hashers, &sk_seed, 0, hp32, &pk_seed, &adrs)?;
 
     // 8:
     // 9: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
-    let pk = SlhPublicKey { pk_seed: pk_seed.clone(), pk_root: pk_root.clone() };
+    let pk = SlhPublicKey { pk_seed, pk_root };
     let sk = SlhPrivateKey { sk_seed, sk_prf, pk_seed, pk_root };
     Ok((sk, pk))
 }
@@ -69,27 +64,29 @@ pub(crate) fn slh_keygen_with_rng<
 ///
 /// Input: Message `M`, private key `SK = (SK.seed, SK.prf, PK.seed, PK.root)`. <br>
 /// Output: SLH-DSA signature `SIG`.
+#[allow(clippy::similar_names)]
 #[allow(clippy::cast_possible_truncation)] // temporary, investigating idx_leaf int sizes
 pub(crate) fn slh_sign_with_rng<
-    A: ArrayLength,
-    D: ArrayLength,
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const A: usize,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk: &SlhPrivateKey<N>,
     randomize: bool,
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
+    let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
 
     // 2:
     // 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
-    let mut opt_rand = sk.pk_seed.clone();
+    let mut opt_rand = sk.pk_seed;
 
     // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
     if randomize {
@@ -104,34 +101,39 @@ pub(crate) fn slh_sign_with_rng<
     let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
 
     // 8: SIG ← R
-    let mut sig = SlhDsaSig::default();
-    sig.randomness = r.clone();
+    //let mut sig = SlhDsaSig::default();
+    let mut sig = SlhDsaSig{
+        randomness: r,
+        fors_sig: ForsSig { private_key_value: [[0u8; N]; K], auth: core::array::from_fn(|_| Auth{ tree: [[0u8; N]; A] }) },
+        ht_sig: HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) },
+    };
+    
+    //sig.randomness.0 = r.clone();
 
     // 9:
     // 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
     let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, m);
 
     // 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K::to_usize() * A::to_usize() + 7) / 8;
+    let index1 = (K * A + 7) / 8;
     let md = &digest[0..index1];
 
     // 12: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
-    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize() + 7) / 8;
+    let index2 = index1 + (H - H / D + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
     // 13: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
-    let index3 = index2 + (H::to_usize() + 8 * D::to_usize() - 1) / (8 * D::to_usize());
+    let index3 = index2 + (H + 8 * D - 1) / (8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 14:
     // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
-    let idx_tree = helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
-        & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
+        & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf =
-        helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
-            & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
+        & (u64::MAX >> (64 - h32 / d32));
 
     // 17:
     // 18: ADRS.setTreeAddress(idx_tree)
@@ -175,19 +177,22 @@ pub(crate) fn slh_sign_with_rng<
 /// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
 /// Output: Boolean.
 #[allow(clippy::cast_possible_truncation)] // TODO: temporary
+#[allow(clippy::similar_names)]
 pub(crate) fn slh_verify<
-    A: ArrayLength,
-    D: ArrayLength,
-    H: ArrayLength,
-    HP: ArrayLength,
-    K: ArrayLength,
-    LEN: ArrayLength,
-    M: ArrayLength,
-    N: ArrayLength,
+    const A: usize,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>,
     pk: &SlhPublicKey<N>,
 ) -> bool {
+    let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
+
     // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
     // 2:   return false
     // 3: end if
@@ -210,26 +215,25 @@ pub(crate) fn slh_verify<
     let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
 
     // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K::to_usize() * A::to_usize() + 7) / 8;
+    let index1 = (K * A + 7) / 8;
     let md = &digest[0..index1];
 
     // 11: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
-    let index2 = index1 + (H::to_usize() - H::to_usize() / D::to_usize() + 7) / 8;
+    let index2 = index1 + (H - H / D + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
     // 12: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
-    let index3 = index2 + (H::to_usize() + 8 * D::to_usize() - 1) / (8 * D::to_usize());
+    let index3 = index2 + (H + 8 * D - 1) / (8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 13:
     // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
-    let idx_tree = helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
-        & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
+        & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf =
-        helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
-            & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
+        & (u64::MAX >> (64 - h32 / d32));
 
     // 16:
     // 17: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
