@@ -45,7 +45,7 @@ pub(crate) mod shake {
         r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
     ) -> GenericArray<u8, M> {
         let mut digest: GenericArray<u8, M> = GenericArray::default();
-        shake256(&[&r, &pk_seed, &pk_root, m], &mut digest);
+        shake256(&[r, pk_seed, pk_root, m], &mut digest);
         digest
     }
 
@@ -122,13 +122,13 @@ pub(crate) mod sha2_cat_1 {
         r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
     ) -> GenericArray<u8, M> {
         let mut digest1 = [0u8; 32];
-        sha2_256(&[&r, &pk_seed, &pk_root, m], &mut digest1);
+        sha2_256(&[r, pk_seed, pk_root, m], &mut digest1);
         let mut result: GenericArray<u8, M> = GenericArray::default();
         let mut start = 0;
         let mut counter = 0u32;
         while start < M::to_usize() {
             let mut tmp = [0u8; 32];
-            sha2_256(&[&r, &pk_seed, &digest1, &counter.to_be_bytes()], &mut tmp);
+            sha2_256(&[r, pk_seed, &digest1, &counter.to_be_bytes()], &mut tmp);
             let len = min(M::to_usize() - start, 32);
             result[start..start + len].copy_from_slice(&tmp[0..len]);
             start += 32;
@@ -276,13 +276,13 @@ pub(crate) mod sha2_cat_3_5 {
         r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
     ) -> GenericArray<u8, M> {
         let mut digest1 = [0u8; 64];
-        sha2_512(&[&r, &pk_seed, &pk_root, m], &mut digest1);
+        sha2_512(&[r, pk_seed, pk_root, m], &mut digest1);
         let mut result: GenericArray<u8, M> = GenericArray::default();
         let mut start = 0;
         let mut counter = 0u32;
         while start < M::to_usize() {
             let mut tmp = [0u8; 64];
-            sha2_512(&[&r, &pk_seed, &digest1, &counter.to_be_bytes()], &mut tmp);
+            sha2_512(&[r, pk_seed, &digest1, &counter.to_be_bytes()], &mut tmp);
             let len = min(M::to_usize() - start, 64);
             result[start..start + len].copy_from_slice(&tmp[0..len]);
             start += 64;

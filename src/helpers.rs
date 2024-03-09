@@ -201,7 +201,6 @@ impl Adrs {
 
     pub(crate) fn set_key_pair_address(&mut self, kp_addr: u32) { self.f5 = kp_addr.to_be_bytes(); }
 
-    #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn set_chain_address(&mut self, i: u32) { self.f6 = i.to_be_bytes(); }
 
     pub(crate) fn set_type_and_clear(&mut self, type_t: u32) {
@@ -211,10 +210,10 @@ impl Adrs {
         self.f7 = 0u32.to_be_bytes();
     }
 
-    #[allow(clippy::cast_possible_truncation)]
     pub(crate) fn set_tree_address(&mut self, t: u64) {
-        self.f2 = ((t >> 32) as u32).to_be_bytes();
-        self.f3 = (t as u32).to_be_bytes();
+        let bytes = t.to_be_bytes();
+        self.f2.copy_from_slice(&bytes[..4]); // = ((t >> 32) as u32).to_be_bytes();
+        self.f3.copy_from_slice(&bytes[4..]); // = (t as u32).to_be_bytes();
     }
 
     pub(crate) fn set_hash_address(&mut self, addr: u32) { self.f7 = addr.to_be_bytes() }

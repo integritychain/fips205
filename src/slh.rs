@@ -125,13 +125,13 @@ pub(crate) fn slh_sign_with_rng<
 
     // 14:
     // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
-    let idx_tree =
-        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
-            & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    let idx_tree = helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
+        & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
 
     // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
-        & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
+    let idx_leaf =
+        helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
+            & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
 
     // 17:
     // 18: ADRS.setTreeAddress(idx_tree)
@@ -223,13 +223,13 @@ pub(crate) fn slh_verify<
 
     // 13:
     // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
-    let idx_tree =
-        helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) /8)
-            & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
+    let idx_tree = helpers::to_int(tmp_idx_tree, (H::to_u32() - H::to_u32() / D::to_u32() + 7) / 8)
+        & (u64::MAX >> (64 - (H::to_u32() - H::to_u32() / D::to_u32())));
 
     // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
-        & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
+    let idx_leaf =
+        helpers::to_int(tmp_idx_leaf, (H::to_u32() + 8 * D::to_u32() - 1) / (8 * D::to_u32()))
+            & (u64::MAX >> (64 - H::to_u32() / D::to_u32()));
 
     // 16:
     // 17: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key

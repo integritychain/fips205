@@ -60,7 +60,7 @@ pub(crate) fn chain<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLe
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ public key `pk`.
-#[allow(clippy::similar_names)]
+#[allow(clippy::similar_names)] // pk_seed and sk_seed
 pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
     hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> Result<WotsPk<N>, &'static str> {
@@ -117,7 +117,7 @@ pub(crate) fn wots_pkgen<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Ar
 ///
 /// Input: Message `M`, secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`. <br>
 /// Output: WOTS+ signature sig.
-#[allow(clippy::similar_names)]
+#[allow(clippy::similar_names)] // pk_seed and sk_seed
 pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: ArrayLength>(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> WotsSig<LEN, N> {
@@ -165,7 +165,6 @@ pub(crate) fn wots_sign<K: ArrayLength, LEN: ArrayLength, M: ArrayLength, N: Arr
     sk_addrs.set_key_pair_address(adrs.get_key_pair_address());
 
     // 15: for i from 0 to len − 1 do
-    //#[allow(clippy::cast_possible_truncation)] // step 19
     for (item, i) in msg.iter().zip(0u32..) {
         //
         // 16: skADRS.setChainAddress(i)

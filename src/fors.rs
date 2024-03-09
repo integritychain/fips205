@@ -122,7 +122,6 @@ pub(crate) fn fors_sign<
     helpers::base_2b(md, A::to_u32(), K::to_u32(), &mut indices);
 
     // 3: for i from 0 to k − 1 do    ▷ Compute signature elements
-    #[allow(clippy::cast_possible_truncation)]
     for i in 0..K::to_u32() {
         //
         // 4: SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2^a + indices[i])
@@ -188,7 +187,6 @@ pub(crate) fn fors_pk_from_sig<
 
     // 2: for i from 0 to k − 1 do
     let mut root: GenericArray<GenericArray<u8, N>, K> = GenericArray::default();
-    #[allow(clippy::cast_possible_truncation)] // Step 5
     for i in 0..K::to_u32() {
         //
         // 3: sk ← SIG_FORS.getSK(i)    ▷ SIG_FORS [i · (a + 1) · n : (i · (a + 1) + 1) · n]

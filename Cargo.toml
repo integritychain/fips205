@@ -4,14 +4,18 @@ version = "0.1.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "FIPS 205 (draft): Stateless Hash-Based Digital Signature Standard"
+authors = ["Eric Schorn <eschorn@integritychain.com>"]
+documentation = "https://docs.rs/fips205"
+categories = ["cryptography", "no-std"]
+keywords = ["FIPS", "FIPS205", "hash", "signature"]
 repository = "https://github.com/integritychain/fips205"
 rust-version = "1.70"
 
 
 [dependencies]
-zeroize = { version = "1.7.0", features = ["zeroize_derive"] }
+zeroize = { version = "1.6.0", default-features = false, features = ["zeroize_derive"] }  # For MSRV 1.70
 rand_core = { version = "0.6.4", default-features = false }
-sha3 = { version = "0.10.8", default-features = false }
+sha3 = { version = "0.10.2", default-features = false }  # For MSRV 1.70
 sha2 = { version = "0.10.8", default-features = false }
 generic-array = {  version = "1.0.0", features=["const-default", "zeroize"] }
 

@@ -177,7 +177,6 @@ pub(crate) fn xmss_pk_from_sig<
         adrs.set_tree_height(k + 1);
 
         // 11: if idx/2^k is even then
-        #[allow(clippy::if_not_else)] // Follows the algorithm as written
         let node_1 = if ((idx >> k) & 1) == 0 {
             //
             // 12: ADRS.setTreeIndex(ADRS.getTreeIndex()/2)
