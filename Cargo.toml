@@ -13,15 +13,16 @@ rust-version = "1.70"
 
 
 [dependencies]
-zeroize = { version = "1.6.0", default-features = false, features = ["zeroize_derive"] }  # For MSRV 1.70
+zeroize = { version = "1.6.0", default-features = false, features = ["zeroize_derive"] }  # For MSRV 1.70 (dated)
 rand_core = { version = "0.6.4", default-features = false }
-sha3 = { version = "0.10.2", default-features = false }  # For MSRV 1.70
+sha3 = { version = "0.10.2", default-features = false }  # For MSRV 1.70 (dated)
 sha2 = { version = "0.10.8", default-features = false }
 
 
 [dev-dependencies]
 rand_chacha = "0.3.1"
 hex = "0.4.3"
+criterion = "0.4.0"  # For MSRV 1.70 (dated)
 
 
 [features]
@@ -43,13 +44,9 @@ slh_dsa_sha2_256f = []
 slh_dsa_shake_256f = []
 
 
-[profile.dev]
-opt-level = 3
-
-
-#[[bench]]
-#name = "benchmark"
-#harness = false
+[[bench]]
+name = "benchmark"
+harness = false
 
 
 [profile.bench]
@@ -59,3 +56,4 @@ incremental = false
 lto = true
 opt-level = 3
 overflow-checks = false
+codegen-units = 1
