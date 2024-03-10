@@ -1,5 +1,6 @@
 use crate::hashers::Hashers;
 use crate::helpers;
+use crate::helpers::{base_2b, to_byte};
 use crate::types::{Adrs, WotsPk, WotsSig, WOTS_PK, WOTS_PRF};
 
 
@@ -62,9 +63,9 @@ pub(crate) fn chain<const K: usize, const LEN: usize, const M: usize, const N: u
 pub(crate) fn wots_pkgen<const K: usize, const LEN: usize, const M: usize, const N: usize>(
     hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8], pk_seed: &[u8], adrs: &Adrs,
 ) -> Result<WotsPk<N>, &'static str> {
+    let len32 = u32::try_from(LEN).unwrap();
     let mut adrs = adrs.clone();
     let mut tmp = [[0u8; N]; LEN];
-    let len32 = u32::try_from(LEN).unwrap();
 
     // 1: skADRS ← ADRS    ▷ Copy address to create key generation key address
     let mut sk_adrs = adrs.clone();
@@ -122,15 +123,14 @@ pub(crate) fn wots_sign<const K: usize, const LEN: usize, const M: usize, const 
 ) -> WotsSig<LEN, N> {
     let n32 = u32::try_from(N).unwrap();
     let mut adrs = adrs.clone();
-    //let mut sig: WotsSig<LEN, N> = WotsSig::default();
-    let mut sig: WotsSig<LEN, N> = WotsSig{ data: [[0u8; N]; LEN] };
+    let mut sig: WotsSig<LEN, N> = WotsSig { data: [[0u8; N]; LEN] };
 
     // 1: csum ← 0
     let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b(M, lgw, len1)    ▷ Convert message to base w
-    let mut msg = [0u32; LEN]; //GenericArray::<u32, LEN>::default(); // note: 3 entries left over, used step 10
+    let mut msg = [0u32; LEN]; // note: 3 entries left over, used step 10
     helpers::base_2b(m, crate::LGW, 2 * n32, &mut msg[0..(2 * N)]);
 
     // 4:
@@ -198,15 +198,15 @@ pub(crate) fn wots_pk_from_sig<const K: usize, const LEN: usize, const M: usize,
 ) -> WotsPk<N> {
     let n32 = u32::try_from(N).unwrap();
     let mut adrs = adrs.clone();
-    let mut tmp = [[0u8; N]; LEN]; //GenericArray::default();
+    let mut tmp = [[0u8; N]; LEN];
 
     // 1: csum ← 0
     let mut csum = 0_u32;
 
     // 2:
     // 3: msg ← base_2b (M, lgw , len1 )    ▷ Convert message to base w
-    let mut msg = [0u32; LEN]; //GenericArray::default();
-    helpers::base_2b(m, crate::LGW, 2 * n32, &mut msg[0..(2 * N)]);
+    let mut msg = [0u32; LEN];
+    base_2b(m, crate::LGW, 2 * n32, &mut msg[0..(2 * N)]);
 
     // 4:
     // 5: for i from 0 to len1 − 1 do    ▷ Compute checksum
@@ -223,8 +223,8 @@ pub(crate) fn wots_pk_from_sig<const K: usize, const LEN: usize, const M: usize,
     csum <<= (8 - ((crate::LEN2 * crate::LGW) & 0x07)) & 0x07;
 
     // 10: msg ← msg ∥ base_2^b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
-    helpers::base_2b(
-        &helpers::to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
+    base_2b(
+        &to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N)..],

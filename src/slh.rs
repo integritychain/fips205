@@ -1,6 +1,6 @@
 use crate::hashers::Hashers;
-use crate::types::{Auth, FORS_TREE, ForsSig, HtSig, WotsSig, XmssSig};
 use crate::types::{Adrs, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
+use crate::types::{Auth, ForsSig, HtSig, WotsSig, XmssSig, FORS_TREE};
 use crate::{fors, helpers, hypertree, xmss};
 use rand_core::CryptoRngCore;
 
@@ -26,17 +26,17 @@ pub(crate) fn slh_keygen_with_rng<
 
     //
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
-    let mut sk_seed = [0u8; N]; // = GenericArray::default();
+    let mut sk_seed = [0u8; N];
     rng.try_fill_bytes(&mut sk_seed)
         .map_err(|_| "Alg17: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
-    let mut sk_prf = [0u8; N]; //GenericArray::default();
+    let mut sk_prf = [0u8; N];
     rng.try_fill_bytes(&mut sk_prf)
         .map_err(|_| "Alg17: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
-    let mut pk_seed = [0u8; N]; //GenericArray::default();
+    let mut pk_seed = [0u8; N];
     rng.try_fill_bytes(&mut pk_seed)
         .map_err(|_| "Alg17: rng failed3")?;
 
@@ -101,14 +101,19 @@ pub(crate) fn slh_sign_with_rng<
     let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
 
     // 8: SIG ← R
-    //let mut sig = SlhDsaSig::default();
-    let mut sig = SlhDsaSig{
-        randomness: r,
-        fors_sig: ForsSig { private_key_value: [[0u8; N]; K], auth: core::array::from_fn(|_| Auth{ tree: [[0u8; N]; A] }) },
-        ht_sig: HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) },
+    let mut sig = SlhDsaSig {
+        randomness: r, // here!
+        fors_sig: ForsSig {
+            private_key_value: [[0u8; N]; K],
+            auth: core::array::from_fn(|_| Auth { tree: [[0u8; N]; A] }),
+        },
+        ht_sig: HtSig {
+            xmss_sigs: core::array::from_fn(|_| XmssSig {
+                sig_wots: WotsSig { data: [[0u8; N]; LEN] },
+                auth: [[0u8; N]; HP],
+            }),
+        },
     };
-    
-    //sig.randomness.0 = r.clone();
 
     // 9:
     // 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest

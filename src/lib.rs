@@ -181,7 +181,7 @@ macro_rules! functionality {
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
                 // Result: opportunity for validation
                 //let mut pk = SlhPublicKey::default();
-                let mut pk = SlhPublicKey{pk_seed: [0u8; N], pk_root: [0u8; N]};
+                let mut pk = SlhPublicKey { pk_seed: [0u8; N], pk_root: [0u8; N] };
                 pk.pk_seed.copy_from_slice(&bytes[..(PK_LEN / 2)]);
                 pk.pk_root.copy_from_slice(&bytes[(PK_LEN / 2)..]);
                 Ok(PublicKey(pk))
@@ -204,7 +204,12 @@ macro_rules! functionality {
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
                 // Result: opportunity for validation
                 //let mut sk = SlhPrivateKey::default();
-                let mut sk = SlhPrivateKey{sk_seed: [0u8; N], sk_prf: [0u8; N], pk_seed: [0u8; N], pk_root: [0u8; N]};
+                let mut sk = SlhPrivateKey {
+                    sk_seed: [0u8; N],
+                    sk_prf: [0u8; N],
+                    pk_seed: [0u8; N],
+                    pk_root: [0u8; N],
+                };
                 sk.sk_seed.copy_from_slice(&bytes[0..(SK_LEN / 4)]);
                 sk.sk_prf
                     .copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);

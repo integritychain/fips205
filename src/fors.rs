@@ -1,6 +1,6 @@
 use crate::hashers::Hashers;
-use crate::helpers;
-use crate::types::{Adrs, ForsPk, ForsSig, FORS_PRF, FORS_ROOTS, Auth};
+use crate::helpers::base_2b;
+use crate::types::{Adrs, Auth, ForsPk, ForsSig, FORS_PRF, FORS_ROOTS};
 
 
 /// Algorithm 13: `fors_SKgen(SK.seed, PK.seed, ADRS, idx)` on page 29.
@@ -45,11 +45,11 @@ pub(crate) fn fors_node<
 >(
     hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8], i: u32, z: u32, pk_seed: &[u8], adrs: &Adrs,
 ) -> Result<[u8; N], &'static str> {
-    let mut adrs = adrs.clone();
     let (a32, k32) = (u32::try_from(A).unwrap(), u32::try_from(K).unwrap());
+    let mut adrs = adrs.clone();
 
     // 1: if z > a or i ≥ k · 2^(a−z) then
-    if (z > a32) | (i > k32 * 2u32.pow(a32 - z)) {
+    if (z > a32) | (i > k32 * (1 << (a32 - z))) {
         //
         // 2: return NULL
         return Err("Alg14 fails");
@@ -61,7 +61,7 @@ pub(crate) fn fors_node<
     let node = if z == 0 {
         //
         // 5: sk ← fors_SKgen(SK.seed, PK.seed, ADRS, i)
-        let sk: [u8; N] = fors_sk_gen(hashers, sk_seed, pk_seed, &adrs, i);
+        let sk = fors_sk_gen(hashers, sk_seed, pk_seed, &adrs, i);
 
         // 6: ADRS.setTreeHeight(0)
         adrs.set_tree_height(0);
@@ -114,13 +114,17 @@ pub(crate) fn fors_sign<
 >(
     hashers: &Hashers<K, LEN, M, N>, md: &[u8], sk_seed: &[u8], adrs: &Adrs, pk_seed: &[u8],
 ) -> Result<ForsSig<A, K, N>, &'static str> {
-    // 1: SIG_FORS = NULL    ▷ Initialize SIG_FORS as a zero-length byte string
-    let mut sig_fors = ForsSig { private_key_value: [[0u8; N]; K], auth: core::array::from_fn(|_| Auth{ tree: [[0u8; N]; A] }) }; //ForsSig::default();
     let (a32, k32) = (u32::try_from(A).unwrap(), u32::try_from(K).unwrap());
+
+    // 1: SIG_FORS = NULL    ▷ Initialize SIG_FORS as a zero-length byte string
+    let mut sig_fors = ForsSig {
+        private_key_value: [[0u8; N]; K],
+        auth: core::array::from_fn(|_| Auth { tree: [[0u8; N]; A] }),
+    };
 
     // 2: indices ← base_2^b(md, a, k)
     let mut indices = [0u32; K];
-    helpers::base_2b(md, a32, k32, &mut indices);
+    base_2b(md, a32, k32, &mut indices);
 
     // 3: for i from 0 to k − 1 do    ▷ Compute signature elements
     for i in 0..k32 {
@@ -131,7 +135,7 @@ pub(crate) fn fors_sign<
             sk_seed,
             pk_seed,
             adrs,
-            i * 2u32.pow(a32) + indices[i as usize],
+            i * (1 << a32) + indices[i as usize],
         );
 
         // 5:
@@ -145,7 +149,7 @@ pub(crate) fn fors_sign<
             sig_fors.auth[i as usize].tree[j as usize] = fors_node::<A, K, LEN, M, N>(
                 hashers,
                 sk_seed,
-                i * 2u32.pow(a32 - j) + s,
+                i * (1 << (a32 - j)) + s,
                 j,
                 pk_seed,
                 adrs,
@@ -181,13 +185,12 @@ pub(crate) fn fors_pk_from_sig<
     hashers: &Hashers<K, LEN, M, N>, sig_fors: &ForsSig<A, K, N>, md: &[u8], pk_seed: &[u8],
     adrs: &Adrs,
 ) -> ForsPk<N> {
-    let mut adrs = adrs.clone();
-
     let (a32, k32) = (u32::try_from(A).unwrap(), u32::try_from(K).unwrap());
+    let mut adrs = adrs.clone();
 
     // 1: indices ← base_2^b(md, a, k)
     let mut indices = [0u32; K];
-    helpers::base_2b(md, a32, k32, &mut indices);
+    base_2b(md, a32, k32, &mut indices);
 
     // 2: for i from 0 to k − 1 do
     let mut root = [[0u8; N]; K];
@@ -200,7 +203,7 @@ pub(crate) fn fors_pk_from_sig<
         adrs.set_tree_height(0);
 
         // 5: ADRS.setTreeIndex(i · 2^a + indices[i])
-        adrs.set_tree_index(i * 2u32.pow(a32) + indices[i as usize]);
+        adrs.set_tree_index(i * (1 << a32) + indices[i as usize]);
 
         // 6: node[0] ← F(PK.seed, ADRS, sk)
         let mut node_0 = (hashers.f)(pk_seed, &adrs, &sk);

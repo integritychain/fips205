@@ -17,7 +17,6 @@ zeroize = { version = "1.6.0", default-features = false, features = ["zeroize_de
 rand_core = { version = "0.6.4", default-features = false }
 sha3 = { version = "0.10.2", default-features = false }  # For MSRV 1.70
 sha2 = { version = "0.10.8", default-features = false }
-generic-array = {  version = "1.0.0", features=["const-default", "zeroize"] }
 
 
 [dev-dependencies]

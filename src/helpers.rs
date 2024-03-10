@@ -66,7 +66,7 @@ pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
     debug_assert!(x.len() >= ((out_len * b + 7) / 8) as usize);
-    debug_assert!(b < 16); // Consider optimizing `baseb` output to be u16
+    debug_assert!(b < 16);
     debug_assert_eq!(out_len as usize, baseb.len());
 
     // 1: in ← 0
@@ -138,7 +138,6 @@ impl<
             }
         }
         for d in 0..D {
-            //println!("and we move to xmss {} starting at {}", d, start);
             for len in 0..LEN {
                 out[start..(start + N)]
                     .copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
@@ -160,11 +159,18 @@ impl<
                 N * K + K * A * N + // ForsSig
                 D * (HP * N + LEN * N)
         );
-        //let mut output = Self::default();
-        let mut output = SlhDsaSig{
-            randomness: [0u8; N], //r.clone(),
-            fors_sig: ForsSig { private_key_value: [[0u8; N]; K], auth: core::array::from_fn(|_| Auth{ tree: [[0u8; N]; A] }) },
-            ht_sig: HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) },
+        let mut output = SlhDsaSig {
+            randomness: [0u8; N],
+            fors_sig: ForsSig {
+                private_key_value: [[0u8; N]; K],
+                auth: core::array::from_fn(|_| Auth { tree: [[0u8; N]; A] }),
+            },
+            ht_sig: HtSig {
+                xmss_sigs: core::array::from_fn(|_| XmssSig {
+                    sig_wots: WotsSig { data: [[0u8; N]; LEN] },
+                    auth: [[0u8; N]; HP],
+                }),
+            },
         };
         output.randomness.copy_from_slice(&bytes[0..N]);
         let mut start = N;

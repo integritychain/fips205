@@ -1,7 +1,7 @@
 use crate::types::Adrs;
 
 
-// Holds hasher function references; constructed by each wrapper
+// Holds hasher function references; constructed by each security parameter set wrapper
 #[allow(clippy::type_complexity)]
 pub(crate) struct Hashers<const K: usize, const LEN: usize, const M: usize, const N: usize> {
     pub(crate) h_msg: fn(&[u8], &[u8], &[u8], &[u8]) -> [u8; M],
@@ -28,7 +28,6 @@ pub(crate) mod shake {
     use sha3::Shake256;
 
 
-    #[allow(clippy::module_name_repetitions)]
     fn shake256(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Shake256::default();
         input.iter().for_each(|item| hasher.update(item));
@@ -49,7 +48,7 @@ pub(crate) mod shake {
     #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<const N: usize>(pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs) -> [u8; N] {
         let mut digest = [0u8; N];
-        shake256(&[pk_seed, &adrs.to_32_bytes(), sk_seed], &mut digest); // Note that the spec swaps order of last to params
+        shake256(&[pk_seed, &adrs.to_32_bytes(), sk_seed], &mut digest); // Spec swaps order of last two params 557/997/1005
         digest
     }
 
@@ -99,7 +98,6 @@ pub(crate) mod sha2_cat_1 {
 
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
-        debug_assert!(out.len() <= 32);
         let mut hasher = Sha256::new();
         input.iter().for_each(|item| hasher.update(item));
         let result = hasher.finalize();
@@ -130,27 +128,26 @@ pub(crate) mod sha2_cat_1 {
     #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<const N: usize>(pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 64];
-        sha2_256(&[pk_seed, &to_byte[0..(64 - N)], &adrs.to_22_bytes(), sk_seed], &mut digest); // Note that the spec swaps order of last to params
+        let zeros = [0u8; 48];
+        sha2_256(&[pk_seed, &zeros[0..(64 - N)], &adrs.to_22_bytes(), sk_seed], &mut digest); // Spec swaps order of last two params 557/997/1005
         digest
     }
 
 
     fn hmac_sha_256(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 32] {
-        let k2 = key;
-        let mut padded = [0x36; 64];
-        for (p, &k) in padded.iter_mut().zip(k2.iter()) {
+        let mut padding = [0x36; 64];
+        for (p, &k) in padding.iter_mut().zip(key.iter()) {
             *p ^= k;
         }
         let mut inner_hasher = Sha256::new();
-        inner_hasher.update(&padded[..]);
+        inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
         inner_hasher.update(b1);
-        for p in &mut padded {
+        for p in &mut padding {
             *p ^= 0x6a;
         }
         let mut outer_hasher = Sha256::new();
-        outer_hasher.update(&padded[..]);
+        outer_hasher.update(&padding[..]);
         outer_hasher.update(inner_hasher.finalize());
         outer_hasher.finalize().into()
     }
@@ -158,37 +155,36 @@ pub(crate) mod sha2_cat_1 {
 
     pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let xxx = hmac_sha_256(sk_prf, opt_rand, m);
-        digest.copy_from_slice(&xxx[0..N]);
+        let full_digest = hmac_sha_256(sk_prf, opt_rand, m);
+        digest.copy_from_slice(&full_digest[0..N]);
         digest
     }
 
 
     pub(crate) fn f<const N: usize>(pk_seed: &[u8], adrs: &Adrs, m1: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 64];
-        sha2_256(&[pk_seed, &to_byte[0..(64 - N)], &adrs.to_22_bytes(), m1], &mut digest);
+        let zeros = [0u8; 48];
+        sha2_256(&[pk_seed, &zeros[0..(64 - N)], &adrs.to_22_bytes(), m1], &mut digest);
         digest
     }
 
 
     pub(crate) fn h<const N: usize>(pk_seed: &[u8], adrs: &Adrs, m1: &[u8], m2: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 64];
-        sha2_256(&[pk_seed, &to_byte[0..(64 - N)], &adrs.to_22_bytes(), m1, m2], &mut digest);
+        let zeros = [0u8; 48];
+        sha2_256(&[pk_seed, &zeros[0..(64 - N)], &adrs.to_22_bytes(), m1, m2], &mut digest);
         digest
     }
 
 
-    // Perhaps there is a more elegant way to covert ml into list of bytes
     pub(crate) fn t_l<const LEN: usize, const N: usize>(
         pk_seed: &[u8], adrs: &Adrs, ml: &[[u8; N]; LEN],
     ) -> [u8; N] {
         let mut result = [0u8; N];
-        let to_byte = [0u8; 64];
+        let zeros = [0u8; 48];
         let mut hasher = Sha256::new();
         hasher.update(pk_seed);
-        hasher.update(&to_byte[0..(64 - N)]);
+        hasher.update(&zeros[0..(64 - N)]);
         hasher.update(adrs.to_22_bytes());
         ml.iter().for_each(|item| hasher.update(item));
         let digest = hasher.finalize();
@@ -211,7 +207,6 @@ pub(crate) mod sha2_cat_3_5 {
 
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
-        debug_assert!(out.len() <= 32);
         let mut hasher = Sha256::new();
         input.iter().for_each(|item| hasher.update(item));
         let result = hasher.finalize();
@@ -220,7 +215,6 @@ pub(crate) mod sha2_cat_3_5 {
 
 
     fn sha2_512(input: &[&[u8]], out: &mut [u8]) {
-        debug_assert!(out.len() <= 64);
         let mut hasher = Sha512::new();
         input.iter().for_each(|item| hasher.update(item));
         let result = hasher.finalize();
@@ -251,27 +245,26 @@ pub(crate) mod sha2_cat_3_5 {
     #[allow(clippy::similar_names)] // pk_seed and sk_seed
     pub(crate) fn prf<const N: usize>(pk_seed: &[u8], sk_seed: &[u8], adrs: &Adrs) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 64];
-        sha2_256(&[pk_seed, &to_byte[0..(64 - N)], &adrs.to_22_bytes(), sk_seed], &mut digest); // Note that the spec swaps order of last to params
+        let zeros = [0u8; 40];
+        sha2_256(&[pk_seed, &zeros[0..(64 - N)], &adrs.to_22_bytes(), sk_seed], &mut digest); // Spec swaps order of last two params 557/997/1005
         digest
     }
 
 
     fn hmac_sha_512(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 64] {
-        let k2 = key;
-        let mut padded = [0x36; 128];
-        for (p, &k) in padded.iter_mut().zip(k2.iter()) {
+        let mut padding = [0x36; 128];
+        for (p, &k) in padding.iter_mut().zip(key.iter()) {
             *p ^= k;
         }
         let mut inner_hasher = Sha512::new();
-        inner_hasher.update(&padded[..]);
+        inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
         inner_hasher.update(b1);
-        for p in &mut padded {
+        for p in &mut padding {
             *p ^= 0x6a;
         }
         let mut outer_hasher = Sha512::new();
-        outer_hasher.update(&padded[..]);
+        outer_hasher.update(&padding[..]);
         outer_hasher.update(inner_hasher.finalize());
         outer_hasher.finalize().into()
     }
@@ -279,37 +272,36 @@ pub(crate) mod sha2_cat_3_5 {
 
     pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let xxx = hmac_sha_512(sk_prf, opt_rand, m);
-        digest.copy_from_slice(&xxx[0..N]);
+        let full_digest = hmac_sha_512(sk_prf, opt_rand, m);
+        digest.copy_from_slice(&full_digest[0..N]);
         digest
     }
 
 
     pub(crate) fn f<const N: usize>(pk_seed: &[u8], adrs: &Adrs, m1: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 64];
-        sha2_256(&[pk_seed, &to_byte[0..(64-N)], &adrs.to_22_bytes(), m1], &mut digest);
+        let zeros = [0u8; 40];
+        sha2_256(&[pk_seed, &zeros[0..(64 - N)], &adrs.to_22_bytes(), m1], &mut digest);
         digest
     }
 
 
     pub(crate) fn h<const N: usize>(pk_seed: &[u8], adrs: &Adrs, m1: &[u8], m2: &[u8]) -> [u8; N] {
         let mut digest = [0u8; N];
-        let to_byte = [0u8; 128];
-        sha2_512(&[pk_seed, &to_byte[0..(128 - N)], &adrs.to_22_bytes(), m1, m2], &mut digest);
+        let zeros = [0u8; 104];
+        sha2_512(&[pk_seed, &zeros[0..(128 - N)], &adrs.to_22_bytes(), m1, m2], &mut digest);
         digest
     }
 
 
-    // Perhaps there is a more elegant way to covert ml into list of bytes
     pub(crate) fn t_l<const LEN: usize, const N: usize>(
         pk_seed: &[u8], adrs: &Adrs, ml: &[[u8; N]; LEN],
     ) -> [u8; N] {
         let mut result = [0u8; N];
-        let to_byte = [0u8; 128];
+        let zeros = [0u8; 104];
         let mut hasher = Sha512::new();
         hasher.update(pk_seed);
-        hasher.update(&to_byte[0..(128 - N)]);
+        hasher.update(&zeros[0..(128 - N)]);
         hasher.update(adrs.to_22_bytes());
         ml.iter().for_each(|item| hasher.update(item));
         let digest = hasher.finalize();

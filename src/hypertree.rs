@@ -37,7 +37,12 @@ pub(crate) fn ht_sign<
         xmss::xmss_sign::<H, HP, K, LEN, M, N>(hashers, m, sk_seed, idx_leaf, pk_seed, &adrs)?;
 
     // 5: SIG_HT ← SIG_tmp
-    let mut sig_ht = HtSig { xmss_sigs: core::array::from_fn(|_| XmssSig { sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth: [[0u8; N]; HP] }) }; //HtSig::default();
+    let mut sig_ht = HtSig {
+        xmss_sigs: core::array::from_fn(|_| XmssSig {
+            sig_wots: WotsSig { data: [[0u8; N]; LEN] },
+            auth: [[0u8; N]; HP],
+        }),
+    };
     sig_ht.xmss_sigs[0] = sig_tmp.clone();
 
     // 6: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
@@ -48,8 +53,8 @@ pub(crate) fn ht_sign<
     for j in 1..d32 {
         //
         // 8: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(hp32))
-            .map_err(|_| "Alg11: oversized idx leaf")?;
+        let idx_leaf =
+            u32::try_from(idx_tree & ((1 << hp32) - 1)).map_err(|_| "Alg11: oversized idx leaf")?;
 
         // 9: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
         idx_tree >>= hp32;
@@ -124,7 +129,8 @@ pub(crate) fn ht_verify<
     for j in 1..d32 {
         //
         // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
-        let idx_leaf = u32::try_from(idx_tree % 2u64.pow(hp32)); // TODO: clean
+        let idx_leaf = u32::try_from(idx_tree & ((1 << hp32) - 1));
+
         if idx_leaf.is_err() {
             return false;
         };
@@ -153,5 +159,5 @@ pub(crate) fn ht_verify<
     // 16: else
     // 17:   return false
     // 18: end if
-    node == *pk_root // TODO: CT equal
+    node == *pk_root // TODO: CT equal (is this in signing path??)
 }

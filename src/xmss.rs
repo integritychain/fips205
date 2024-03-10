@@ -1,5 +1,5 @@
 use crate::hashers::Hashers;
-use crate::types::{Adrs, XmssSig, TREE, WOTS_HASH, WotsSig};
+use crate::types::{Adrs, WotsSig, XmssSig, TREE, WOTS_HASH};
 use crate::wots;
 
 
@@ -24,7 +24,7 @@ pub(crate) fn xmss_node<
     let mut adrs = adrs.clone();
 
     // 1: if z > h′ or i ≥ 2^{h −z} then
-    if (z > hp32) | (u64::from(i) >= 2u64.pow(hp32 - z)) {
+    if (z > hp32) | (u64::from(i) >= (1 << (hp32 - z))) {
         //
         // 2: return NULL
         return Err("Alg8: fail");
@@ -42,8 +42,7 @@ pub(crate) fn xmss_node<
         adrs.set_key_pair_address(i);
 
         // 7: node ← wots_PKgen(SK.seed, PK.seed, ADRS)
-        wots::wots_pkgen::<K, LEN, M, N>(hashers, sk_seed, pk_seed, &adrs)?
-            .0
+        wots::wots_pkgen::<K, LEN, M, N>(hashers, sk_seed, pk_seed, &adrs)?.0
 
         // 8: else
     } else {
@@ -95,8 +94,10 @@ pub(crate) fn xmss_sign<
 ) -> Result<XmssSig<HP, LEN, N>, &'static str> {
     let hp32 = u32::try_from(HP).unwrap();
     let mut adrs = adrs.clone();
-    //let mut sig_xmss = XmssSig::default();
-    let mut sig_xmss = XmssSig{ sig_wots: WotsSig { data: [[0u8; N]; LEN] }, auth:  [[0u8; N]; HP] };
+    let mut sig_xmss = XmssSig {
+        sig_wots: WotsSig { data: [[0u8; N]; LEN] },
+        auth: [[0u8; N]; HP],
+    };
 
     // 1: for j from 0 to h′-1 do    ▷ Build authentication path
     for j in 0..hp32 {
@@ -119,7 +120,7 @@ pub(crate) fn xmss_sign<
     adrs.set_key_pair_address(idx);
 
     // 8: sig ← wots_sign(M, SK.seed, PK.seed, ADRS)
-    sig_xmss.sig_wots = wots::wots_sign::<K, LEN, M, N>(hashers, m, sk_seed, pk_seed, &adrs); // TODO: polish out BB!
+    sig_xmss.sig_wots = wots::wots_sign::<K, LEN, M, N>(hashers, m, sk_seed, pk_seed, &adrs);
 
     // 9: SIG_XMSS ← sig ∥ AUTH
     // struct built above
@@ -161,8 +162,7 @@ pub(crate) fn xmss_pk_from_sig<
     let auth = sig_xmss.get_xmss_auth();
 
     // 5: node[0] ← wots_PKFromSig(sig, M, PK.seed, ADRS)
-    let mut node_0 = wots::wots_pk_from_sig::<K, LEN, M, N>(hashers, sig, m, pk_seed, &adrs)
-        .0;
+    let mut node_0 = wots::wots_pk_from_sig::<K, LEN, M, N>(hashers, sig, m, pk_seed, &adrs).0;
 
     // 6:
     // 7: ADRS.setTypeAndClear(TREE)    ▷ Compute root from WOTS+ pk and AUTH
