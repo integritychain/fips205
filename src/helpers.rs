@@ -229,6 +229,14 @@ impl Adrs {
 
     pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
 
+    #[cfg(any(
+    feature = "slh_dsa_shake_128f",
+    feature = "slh_dsa_shake_128s",
+    feature = "slh_dsa_shake_192f",
+    feature = "slh_dsa_shake_192s",
+    feature = "slh_dsa_shake_256f",
+    feature = "slh_dsa_shake_256s"
+    ))]
     pub(crate) fn to_32_bytes(&self) -> [u8; 32] {
         let mut ret = [0u8; 32];
         let mut start = 0;
@@ -241,6 +249,14 @@ impl Adrs {
         ret
     }
 
+    #[cfg(any(
+    feature = "slh_dsa_sha2_128f",
+    feature = "slh_dsa_sha2_128s",
+    feature = "slh_dsa_sha2_192f",
+    feature = "slh_dsa_sha2_192s",
+    feature = "slh_dsa_sha2_256f",
+    feature = "slh_dsa_sha2_256s"
+    ))]
     pub(crate) fn to_22_bytes(&self) -> [u8; 22] {
         let mut ret = [0u8; 22];
         ret[0] = self.f0[3];
