@@ -1,3 +1,5 @@
+workspace = { members = ['ffi'], exclude = ["dudect", "ct_cm4"] }
+
 [package]
 name = "fips205"
 version = "0.1.2"

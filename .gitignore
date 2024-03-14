@@ -1,8 +1,11 @@
-/target
-/Cargo.lock
+**/target
 /.idea
 **/artifacts
 **/corpus
 **/target
 /fuzz/.gitignore
 **/Cargo.lock
+**/package-lock.json
+**/node_modules
+**/pkg
+**/dist

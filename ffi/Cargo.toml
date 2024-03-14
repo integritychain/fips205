@@ -1,0 +1,21 @@
+[package]
+name = "fips205-ffi"
+version = "0.1.2"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "C shared library exposing FIPS 205 (draft): Stateless Hash-Based Digital Signature Standard"
+authors = ["Eric Schorn <eschorn@integritychain.com>"]
+documentation = "https://docs.rs/fips205"
+categories = ["cryptography", "no-std"]
+repository = "https://github.com/integritychain/fips205"
+keywords = ["FIPS", "FIPS205", "hash", "signature"]
+rust-version = "1.70"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+bench = false
+name = "fips205"
+
+[dependencies.fips205]
+path = ".."
+version = "0.1.2"
