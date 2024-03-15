@@ -47,15 +47,12 @@ pub(crate) struct ForsPk<const N: usize> {
 }
 
 
-/// Fig 10?
+/// Fig 10
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct Auth<const A: usize, const N: usize> {
     pub(crate) tree: [[u8; N]; A],
 }
 
-impl<const A: usize, const N: usize> Default for Auth<A, N> {
-    fn default() -> Self { Auth { tree: [[0u8; N]; A] } }
-}
 
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct HtSig<const D: usize, const HP: usize, const LEN: usize, const N: usize> {
@@ -82,7 +79,6 @@ pub struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
 
 impl<const HP: usize, const LEN: usize, const N: usize> XmssSig<HP, LEN, N> {
     pub(crate) fn get_wots_sig(&self) -> &WotsSig<LEN, N> { &self.sig_wots }
-
     pub(crate) fn get_xmss_auth(&self) -> &[[u8; N]; HP] { &self.auth }
 }
 
