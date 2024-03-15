@@ -4,13 +4,44 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
+// Implements FIPS 205 draft Stateless Hash-Based Digital Signature Standard.
+// See <https://csrc.nist.gov/pubs/fips/205/ipd>
+//
+// Algorithm 1 toInt(X, n)                                                 --> helpers.rs
+// Algorithm 2 toByte(x, n)                                                --> helpers.rs
+// Algorithm 3 base_2b (X, b, out_len)                                     --> helpers.rs
+// Algorithm 4 chain(X, i, s, PK.seed, ADRS)                               --> wots.rs
+// Algorithm 5 wots_PKgen(SK.seed, PK.seed, ADRS)                          --> wots.rs
+// Algorithm 6 wots_sign(M, SK.seed, PK.seed, ADRS)                        --> wots.rs
+// Algorithm 7 wots_PKFromSig(sig, M, PK.seed, ADRS)                       --> wots.rs
+// Algorithm 8 xmss_node(SK.seed, i, z, PK.seed, ADRS)                     --> xmss.rs
+// Algorithm 9 xmss_sign(M, SK.seed, idx, PK.seed, ADRS)                   --> xmss.rs
+// Algorithm 10 xmss_PKFromSig(idx, SIGXMSS, M, PK.seed, ADRS)             --> xmss.rs
+// Algorithm 11 ht_sign(M, SK.seed, PK.seed, idxtree, idxleaf)             --> hypertree.rs
+// Algorithm 12 ht_verify(M, SIGHT, PK.seed, idxtree, idxleaf, PK.root)    --> hypertree.rs
+// Algorithm 13 fors_SKgen(SK.seed, PK.seed, ADRS, idx)                    --> fors.rs
+// Algorithm 14 fors_node(SK.seed, i, z, PK.seed, ADRS)                    --> fors.rs
+// Algorithm 15 fors_sign(md, SK.seed, PK.seed, ADRS)                      --> fors.rs
+// Algorithm 16 fors_pkFromSig(SIGFORS, md, PK.seed, ADRS)                 --> fors.rs
+// Algorithm 17 slh_keygen()                                               --> slh.rs
+// Algorithm 18 slh_sign(M, SK)                                            --> slh.rs
+// Algorithm 19 slh_verify(M, SIG, PK)                                     --> slh.rs
+// Algorithm 20 gen_len2 (n, lgw)                                          --> precomputed
+// Fairly elaborate hashing is found in hashers.rs
+// Signature serialize/deserialize and Adrs support can be found in helpers.rs
+// types are in types.rs, traits are in traits.rs, and lib.rs provides wrappers into slh.rs
 
-/// Implements FIPS 205 draft Stateless Hash-Based Digital Signature Standard.
-/// See <https://csrc.nist.gov/pubs/fips/205/ipd>
+
+// TODO: Roadmap
+// 1. Additional (external) top-level test vectors
+// 2. Implement fuzz harness for completeness
+// 3. Revisit internal checks/asserts/ensure
+// 4. Expansion of testing/functionality for C FFI and Python bindings
+// 5. Better exposure of randomize, rng support for testing FFI/Python
+
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
 pub mod traits;
-
 
 mod fors;
 mod hashers;

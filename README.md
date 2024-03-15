@@ -7,14 +7,14 @@
 ![Rust Version][rustc-image]
 
 [FIPS 205] (Initial Public Draft) Stateless Hash-Based Digital Signature Standard written in pure Rust for server, 
-desktop, browser and embedded applications.
+desktop, browser and embedded applications. The code repository includes C FFI and Python bindings.
 
 This crate implements the FIPS 205 **draft** standard in pure Rust with minimal and mainstream dependencies. All 
 twelve (!!) security parameter sets are fully functional. The implementation does not require the standard library, 
 e.g. `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the 
-full range of applications down to the bare-metal. The API is stabilized and the code is heavily biased towards safety 
-and correctness; further performance optimizations will be implemented as the standard matures. This crate will 
-quickly follow any changes to FIPS 205 as they become available.
+full range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
+towards safety  and correctness; further performance optimizations will be implemented as the standard matures. 
+This crate will quickly follow any changes to FIPS 205 as they become available.
 
 See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.ipd.pdf> for a full description of the target functionality.
 
@@ -31,7 +31,7 @@ let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
 
 // Generate key pair and signature
 let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate signature
 
 // Serialize the public key, and send with message and signature bytes
 let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -45,8 +45,8 @@ assert!(v);
 # }
 ~~~
 
-The Rust [Documentation][docs-link] lives under each **Module** corresponding to the desired
-[security parameter](#modules) below. 
+The detailed Rust [Documentation][docs-link] lives under each **Module** corresponding to the 
+desired [security parameter](#modules) below. 
 
 ## Notes
 
