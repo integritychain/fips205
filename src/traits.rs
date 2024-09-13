@@ -157,6 +157,7 @@ pub trait Signer {
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes the default OS RNG and operates in constant time
     /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
+    /// Uses the default FIPS 205 context (an empty string).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails; propagates internal errors.
@@ -195,6 +196,7 @@ pub trait Signer {
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes a supplied RNG and operates in constant time
     /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
+    /// Uses the default FIPS 205 context (an empty string).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails; propagates internal errors.
@@ -225,7 +227,48 @@ pub trait Signer {
     /// ```
     fn try_sign_with_rng_ct(
         &self, rng: &mut impl CryptoRngCore, message: &[u8], randomize: bool,
+    ) -> Result<Self::Signature, &'static str> {
+        self.try_sign_with_rng_and_ctx_ct(rng, message, &[], randomize)
+    }
+
+    /// Attempt to sign the given message with a given context (array up to 255 bytes in length),
+    /// returning a digital signature on success, or an error if something went wrong. This 
+    /// function utilizes a supplied RNG and operates in constant time with respect to the
+    /// `PrivateKey` only (not including rejection loop; work in progress).
+    ///
+    /// # Errors
+    /// Returns an error when the random number generator fails; propagates internal errors.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// use rand_core::OsRng;
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let ctx = [3u8, 2, 1];
+    ///
+    /// // Generate public/private key pair and signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign_with_rng_and_ctx_ct(&mut OsRng, &msg_bytes, &ctx, true)?;  // Use the secret key to generate a msg signature
+    ///
+    /// // Serialize the public key, and send with message and signature bytes
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    /// // Deserialize the public key, then use it to verify the msg signature
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_sign_with_rng_and_ctx_ct(
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str>;
+
 }
 
 
@@ -235,7 +278,7 @@ pub trait Verifier {
     type Signature;
 
     /// Verifies a digital signature with respect to a `PublicKey`. This function operates in
-    /// variable time.
+    /// variable time. Uses the default FIPS 205 context (an empty string).
     ///
     /// # Errors
     /// Returns an error on a malformed signature; propagates internal errors.
@@ -266,5 +309,42 @@ pub trait Verifier {
     /// ```
     fn try_verify_vt(
         &self, message: &[u8], signature: &Self::Signature,
+    ) -> Result<bool, &'static str> {
+        self.try_verify_with_ctx_vt(message, signature, &[])
+    }
+
+    /// Verifies a digital signature with respect to a `PublicKey` and a given context.
+    /// The context must be less than 256 bytes. This function operates in variable time.
+    ///
+    /// # Errors
+    /// Returns an error on a malformed signature; propagates internal errors.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let ctx = [3u8, 2, 1];
+    ///
+    /// // Generate public/private key pair and signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    ///
+    /// // Serialize the public key, and send with message and signature bytes
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    /// // Deserialize the public key, then use it to verify the msg signature
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let v = pk2.try_verify_with_ctx_vt(&msg_recv, &sig_recv, &ctx)?;
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_verify_with_ctx_vt(
+        &self, message: &[u8], signature: &Self::Signature, ctx: &[u8]
     ) -> Result<bool, &'static str>;
 }

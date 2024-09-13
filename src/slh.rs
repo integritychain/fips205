@@ -76,10 +76,15 @@ pub(crate) fn slh_sign_with_rng<
     const M: usize,
     const N: usize,
 >(
-    rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk: &SlhPrivateKey<N>,
+    rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, m: &[u8], ctx: &[u8], sk: &SlhPrivateKey<N>,
     randomize: bool,
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
+
+    if ctx.len() > 255 {
+        return Err("Alg17: Context too large");
+    }
+
     //
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -194,9 +199,11 @@ pub(crate) fn slh_verify<
     const N: usize,
 >(
     hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>,
-    pk: &SlhPublicKey<N>,
+    ctx: &[u8], pk: &SlhPublicKey<N>,
 ) -> bool {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
+
+    assert_ne!(ctx.len() > 255, true, "Alg19: Context too large");
 
     // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
     // 2:   return false

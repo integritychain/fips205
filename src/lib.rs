@@ -171,11 +171,11 @@ macro_rules! functionality {
         impl Signer for PrivateKey {
             type Signature = [u8; SIG_LEN];
 
-            fn try_sign_with_rng_ct(
-                &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+            fn try_sign_with_rng_and_ctx_ct(
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &m, &self.0, randomize,
+                    rng, &HASHERS, &m, &ctx, &self.0, randomize,
                 );
                 sig.map(|s| s.deserialize())
             }
@@ -185,12 +185,12 @@ macro_rules! functionality {
         impl Verifier for PublicKey {
             type Signature = [u8; SIG_LEN];
 
-            fn try_verify_vt(
-                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
+            fn try_verify_with_ctx_vt(
+                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8]
             ) -> Result<bool, &'static str> {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
-                    &HASHERS, &m, &sig, &self.0,
+                    &HASHERS, &m, &sig, &ctx, &self.0,
                 );
                 Ok(res)
             }
