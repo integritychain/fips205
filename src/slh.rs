@@ -5,8 +5,8 @@ use crate::{fors, helpers, hypertree, xmss};
 use rand_core::CryptoRngCore;
 
 
-/// Algorithm 17: `slh_keygen()` on page 34.
-/// Generate an SLH-DSA key pair.
+/// Algorithm 21: `slh_keygen()` on page 37.
+/// Generates an SLH-DSA key pair.
 ///
 /// Input: (none) <br>
 /// Output: SLH-DSA key pair `(SK, PK)`.
@@ -28,41 +28,53 @@ pub(crate) fn slh_keygen_with_rng<
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
     let mut sk_seed = [0u8; N];
     rng.try_fill_bytes(&mut sk_seed)
-        .map_err(|_| "Alg17: rng failed1")?;
+        .map_err(|_| "Alg21: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
     let mut sk_prf = [0u8; N];
     rng.try_fill_bytes(&mut sk_prf)
-        .map_err(|_| "Alg17: rng failed2")?;
+        .map_err(|_| "Alg21: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
     let mut pk_seed = [0u8; N];
     rng.try_fill_bytes(&mut pk_seed)
-        .map_err(|_| "Alg17: rng failed3")?;
+        .map_err(|_| "Alg21: rng failed3")?;
 
-    // 4:
-    // 5: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
+    // 4: if SK.seed = NULL or SK.prf = NULL or PK.seed = NULL then
+    // 5: return ⊥ ▷ return an error indication if random bit generation failed
+    // 6: end if
+    // Steps 4-5 covered by .map_err()? unwraps above
+
+    // 7: return slh_keygen_internal(SK.seed, SK.prf, PK.seed)
+    // Inlined function continues below
+
+    // Algorithm 18: `slh_keygen_internal(SK.seed, SK.prf, PK.seed)` on page 34
+    // Generates an SLH-DSA key pair.
+    //
+    // Input: Secret seed SK.seed, PRF key SK.prf, public seed PK.seed
+    // Output: SLH-DSA key pair (SK, PK).
+
+    // 1: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
     let mut adrs = Adrs::default();
 
-    // 6: ADRS.setLayerAddress(d − 1)
+    // 2: ADRS.setLayerAddress(d − 1)
     adrs.set_layer_address(d32 - 1);
 
-    // 7: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
+    // 3: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
     let pk_root =
         xmss::xmss_node::<H, HP, K, LEN, M, N>(hashers, &sk_seed, 0, hp32, &pk_seed, &adrs)?;
 
-    // 8:
-    // 9: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
+    // 4: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
     let pk = SlhPublicKey { pk_seed, pk_root };
     let sk = SlhPrivateKey { sk_seed, sk_prf, pk_seed, pk_root };
     Ok((sk, pk))
 }
 
 
-/// Algorithm 18: `slh_sign(M, SK)` on page 35.
-/// Generate an SLH-DSA signature.
+/// Algorithm 22: `slh_sign(M, ctx, SK)` on page 39.
+/// Generates a pure SLH-DSA signature.
 ///
-/// Input: Message `M`, private key `SK = (SK.seed, SK.prf, PK.seed, PK.root)`. <br>
+/// Input: Message `M`, context string ctx, private key SK. <br>
 /// Output: SLH-DSA signature `SIG`.
 #[allow(clippy::similar_names)]
 #[allow(clippy::cast_possible_truncation)] // temporary, investigating idx_leaf int sizes
@@ -81,31 +93,51 @@ pub(crate) fn slh_sign_with_rng<
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
 
+    // 1: if |ctx| > 255 then
     if ctx.len() > 255 {
-        return Err("Alg17: Context too large");
+        //
+        // 2. return ⊥ ▷ return an error indication if the context string is too long
+        return Err("Alg22: Context too large");
+        
+        // 3. end if
     }
 
+    // 4: addrnd ←$ Bn  ▷ skip lines 4 through 7 for the deterministic variant
+    // 5: if addrnd = NULL then
+    // 6: return ⊥ ▷ return an error indication if random bit generation failed
+    // 7: end if
+    let mut addrnd = [0u8; N];
+    rng.try_fill_bytes(&mut addrnd)
+        .map_err(|_| "Alg22: rng failed")?;
+
+    // 8: M' ← toByte(0, 1) ∥ toByte(|ctx|, 1) ∥ ctx ∥ M
+    // TODO: Find a way to make m' without allocating
+
+    // 9: SIG ← slh_sign_internal(M', SK, addrnd)  ▷ omit addrnd for the deterministic variant
+    // 10: return SIG
+    // Inlined function continues below
+
+    // Algorithm 19: `slh_sign_internal(M, SK, addrnd)` on page 35.
+    // Generates an SLH-DSA signature.
     //
+    // Input: Message M, private key SK = (SK.seed, SK,prf, PK.seed, PK,root), (optional) additional
+    //      randomness addrnd
+    // Output: SLH-DSA signature SIG.
+
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
 
-    // 2:
-    // 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
-    let mut opt_rand = sk.pk_seed;
+    // 2: opt_rand ← addrnd ▷ substitute opt_rand ← PK.seed for the deterministic variant
+    let opt_rand = if randomize {
+        addrnd
+    } else {
+        sk.pk_seed
+    };
 
-    // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
-    if randomize {
-        // 5: opt_rand ←$ Bn
-        rng.try_fill_bytes(&mut opt_rand)
-            .map_err(|_| "Alg17: rng failed")?;
-
-        // 6: end if
-    }
-
-    // 7: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
+    // 3: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
     let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
 
-    // 8: SIG ← R
+    // 4: SIG ← R
     let mut sig = SlhDsaSig {
         randomness: r, // here!
         fors_sig: ForsSig {
@@ -120,53 +152,48 @@ pub(crate) fn slh_sign_with_rng<
         },
     };
 
-    // 9:
-    // 10: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
+    // 5: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
     let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, m);
 
-    // 11: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
+    // 6: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K * A + 7) / 8;
     let md = &digest[0..index1];
 
-    // 12: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
+    // 7: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
     let index2 = index1 + (H - H / D + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
-    // 13: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
+    // 8: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
     let index3 = index2 + (H + 8 * D - 1) / (8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
-    // 14:
-    // 15: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
+    // 9: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
     let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
-    // 16: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
+    // 10: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
     let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
         & (u64::MAX >> (64 - h32 / d32));
 
-    // 17:
-    // 18: ADRS.setTreeAddress(idx_tree)
+    // 11: ADRS.setTreeAddress(idx_tree)
     adrs.set_tree_address(idx_tree);
 
-    // 19: ADRS.setTypeAndClear(FORS_TREE)
+    // 12: ADRS.setTypeAndClear(FORS_TREE)
     adrs.set_type_and_clear(FORS_TREE);
 
-    // 20: ADRS.setKeyPairAddress(idxleaf)
+    // 13: ADRS.setKeyPairAddress(idxleaf)
     adrs.set_key_pair_address(idx_leaf as u32);
 
-    // 21: SIG_FORS ← fors_sign(md, SK.seed, PK.seed, ADRS)
-    // 22: SIG ← SIG ∥ SIG_FORS
+    // 14: SIG_FORS ← fors_sign(md, SK.seed, PK.seed, ADRS)
+    // 15: SIG ← SIG ∥ SIG_FORS
     sig.fors_sig = fors::fors_sign(hashers, md, &sk.sk_seed, &adrs, &sk.pk_seed)?;
 
-    // 23:
-    // 24: PK_FORS ← fors_pkFromSig(SIG_FORS , md, PK.seed, ADRS)    ▷ Get FORS key
+    // 16: PK_FORS ← fors_pkFromSig(SIG_FORS , md, PK.seed, ADRS)    ▷ Get FORS key
     let pk_fors =
         fors::fors_pk_from_sig::<A, K, LEN, M, N>(hashers, &sig.fors_sig, md, &sk.pk_seed, &adrs);
 
-    // 25:
-    // 26: SIG_HT ← ht_sign(PK_FORS , SK.seed, PK.seed, idx_tree, idx_leaf)
-    // 27: SIG ← SIG ∥ SIG_HT
+    // 17: SIG_HT ← ht_sign(PK_FORS , SK.seed, PK.seed, idx_tree, idx_leaf)
+    // 18: SIG ← SIG ∥ SIG_HT
     sig.ht_sig = hypertree::ht_sign::<D, H, HP, K, LEN, M, N>(
         hashers,
         &pk_fors.key,
@@ -176,15 +203,15 @@ pub(crate) fn slh_sign_with_rng<
         idx_leaf as u32,
     )?;
 
-    // 28: return SIG
+    // 19: return SIG
     Ok(sig)
 }
 
 
-/// Algorithm 19: `slh_verify(M, SIG, PK)`
-/// Verify an SLH-DSA signature.
+/// Algorithm 24: `slh_verify(M, SIG, PK)` on page 41.
+/// Verifies a pure SLH-DSA signature.
 ///
-/// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
+/// Input: Message `M`, signature `SIG`, context string ctx, public key PK. <br>
 /// Output: Boolean.
 #[allow(clippy::cast_possible_truncation)] // TODO: temporary
 #[allow(clippy::similar_names)]
@@ -203,7 +230,22 @@ pub(crate) fn slh_verify<
 ) -> bool {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
 
-    assert_ne!(ctx.len() > 255, true, "Alg19: Context too large");
+    // 1: if |ctx| > 255 then
+    // 2: return false
+    // 3: end if
+    assert_ne!(ctx.len() > 255, true, "Alg24: Context too large");
+
+    // 4: M' ← toByte(0, 1) ∥ toByte(|ctx|, 1) ∥ ctx ∥ M
+    // TODO: Find a way to make m' without allocating
+
+    // 5: return slh_verify_internal(M', SIG, PK)
+    // Inlined function continues below
+
+    // Algorithm 20: `slh_verify_internal(M, SIG, PK)` on page 36.
+    // Verifies an SLH-DSA signature.
+    //
+    // Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
+    // Output: Boolean.
 
     // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
     // 2:   return false
@@ -222,49 +264,43 @@ pub(crate) fn slh_verify<
     // 7: SIG_HT ← SIG.getSIG_HT()    ▷ SIG[(1 + k(1 + a)) · n : (1 + k(1 + a) + h + d · len) · n]
     let sig_ht = &sig.ht_sig;
 
-    // 8:
-    // 9: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
+    // 8: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
     let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
 
-    // 10: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
+    // 9: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K * A + 7) / 8;
     let md = &digest[0..index1];
 
-    // 11: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
+    // 10: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
     let index2 = index1 + (H - H / D + 7) / 8;
     let tmp_idx_tree = &digest[index1..index2];
 
-    // 12: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
+    // 11: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
     let index3 = index2 + (H + 8 * D - 1) / (8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
-    // 13:
-    // 14: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
+    // 12: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
     let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
-    // 15: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
+    // 13: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
     let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
         & (u64::MAX >> (64 - h32 / d32));
 
-    // 16:
-    // 17: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
+    // 14: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
     adrs.set_tree_address(idx_tree);
 
-    // 18: ADRS.setTypeAndClear(FORS_TREE)
+    // 15: ADRS.setTypeAndClear(FORS_TREE)
     adrs.set_type_and_clear(FORS_TREE);
 
-    // 19: ADRS.setKeyPairAddress(idx_leaf)
+    // 16: ADRS.setKeyPairAddress(idx_leaf)
     adrs.set_key_pair_address(idx_leaf as u32);
 
-    // 20:
-    // 21: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
+    // 17: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
     let pk_fors =
         fors::fors_pk_from_sig::<A, K, LEN, M, N>(hashers, sig_fors, md, &pk.pk_seed, &adrs);
 
-
-    // 22:
-    // 23: return ht_verify(PK_FORS, SIG_HT, PK.seed, idx_tree , idx_leaf, PK.root)
+    // 18: return ht_verify(PK_FORS, SIG_HT, PK.seed, idx_tree , idx_leaf, PK.root)
     hypertree::ht_verify::<D, HP, K, LEN, M, N>(
         hashers,
         &pk_fors.key,

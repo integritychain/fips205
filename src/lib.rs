@@ -4,32 +4,34 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
-// Implements FIPS 205 draft Stateless Hash-Based Digital Signature Standard.
-// See <https://csrc.nist.gov/pubs/fips/205/ipd>
+// Implements FIPS 205 Stateless Hash-Based Digital Signature Standard.
+// See <https://csrc.nist.gov/pubs/fips/205/final>
 //
-// Algorithm 1 toInt(X, n)                                                 --> helpers.rs
-// Algorithm 2 toByte(x, n)                                                --> helpers.rs
-// Algorithm 3 base_2b (X, b, out_len)                                     --> helpers.rs
-// Algorithm 4 chain(X, i, s, PK.seed, ADRS)                               --> wots.rs
-// Algorithm 5 wots_PKgen(SK.seed, PK.seed, ADRS)                          --> wots.rs
-// Algorithm 6 wots_sign(M, SK.seed, PK.seed, ADRS)                        --> wots.rs
-// Algorithm 7 wots_PKFromSig(sig, M, PK.seed, ADRS)                       --> wots.rs
-// Algorithm 8 xmss_node(SK.seed, i, z, PK.seed, ADRS)                     --> xmss.rs
-// Algorithm 9 xmss_sign(M, SK.seed, idx, PK.seed, ADRS)                   --> xmss.rs
-// Algorithm 10 xmss_PKFromSig(idx, SIGXMSS, M, PK.seed, ADRS)             --> xmss.rs
-// Algorithm 11 ht_sign(M, SK.seed, PK.seed, idxtree, idxleaf)             --> hypertree.rs
-// Algorithm 12 ht_verify(M, SIGHT, PK.seed, idxtree, idxleaf, PK.root)    --> hypertree.rs
-// Algorithm 13 fors_SKgen(SK.seed, PK.seed, ADRS, idx)                    --> fors.rs
-// Algorithm 14 fors_node(SK.seed, i, z, PK.seed, ADRS)                    --> fors.rs
-// Algorithm 15 fors_sign(md, SK.seed, PK.seed, ADRS)                      --> fors.rs
-// Algorithm 16 fors_pkFromSig(SIGFORS, md, PK.seed, ADRS)                 --> fors.rs
-// Algorithm 17 slh_keygen()                                               --> slh.rs
-// Algorithm 18 slh_sign(M, SK)                                            --> slh.rs
-// Algorithm 19 slh_verify(M, SIG, PK)                                     --> slh.rs
-// Algorithm 20 gen_len2 (n, lgw)                                          --> precomputed
-// Fairly elaborate hashing is found in hashers.rs
-// Signature serialize/deserialize and Adrs support can be found in helpers.rs
-// types are in types.rs, traits are in traits.rs, and lib.rs provides wrappers into slh.rs
+// Algorithm 1 gen_len2 (n, lgw)                                           --> precomputed
+// Algorithm 2 toInt(X, n)                                                 --> helpers.rs
+// Algorithm 3 toByte(x, n)                                                --> helpers.rs
+// Algorithm 4 base_2b(X, b, out_len)                                      --> helpers.rs
+// Algorithm 5 chain(X, i, s, PK.seed, ADRS)                               --> wots.rs
+// Algorithm 6 wots_PKgen(SK.seed, PK.seed, ADRS)                          --> wots.rs
+// Algorithm 7 wots_sign(M, SK.seed, PK.seed, ADRS)                        --> wots.rs
+// Algorithm 8 wots_PKFromSig(sig, M, PK.seed, ADRS)                       --> wots.rs
+// Algorithm 9 xmss_node(SK.seed, i, z, PK.seed, ADRS)                     --> xmss.rs
+// Algorithm 10 xmss_sign(M, SK.seed, idx, PK.seed, ADRS)                  --> xmss.rs
+// Algorithm 11 xmss_PKFromSig(idx, SIGXMSS, M, PK.seed, ADRS)             --> xmss.rs
+// Algorithm 12 ht_sign(M, SK.seed, PK.seed, idxtree, idxleaf)             --> hypertree.rs
+// Algorithm 13 ht_verify(M, SIGHT, PK.seed, idxtree, idxleaf, PK.root)    --> hypertree.rs
+// Algorithm 14 fors_SKgen(SK.seed, PK.seed, ADRS, idx)                    --> fors.rs
+// Algorithm 15 fors_node(SK.seed, i, z, PK.seed, ADRS)                    --> fors.rs
+// Algorithm 16 fors_sign(md, SK.seed, PK.seed, ADRS)                      --> fors.rs
+// Algorithm 17 fors_pkFromSig(SIGFORS, md, PK.seed, ADRS)                 --> fors.rs
+// Algorithm 18 slh_keygen_internal(SK.seed, SK.prf, PK.seed)              --> (inline with slh_keygen())
+// Algorithm 19 slh_sign_internal(M, SK, addrnd)                           --> (inline with slh_sign())
+// Algorithm 20 slh_verify_internal(M, SIG, PK)                            --> (inline with slh_internal())
+// Algorithm 21 slh_keygen()                                               --> slh.rs
+// Algorithm 22 slh_sign(M, ctx, SK)                                       --> slh.rs
+// Algorithm 23 hash_slh_sign(M, ctx, PH, SK)                              --> Not implemented
+// Algorithm 24 slh_verify(M, SIG, ctx, PK)                                --> slh.rs
+// Algorithm 25 hash_slh_verify(M, SIG, ctx, PH, PK)                       --> Not implemented
 
 
 // TODO: Roadmap
@@ -53,7 +55,7 @@ mod wots;
 mod xmss;
 
 
-// Per eqns 5.1-4 on page 16, LGW=4, W=16 and LEN2=3 are constant across all security parameter sets.
+// Per eqns 5.1-4 on page 17, LGW=4, W=16 and LEN2=3 are constant across all security parameter sets.
 const LGW: u32 = 4;
 const W: u32 = 16;
 const LEN2: u32 = 3;
@@ -282,7 +284,7 @@ macro_rules! functionality {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-128s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-128s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128s parameter set is claimed to be in security strength category 1.
 ///
@@ -330,7 +332,7 @@ pub mod slh_dsa_sha2_128s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-128s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-128s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128s parameter set is claimed to be in security strength category 1.
 ///
@@ -378,7 +380,7 @@ pub mod slh_dsa_shake_128s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-128f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-128f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128f parameter set is claimed to be in security strength category 1.
 ///
@@ -426,7 +428,7 @@ pub mod slh_dsa_sha2_128f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-128f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-128f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128f parameter set is claimed to be in security strength category 1.
 ///
@@ -474,7 +476,7 @@ pub mod slh_dsa_shake_128f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-192s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-192s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192s parameter set is claimed to be in security strength category 3.
 ///
@@ -522,7 +524,7 @@ pub mod slh_dsa_sha2_192s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-192s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-192s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192s parameter set is claimed to be in security strength category 3.
 ///
@@ -570,7 +572,7 @@ pub mod slh_dsa_shake_192s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-192f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-192f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192f parameter set is claimed to be in security strength category 3.
 ///
@@ -618,7 +620,7 @@ pub mod slh_dsa_sha2_192f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-192f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-192f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192f parameter set is claimed to be in security strength category 3.
 ///
@@ -666,7 +668,7 @@ pub mod slh_dsa_shake_192f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-256s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-256s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256s parameter set is claimed to be in security strength category 5.
 ///
@@ -714,7 +716,7 @@ pub mod slh_dsa_sha2_256s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-256s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-256s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE_256s parameter set is claimed to be in security strength category 5.
 ///
@@ -762,7 +764,7 @@ pub mod slh_dsa_shake_256s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-256f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-256f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256f parameter set is claimed to be in security strength category 5.
 ///
@@ -810,7 +812,7 @@ pub mod slh_dsa_sha2_256f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-256f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-256f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-256f parameter set is claimed to be in security strength category 5.
 ///

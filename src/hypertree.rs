@@ -3,8 +3,8 @@ use crate::types::{Adrs, HtSig, WotsSig, XmssSig};
 use crate::xmss;
 
 
-/// Algorithm 11: `ht_sign(M, SK.seed, PK.seed, idx_tree, idx_leaf)` on page 27.
-/// Generate a hypertree signature.
+/// Algorithm 12: `ht_sign(M, SK.seed, PK.seed, idx_tree, idx_leaf)` on page 27.
+/// Generates a hypertree signature.
 ///
 /// Input: Message `M`, private seed `SK.seed`, public seed `PK.seed`, tree index `idx_tree`, leaf
 /// index `idx_leaf`. <br>
@@ -28,15 +28,14 @@ pub(crate) fn ht_sign<
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
 
-    // 2:
-    // 3: ADRS.setTreeAddress(idxtree)
+    // 2: ADRS.setTreeAddress(idxtree)
     adrs.set_tree_address(idx_tree);
 
-    // 4: SIG_tmp ← xmss_sign(M, SK.seed, idxleaf, PK.seed, ADRS)
+    // 3: SIG_tmp ← xmss_sign(M, SK.seed, idxleaf, PK.seed, ADRS)
     let mut sig_tmp =
         xmss::xmss_sign::<H, HP, K, LEN, M, N>(hashers, m, sk_seed, idx_leaf, pk_seed, &adrs)?;
 
-    // 5: SIG_HT ← SIG_tmp
+    // 4: SIG_HT ← SIG_tmp
     let mut sig_ht = HtSig {
         xmss_sigs: core::array::from_fn(|_| XmssSig {
             sig_wots: WotsSig { data: [[0u8; N]; LEN] },
@@ -45,55 +44,55 @@ pub(crate) fn ht_sign<
     };
     sig_ht.xmss_sigs[0] = sig_tmp.clone();
 
-    // 6: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
+    // 5: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
     let mut root =
         xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
-    // 7: for j from 1 to d − 1 do
+    // 6: for j from 1 to d − 1 do
     for j in 1..d32 {
         //
-        // 8: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
+        // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
         let idx_leaf =
-            u32::try_from(idx_tree & ((1 << hp32) - 1)).map_err(|_| "Alg11: oversized idx leaf")?;
+            u32::try_from(idx_tree & ((1 << hp32) - 1)).map_err(|_| "Alg12: oversized idx leaf")?;
 
-        // 9: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
+        // 8: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
         idx_tree >>= hp32;
 
-        // 10: ADRS.setLayerAddress(j)
+        // 9: ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);
 
-        // 11: ADRS.setTreeAddress(idx_tree)
+        // 10: ADRS.setTreeAddress(idx_tree)
         adrs.set_tree_address(idx_tree);
 
-        // 12: SIG_tmp ← xmss_sign(root, SK.seed, idx_leaf, PK.seed, ADRS)
+        // 11: SIG_tmp ← xmss_sign(root, SK.seed, idx_leaf, PK.seed, ADRS)
         sig_tmp = xmss::xmss_sign::<H, HP, K, LEN, M, N>(
             hashers, &root, sk_seed, idx_leaf, pk_seed, &adrs,
         )?;
 
-        // 13: SIG_HT ← SIG_HT ∥ SIG_tmp
+        // 12: SIG_HT ← SIG_HT ∥ SIG_tmp
         sig_ht.xmss_sigs[j as usize] = sig_tmp.clone();
 
-        // 14: if j < d − 1 then
+        // 13: if j < d − 1 then
         if j < (d32 - 1) {
             //
-            // 15: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
+            // 14: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
             root = xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(
                 hashers, idx_leaf, &sig_tmp, &root, pk_seed, &adrs,
             );
 
-            // 16: end if
+            // 15: end if
         }
 
-        // 17: end for
+        // 16: end for
     }
 
-    // 18: return SIGHT
+    // 17: return SIGHT
     Ok(sig_ht)
 }
 
 
-/// Algorithm 12: `ht_verify(M, SIG_HT, PK.seed, idx_tree, idx_leaf, PK.root)` on page 28.
-/// Verify a hypertree signature.
+/// Algorithm 13: `ht_verify(M, SIG_HT, PK.seed, idx_tree, idx_leaf, PK.root)` on page 28.
+/// Verifies a hypertree signature.
 ///
 /// Input: Message `M`, signature `SIG_HT`, public seed `PK.seed`, tree index `idx_tree`, leaf index `idx_leaf`,
 /// HT public key `PK.root`. <br>
@@ -115,20 +114,19 @@ pub(crate) fn ht_verify<
     // 1: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
 
-    // 2:
-    // 3: ADRS.setTreeAddress(idx_tree)
+    // 2: ADRS.setTreeAddress(idx_tree)
     adrs.set_tree_address(idx_tree);
 
-    // 4: SIG_tmp ← SIG_HT.getXMSSSignature(0)    ▷ SIG_HT [0 : (h′ + len) · n]
+    // 3: SIG_tmp ← SIG_HT.getXMSSSignature(0)    ▷ SIG_HT [0 : (h′ + len) · n]
     let sig_tmp = sig_ht.xmss_sigs[0].clone();
 
-    // 5: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
+    // 4: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
     let mut node = xmss::xmss_pk_from_sig(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
-    // 6: for j from 1 to d − 1 do
+    // 5: for j from 1 to d − 1 do
     for j in 1..d32 {
         //
-        // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
+        // 6: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
         let idx_leaf = u32::try_from(idx_tree & ((1 << hp32) - 1));
 
         if idx_leaf.is_err() {
@@ -136,28 +134,28 @@ pub(crate) fn ht_verify<
         };
         let idx_leaf = idx_leaf.unwrap();
 
-        // 8: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
+        // 7: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
         idx_tree >>= hp32;
 
-        // 9: ADRS.setLayerAddress(j)
+        // 8: ADRS.setLayerAddress(j)
         adrs.set_layer_address(j);
 
-        // 10: ADRS.setTreeAddress(idx_tree)
+        // 9: ADRS.setTreeAddress(idx_tree)
         adrs.set_tree_address(idx_tree);
 
-        // 11: SIG_tmp ← SIG_HT.getXMSSSignature(j)     ▷ SIGHT [ j · (h′ + len) · n : ( j + 1)(h′ + len) · n]
+        // 10: SIG_tmp ← SIG_HT.getXMSSSignature(j)     ▷ SIGHT [ j · (h′ + len) · n : ( j + 1)(h′ + len) · n]
         let sig_tmp = sig_ht.xmss_sigs[j as usize].clone();
 
-        // 12: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, node, PK.seed, ADRS)
+        // 11: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, node, PK.seed, ADRS)
         node = xmss::xmss_pk_from_sig(hashers, idx_leaf, &sig_tmp, &node, pk_seed, &adrs);
 
-        // 13: end for
+        // 12: end for
     }
 
-    // 14: if node = PK.root then
-    // 15:   return true
-    // 16: else
-    // 17:   return false
-    // 18: end if
+    // 13: if node = PK.root then
+    // 14:   return true
+    // 15: else
+    // 16:   return false
+    // 17: end if
     node == *pk_root // TODO: CT equal (is this in signing path??)
 }

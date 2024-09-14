@@ -1,8 +1,8 @@
 use crate::types::{Adrs, Auth, ForsSig, HtSig, SlhDsaSig, WotsSig, XmssSig};
 
 
-/// Algorithm 1: `toInt(X, n)` on page 14.
-/// Convert a byte string to an integer.
+/// Algorithm 2: `toInt(X, n)` on page 15.
+/// Converts a byte string to an integer.
 ///
 /// Input: n-byte string `X`, string length `n`. <br>
 /// Output: Integer value of `X`.
@@ -13,23 +13,22 @@ pub(crate) fn to_int(x: &[u8], n: u32) -> u64 {
     // 1: total ← 0
     let mut total = 0;
 
-    // 2:
-    // 3: for i from 0 to n − 1 do
+    // 2: for i from 0 to n − 1 do
     for item in x.iter().take(n as usize) {
         //
-        // 4: total ← 256 · total + X[i]
+        // 3: total ← 256 · total + X[i]
         total = (total << 8) + u64::from(*item);
 
-        // 5: end for
+        // 4: end for
     }
 
-    // 6: return total
+    // 5: return total
     total
 }
 
 
-/// Algorithm 2: `toByte(x, n)` on page 15.
-/// Convert an integer to a byte string.
+/// Algorithm 3: `toByte(x, n)` on page 15.
+/// Converts an integer to a byte string.
 ///
 /// Input: Integer `x`, string length `n`. <br>
 /// Output: Byte string of length `n` containing binary representation of `x` in big-endian byte-order.
@@ -41,26 +40,25 @@ pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 
     // 1: total ← x
     let mut total = x;
 
-    // 2:
-    // 3: for i from 0 to n − 1 do
+    // 2: for i from 0 to n − 1 do
     for i in 0..n {
         //
-        // 4: S[n − 1 − i] ← total mod 256    ▷ Least significant 8 bits of total
+        // 3: S[n − 1 − i] ← total mod 256    ▷ Least significant 8 bits of total
         s[(n - 1 - i) as usize] = total.to_le_bytes()[0];
 
-        // 5: total ← total ≫ 8
+        // 4: total ← total ≫ 8
         total >>= 8;
 
-        // 6: end for
+        // 5: end for
     }
 
-    // 7: return S
+    // 6: return S
     s
 }
 
 
-/// Algorithm 3: `base_2^b(X, b, out_len)` on page 15.
-/// Compute the base 2^b representation of X.
+/// Algorithm 4: `base_2^b(X, b, out_len)` on page 16.
+/// Computes the base 2^b representation of X.
 ///
 /// Input: Byte string `X` of length at least `ceil(out_len·b/8)`, integer `b`, output length `out_len`. <br>
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
@@ -78,35 +76,34 @@ pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
     // 3: total ← 0
     let mut total = 0;
 
-    // 4:
-    // 5: for out from 0 to out_len − 1 do
+    // 4: for out from 0 to out_len − 1 do
     for item in baseb.iter_mut() {
         //
-        // 6: while bits < b do
+        // 5: while bits < b do
         while bits < b {
             //
-            // 7: total ← (total ≪ 8) + X[in]
+            // 6: total ← (total ≪ 8) + X[in]
             total = (total << 8) + u32::from(x[inn]);
 
-            // 8: in ← in + 1
+            // 7: in ← in + 1
             inn += 1;
 
-            // 9: bits ← bits + 8
+            // 8: bits ← bits + 8
             bits += 8;
 
-            // 10: end while
+            // 9: end while
         }
 
-        // 11: bits ← bits − b
+        // 10: bits ← bits − b
         bits -= b;
 
-        // 12: baseb[out] ← (total ≫ bits) mod 2^b
+        // 11: baseb[out] ← (total ≫ bits) mod 2^b
         *item = (total >> bits) & (u32::MAX >> (32 - b));
 
-        // 13: end for
+        // 12: end for
     }
 
-    // 14: return baseb  (mutable parameter)
+    // 13: return baseb  (mutable parameter)
 }
 
 
