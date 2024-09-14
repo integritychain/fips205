@@ -1,7 +1,7 @@
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 
-/// Fig 16 on page 34
+/// Fig 17 on page 34
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct SlhDsaSig<
     const A: usize,
@@ -17,6 +17,7 @@ pub(crate) struct SlhDsaSig<
 }
 
 
+/// Fig 16 on page 33
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SlhPublicKey<const N: usize> {
     pub(crate) pk_seed: [u8; N],
@@ -24,6 +25,7 @@ pub struct SlhPublicKey<const N: usize> {
 }
 
 
+/// Fig 15 on page 33
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct SlhPrivateKey<const N: usize> {
     pub(crate) sk_seed: [u8; N],
@@ -33,7 +35,7 @@ pub struct SlhPrivateKey<const N: usize> {
 }
 
 
-/// Fig 13 on page 29
+/// Fig 14 on page 29
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct ForsSig<const A: usize, const K: usize, const N: usize> {
     pub(crate) private_key_value: [[u8; N]; K],
@@ -47,19 +49,20 @@ pub(crate) struct ForsPk<const N: usize> {
 }
 
 
-/// Fig 10
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct Auth<const A: usize, const N: usize> {
     pub(crate) tree: [[u8; N]; A],
 }
 
 
+/// Fig 13 on page 26
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct HtSig<const D: usize, const HP: usize, const LEN: usize, const N: usize> {
     pub(crate) xmss_sigs: [XmssSig<HP, LEN, N>; D],
 }
 
 
+/// Fig 10 on page 19
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct WotsSig<const LEN: usize, const N: usize> {
     pub(crate) data: [[u8; N]; LEN],
@@ -70,6 +73,7 @@ pub struct WotsSig<const LEN: usize, const N: usize> {
 pub struct WotsPk<const N: usize>(pub(crate) [u8; N]);
 
 
+// Fig 11 on page 22
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
     pub(crate) sig_wots: WotsSig<LEN, N>,

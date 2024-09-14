@@ -60,7 +60,7 @@ Thank you to Daniel Kahn Gillmor for providing an example for FIPS 203.
 
 ## See Also
 
-- https://doi.org/10.6028/NIST.FIPS.205.ipd
+- https://csrc.nist.gov/pubs/fips/205/final
 - https://github.com/integritychain/fips205
 
 """
