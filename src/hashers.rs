@@ -40,7 +40,7 @@ pub(crate) mod shake {
         r: &[u8], pk_seed: &[u8], pk_root: &[u8], domain_sep: u8, ctx: &[u8], oid: &[u8], m: &[u8],
     ) -> [u8; M] {
         let mut digest = [0u8; M];
-        shake256(&[r, pk_seed, pk_root, &[domain_sep], &[ctx.len() as u8], oid, m], &mut digest);
+        shake256(&[r, pk_seed, pk_root, &[domain_sep], &[ctx.len() as u8], ctx, oid, m], &mut digest);
         digest
     }
 
@@ -57,7 +57,7 @@ pub(crate) mod shake {
         ctx: &[u8], oid: &[u8], m: &[u8]
     ) -> [u8; N] {
         let mut digest = [0u8; N];
-        shake256(&[sk_prf, opt_rand, &[domain_sep], &[ctx.len() as u8], oid, m], &mut digest);
+        shake256(&[sk_prf, opt_rand, &[domain_sep], &[ctx.len() as u8], ctx, oid, m], &mut digest);
         digest
     }
 

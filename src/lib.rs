@@ -263,20 +263,28 @@ macro_rules! functionality {
             #[test]
             fn simple_round_trips() {
                 let mut message = [0u8, 1, 2, 3];
+                let mut context = [3u8, 2, 1];
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
-                for i in 0..5 {
-                    message[3] = i as u8;
+                for i in 0u8..5 {
+                    message[3] = i;
+                    context[1] = 255 - i; 
                     let (pk1, sk1) = KG::try_keygen_with_rng_vt(&mut rng).unwrap();
                     let pk1_bytes = pk1.into_bytes();
                     let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
                     let sk1_bytes = sk1.into_bytes();
                     let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
-                    let sig = sk2.try_sign_with_rng_ct(&mut rng, &message, true).unwrap();
-                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    let sig = sk2.try_sign_with_rng_and_ctx_ct(&mut rng, &message, &context, true).unwrap();
+                    let result = pk2.try_verify_with_ctx_vt(&message, &sig, &context).unwrap();
                     assert_eq!(result, true, "Signature failed to verify");
-                    message[3] = (i + 1) as u8;
+                    let result = pk2.try_verify_with_ctx_vt(&message, &[0u8; SIG_LEN], &context).unwrap();
+                    assert_eq!(result, false, "Signature should not have verified (Signature changed)");
+                    message[3] = i + 1;
                     let result = pk2.try_verify_vt(&message, &sig).unwrap();
-                    assert_eq!(result, false, "Signature should not have verified");
+                    assert_eq!(result, false, "Signature should not have verified (message changed)");
+                    message[3] = i;
+                    context[1] = 255 - i - 1; 
+                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    assert_eq!(result, false, "Signature should not have verified (context changed)");
                 }
             }
         }
