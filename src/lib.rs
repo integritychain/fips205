@@ -279,11 +279,11 @@ macro_rules! functionality {
                     let result = pk2.try_verify_with_ctx_vt(&message, &[0u8; SIG_LEN], &context).unwrap();
                     assert_eq!(result, false, "Signature should not have verified (Signature changed)");
                     message[3] = i + 1;
-                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    let result = pk2.try_verify_with_ctx_vt(&message, &sig, &context).unwrap();
                     assert_eq!(result, false, "Signature should not have verified (message changed)");
                     message[3] = i;
                     context[1] = 255 - i - 1; 
-                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    let result = pk2.try_verify_with_ctx_vt(&message, &sig, &context).unwrap();
                     assert_eq!(result, false, "Signature should not have verified (context changed)");
                 }
             }
