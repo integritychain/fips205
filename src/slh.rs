@@ -111,7 +111,6 @@ pub(crate) fn slh_sign_with_rng<
         .map_err(|_| "Alg22: rng failed")?;
 
     // 8: M' ← toByte(0, 1) ∥ toByte(|ctx|, 1) ∥ ctx ∥ M
-    // TODO: Find a way to make m' without allocating
 
     // 9: SIG ← slh_sign_internal(M', SK, addrnd)  ▷ omit addrnd for the deterministic variant
     // 10: return SIG
@@ -135,7 +134,7 @@ pub(crate) fn slh_sign_with_rng<
     };
 
     // 3: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
-    let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
+    let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, 0, ctx, &[], m);
 
     // 4: SIG ← R
     let mut sig = SlhDsaSig {
@@ -153,7 +152,7 @@ pub(crate) fn slh_sign_with_rng<
     };
 
     // 5: digest ← H_msg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-    let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, m);
+    let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, 0, ctx, &[], m);
 
     // 6: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K * A + 7) / 8;
@@ -265,7 +264,7 @@ pub(crate) fn slh_verify<
     let sig_ht = &sig.ht_sig;
 
     // 8: digest ← Hmsg(R, PK.seed, PK.root, M)    ▷ Compute message digest
-    let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
+    let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, 0, ctx, &[], m);
 
     // 9: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
     let index1 = (K * A + 7) / 8;
