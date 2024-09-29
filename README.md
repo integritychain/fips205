@@ -55,7 +55,7 @@ desired [security parameter](#modules) below.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * Requires Rust **1.70** or higher. The minimum supported Rust version may be changed in the future, 
   but it will be done with a minor version bump.
-* All on-by-default features of this library are covered by SemVer.
+* All on-by-default features of this library are covered by `SemVer`.
 * This software is experimental and still under active development -- USE AT YOUR OWN RISK!
 
 ## License
