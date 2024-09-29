@@ -18,4 +18,4 @@ name = "fips205"
 
 [dependencies.fips205]
 path = ".."
-version = "0.1.2"
+#version = "0.1.2"

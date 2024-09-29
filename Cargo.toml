@@ -2,10 +2,10 @@ workspace = { members = ['ffi'], exclude = ["dudect", "ct_cm4"] }
 
 [package]
 name = "fips205"
-version = "0.1.2"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "FIPS 205 (draft): Stateless Hash-Based Digital Signature Standard"
+description = "FIPS 205: Stateless Hash-Based Digital Signature Standard"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
 documentation = "https://docs.rs/fips205"
 categories = ["cryptography", "no-std"]
