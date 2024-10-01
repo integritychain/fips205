@@ -98,7 +98,7 @@ pub extern "C" fn slh_dsa_sha2_128f_verify(
     let Ok(sk) = fips205::slh_dsa_sha2_128f::PublicKey::try_from_bytes(&public_key.data) else {
         return SLH_DSA_DESERIALIZATION_ERROR;
     };
-    let res = sk.try_verify(&message, &signature.data);
+    let res = sk.verify(&message, &signature.data);
 
     if res.is_ok() && res.unwrap() {
         SLH_DSA_OK

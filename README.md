@@ -39,7 +39,7 @@ let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
 
 // Deserialize the public key, then use it to verify the msg signature
 let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+let v = pk2.verify(&msg_recv, &sig_recv, b"context");
 assert!(v); 
 # Ok(())
 # }

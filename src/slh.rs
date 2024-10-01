@@ -115,8 +115,8 @@ pub(crate) fn slh_sign_with_rng<
     const M: usize,
     const N: usize,
 >(
-    rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk: &SlhPrivateKey<N>,
-    ctx: &[u8], randomize: bool,
+    rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, mp: &[&[u8]],
+    sk: &SlhPrivateKey<N>, randomize: bool,
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
     //
     // 1: ADRS ← toByte(0, 32)
@@ -135,7 +135,7 @@ pub(crate) fn slh_sign_with_rng<
         // 6: end if
     }
 
-    let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
+    //let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
     slh_sign_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sk, opt_rand)
 }
 
@@ -272,7 +272,7 @@ pub(crate) fn slh_verify<
     const M: usize,
     const N: usize,
 >(
-    hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>, ctx: &[u8],
+    hashers: &Hashers<K, LEN, M, N>, mp: &[&[u8]], sig: &SlhDsaSig<A, D, HP, K, LEN, N>,
     pk: &SlhPublicKey<N>,
 ) -> bool {
     //let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
@@ -285,7 +285,7 @@ pub(crate) fn slh_verify<
     // 4: ADRS ← toByte(0, 32)
     //let mut adrs = Adrs::default();
 
-    let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
+    //let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
     slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sig, pk)
 }
 

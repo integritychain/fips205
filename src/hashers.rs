@@ -1,4 +1,5 @@
 use crate::types::Adrs;
+use crate::Ph;
 
 
 // Holds hasher function references; constructed by each security parameter set wrapper
@@ -319,5 +320,60 @@ pub(crate) mod sha2_cat_3_5 {
         let digest = hasher.finalize();
         result.copy_from_slice(&digest[0..N]);
         result
+    }
+}
+
+pub(crate) fn hash_message(message: &[u8], ph: &Ph, phm: &mut [u8; 64]) -> ([u8; 11], usize) {
+    use sha2::{Digest, Sha256, Sha512};
+    use sha3::digest::{ExtendableOutput, Update, XofReader};
+    use sha3::{Shake128, Shake256};
+
+    match ph {
+        Ph::SHA256 => (
+            [
+                0x06u8, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+            ],
+            {
+                let mut hasher = Sha256::new();
+                Digest::update(&mut hasher, message);
+                phm[0..32].copy_from_slice(&hasher.finalize());
+                32
+            },
+        ),
+        Ph::SHA512 => (
+            [
+                0x06u8, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+            ],
+            {
+                let mut hasher = Sha512::new();
+                Digest::update(&mut hasher, message);
+                phm.copy_from_slice(&hasher.finalize());
+                64
+            },
+        ),
+        Ph::SHAKE128 => (
+            [
+                0x06u8, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0B,
+            ],
+            {
+                let mut hasher = Shake128::default();
+                hasher.update(message);
+                let mut reader = hasher.finalize_xof();
+                reader.read(&mut phm[0..32]);
+                32
+            },
+        ),
+        Ph::SHAKE256 => (
+            [
+                0x06u8, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0C,
+            ],
+            {
+                let mut hasher = Shake256::default();
+                hasher.update(message);
+                let mut reader = hasher.finalize_xof();
+                reader.read(phm);
+                64
+            },
+        ),
     }
 }

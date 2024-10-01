@@ -63,8 +63,9 @@ const LEN2: u32 = 3;
 // This common functionality is injected into each parameter set module
 macro_rules! functionality {
     () => {
+        use crate::hashers::hash_message;
         use crate::traits::{KeyGen, SerDes, Signer, Verifier};
-        use crate::types::{SlhDsaSig, SlhPrivateKey, SlhPublicKey};
+        use crate::types::{Ph, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
         use rand_core::CryptoRngCore;
         use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -114,15 +115,13 @@ macro_rules! functionality {
         ///
         /// // Deserialize the public key, then use it to verify the msg signature
         /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-        /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+        /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
         /// # Ok(())
         /// # }
         /// ```
         #[cfg(feature = "default-rng")]
-        pub fn try_keygen() -> Result<(PublicKey, PrivateKey), &'static str> {
-            KG::try_keygen()
-        }
+        pub fn try_keygen() -> Result<(PublicKey, PrivateKey), &'static str> { KG::try_keygen() }
 
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
@@ -145,7 +144,7 @@ macro_rules! functionality {
         /// // Generate key pair and signature
         /// let (pk, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;  // Generate both public and secret keys
         /// let sig = sk.try_sign(&message, b"context", true)?;  // Use the secret key to generate a message signature        ///
-        /// let v = pk.try_verify(&message, &sig, b"context")?;
+        /// let v = pk.verify(&message, &sig, b"context");
         /// assert!(v);
         /// # Ok(())}
         /// ```
@@ -175,8 +174,29 @@ macro_rules! functionality {
             fn try_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
+                let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &m, &self.0, ctx, randomize,
+                    rng, &HASHERS, &mp, &self.0, randomize,
+                );
+                sig.map(|s| s.deserialize())
+            }
+
+            /// # Errors
+            fn try_sign_hash_with_rng(
+                &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph,
+                randomize: bool,
+            ) -> Result<Self::Signature, &'static str> {
+                let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
+                let (oid, phm_len) = hash_message(message, ph, &mut phm);
+                let mp: &[&[u8]] = &[
+                    &[1u8],
+                    &[ctx.len().to_le_bytes()[0]],
+                    ctx,
+                    &oid,
+                    &phm[0..phm_len],
+                ];
+                let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
+                    rng, &HASHERS, &mp, &self.0, randomize, // BAD
                 );
                 sig.map(|s| s.deserialize())
             }
@@ -210,14 +230,32 @@ macro_rules! functionality {
         impl Verifier for PublicKey {
             type Signature = [u8; SIG_LEN];
 
-            fn try_verify(
-                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8],
-            ) -> Result<bool, &'static str> {
+            fn verify(&self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8]) -> bool {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
-                    &HASHERS, &m, &sig, ctx, &self.0,
+                    &HASHERS, &mp, &sig, &self.0,
                 );
-                Ok(res)
+                res
+            }
+
+            fn verify_hash(
+                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], ph: &Ph,
+            ) -> bool {
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
+                let (oid, phm_len) = hash_message(m, ph, &mut phm);
+                let mp: &[&[u8]] = &[
+                    &[1u8],
+                    &[ctx.len().to_le_bytes()[0]],
+                    ctx,
+                    &oid,
+                    &phm[0..phm_len],
+                ];
+                let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
+                    &HASHERS, &mp, &sig, &self.0,
+                );
+                res
             }
 
             fn _test_only_raw_verify(
@@ -225,7 +263,10 @@ macro_rules! functionality {
             ) -> Result<bool, &'static str> {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
                 let res = crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
-                    &HASHERS, &[m], &sig, &self.0,
+                    &HASHERS,
+                    &[m],
+                    &sig,
+                    &self.0,
                 );
                 Ok(res)
             }
@@ -295,23 +336,29 @@ macro_rules! functionality {
             // Test keygen, sign, serDes everything, verify true/false
             #[test]
             fn simple_round_trips() {
-                let mut message = [0u8, 1, 2, 3];
+                let message = [0u8, 1, 2, 3];
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
-                for i in 0..5u8 {
-                    message[3] = i;
-                    let (pk1, sk1) = KG::try_keygen_with_rng(&mut rng).unwrap();
-                    let pk1_bytes = pk1.into_bytes();
-                    let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
-                    let sk1_bytes = sk1.into_bytes();
-                    let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
+                let (pk1, sk1) = KG::try_keygen_with_rng(&mut rng).unwrap();
+                let pk1_bytes = pk1.into_bytes();
+                let sk1_bytes = sk1.into_bytes();
+                let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
+                let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
+
+                let sig = sk2
+                    .try_sign_with_rng(&mut rng, &message, b"context", true)
+                    .unwrap();
+                let result = pk2.verify(&message, &sig, b"context");
+                assert!(result, "Signature failed to verify");
+                let result = pk2.verify(&message, &sig, b"some other context");
+                assert!(!result, "Signature should not have verified");
+                for ph in [Ph::SHA256, Ph::SHA512, Ph::SHAKE128, Ph::SHAKE256] {
                     let sig = sk2
-                        .try_sign_with_rng(&mut rng, &message, b"context", true)
+                        .try_sign_hash_with_rng(&mut rng, &message, b"context", &ph, true)
                         .unwrap();
-                    let result = pk2.try_verify(&message, &sig, b"context").unwrap();
-                    assert_eq!(result, true, "Signature failed to verify");
-                    message[3] = (i + 1);
-                    let result = pk2.try_verify(&message, &sig, b"context").unwrap();
-                    assert_eq!(result, false, "Signature should not have verified");
+                    let result = pk2.verify_hash(&message, &sig, b"context", &ph);
+                    assert!(result, "Signature failed to verify");
+                    let result = pk2.verify_hash(&message, &sig, b"some other context", &ph);
+                assert!(!result, "Signature should not have verified");
                 }
             }
         }
@@ -333,7 +380,7 @@ macro_rules! functionality {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -381,7 +428,7 @@ pub mod slh_dsa_sha2_128s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -429,7 +476,7 @@ pub mod slh_dsa_shake_128s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -477,7 +524,7 @@ pub mod slh_dsa_sha2_128f {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -525,7 +572,7 @@ pub mod slh_dsa_shake_128f {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -573,7 +620,7 @@ pub mod slh_dsa_sha2_192s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -621,7 +668,7 @@ pub mod slh_dsa_shake_192s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -669,7 +716,7 @@ pub mod slh_dsa_sha2_192f {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -717,7 +764,7 @@ pub mod slh_dsa_shake_192f {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -765,7 +812,7 @@ pub mod slh_dsa_sha2_256s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -813,7 +860,7 @@ pub mod slh_dsa_shake_256s {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_sha2_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -861,7 +908,7 @@ pub mod slh_dsa_sha2_256f {
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::verify()`] function implemented on the
 /// [`slh_dsa_shake_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.

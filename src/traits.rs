@@ -1,5 +1,6 @@
 use rand_core::CryptoRngCore;
 
+use crate::Ph;
 #[cfg(feature = "default-rng")]
 use rand_core::OsRng;
 
@@ -30,7 +31,7 @@ pub trait SerDes {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -60,7 +61,7 @@ pub trait SerDes {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -103,7 +104,7 @@ pub trait KeyGen {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -138,7 +139,7 @@ pub trait KeyGen {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -180,7 +181,7 @@ pub trait Signer {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -190,6 +191,15 @@ pub trait Signer {
         &self, message: &[u8], ctx: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str> {
         self.try_sign_with_rng(&mut OsRng, message, ctx, randomize)
+    }
+
+    /// blah
+    /// # Errors
+    #[cfg(feature = "default-rng")]
+    fn try_sign_hash(
+        &self, message: &[u8], ctx: &[u8], ph: &Ph, randomize: bool,
+    ) -> Result<Self::Signature, &'static str> {
+        self.try_sign_hash_with_rng(&mut OsRng, message, ctx, ph, randomize)
     }
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
@@ -218,7 +228,7 @@ pub trait Signer {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -226,6 +236,14 @@ pub trait Signer {
     fn try_sign_with_rng(
         &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str>;
+
+
+    /// blah
+    /// # Errors
+    fn try_sign_hash_with_rng(
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, randomize: bool,
+    ) -> Result<Self::Signature, &'static str>;
+
 
     /// blah
     /// # Errors
@@ -243,8 +261,6 @@ pub trait Verifier {
     /// Verifies a digital signature with respect to a `PublicKey`. This function operates in
     /// variable time.
     ///
-    /// # Errors
-    /// Returns an error on a malformed signature; propagates internal errors.
     /// # Examples
     /// ```rust
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
@@ -265,14 +281,20 @@ pub trait Verifier {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
-    fn try_verify(
-        &self, message: &[u8], signature: &Self::Signature, ctx: &[u8],
-    ) -> Result<bool, &'static str>;
+    #[must_use]
+    fn verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8]) -> bool;
+
+
+    /// blah
+    #[must_use]
+    fn verify_hash(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8], ph: &Ph)
+        -> bool;
+
 
     /// blah
     /// # Errors
