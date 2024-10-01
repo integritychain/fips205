@@ -79,6 +79,7 @@ pub struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
 
 impl<const HP: usize, const LEN: usize, const N: usize> XmssSig<HP, LEN, N> {
     pub(crate) fn get_wots_sig(&self) -> &WotsSig<LEN, N> { &self.sig_wots }
+
     pub(crate) fn get_xmss_auth(&self) -> &[[u8; N]; HP] { &self.auth }
 }
 

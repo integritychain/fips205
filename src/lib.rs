@@ -262,8 +262,8 @@ macro_rules! functionality {
             fn simple_round_trips() {
                 let mut message = [0u8, 1, 2, 3];
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
-                for i in 0..5 {
-                    message[3] = i as u8;
+                for i in 0..5u8 {
+                    message[3] = i;
                     let (pk1, sk1) = KG::try_keygen_with_rng_vt(&mut rng).unwrap();
                     let pk1_bytes = pk1.into_bytes();
                     let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
@@ -272,7 +272,7 @@ macro_rules! functionality {
                     let sig = sk2.try_sign_with_rng_ct(&mut rng, &message, true).unwrap();
                     let result = pk2.try_verify_vt(&message, &sig).unwrap();
                     assert_eq!(result, true, "Signature failed to verify");
-                    message[3] = (i + 1) as u8;
+                    message[3] = (i + 1);
                     let result = pk2.try_verify_vt(&message, &sig).unwrap();
                     assert_eq!(result, false, "Signature should not have verified");
                 }
