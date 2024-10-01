@@ -21,8 +21,8 @@ pub trait SerDes {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -30,7 +30,7 @@ pub trait SerDes {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -51,8 +51,8 @@ pub trait SerDes {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -60,7 +60,7 @@ pub trait SerDes {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
@@ -94,8 +94,8 @@ pub trait KeyGen {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -103,14 +103,14 @@ pub trait KeyGen {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "default-rng")]
-    fn try_keygen_vt() -> Result<(Self::PublicKey, Self::PrivateKey), &'static str> {
-        Self::try_keygen_with_rng_vt(&mut OsRng)
+    fn try_keygen() -> Result<(Self::PublicKey, Self::PrivateKey), &'static str> {
+        Self::try_keygen_with_rng(&mut OsRng)
     }
 
     /// Generates a public and private key pair specific to this security parameter set. <br>
@@ -129,8 +129,8 @@ pub trait KeyGen {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -138,12 +138,12 @@ pub trait KeyGen {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
-    fn try_keygen_with_rng_vt(
+    fn try_keygen_with_rng(
         rng: &mut impl CryptoRngCore,
     ) -> Result<(Self::PublicKey, Self::PrivateKey), &'static str>;
 }
@@ -171,8 +171,8 @@ pub trait Signer {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -180,16 +180,16 @@ pub trait Signer {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "default-rng")]
-    fn try_sign_ct(
-        &self, message: &[u8], randomize: bool,
+    fn try_sign(
+        &self, message: &[u8], ctx: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str> {
-        self.try_sign_with_rng_ct(&mut OsRng, message, randomize)
+        self.try_sign_with_rng(&mut OsRng, message, ctx, randomize)
     }
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
@@ -209,8 +209,8 @@ pub trait Signer {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -218,13 +218,19 @@ pub trait Signer {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
-    fn try_sign_with_rng_ct(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], randomize: bool,
+    fn try_sign_with_rng(
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], randomize: bool,
+    ) -> Result<Self::Signature, &'static str>;
+
+    /// blah
+    /// # Errors
+    fn _test_only_raw_sign(
+        &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str>;
 }
 
@@ -250,8 +256,8 @@ pub trait Verifier {
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
     ///
     /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
     ///
     /// // Serialize the public key, and send with message and signature bytes
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -259,12 +265,18 @@ pub trait Verifier {
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+    /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
-    fn try_verify_vt(
-        &self, message: &[u8], signature: &Self::Signature,
+    fn try_verify(
+        &self, message: &[u8], signature: &Self::Signature, ctx: &[u8],
+    ) -> Result<bool, &'static str>;
+
+    /// blah
+    /// # Errors
+    fn _test_only_raw_verify(
+        &self, m: &[u8], sig_bytes: &Self::Signature,
     ) -> Result<bool, &'static str>;
 }

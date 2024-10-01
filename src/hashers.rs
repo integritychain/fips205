@@ -4,9 +4,9 @@ use crate::types::Adrs;
 // Holds hasher function references; constructed by each security parameter set wrapper
 #[allow(clippy::type_complexity)]
 pub(crate) struct Hashers<const K: usize, const LEN: usize, const M: usize, const N: usize> {
-    pub(crate) h_msg: fn(&[u8], &[u8], &[u8], &[u8]) -> [u8; M],
+    pub(crate) h_msg: fn(&[u8], &[u8], &[u8], &[&[u8]]) -> [u8; M],
     pub(crate) prf: fn(&[u8], &[u8], &Adrs) -> [u8; N],
-    pub(crate) prf_msg: fn(&[u8], &[u8], &[u8]) -> [u8; N],
+    pub(crate) prf_msg: fn(&[u8], &[u8], &[&[u8]]) -> [u8; N],
     pub(crate) f: fn(&[u8], &Adrs, &[u8]) -> [u8; N],
     pub(crate) h: fn(&[u8], &Adrs, &[u8], &[u8]) -> [u8; N],
     pub(crate) t_l: fn(&[u8], &Adrs, &[[u8; N]; LEN]) -> [u8; N],
@@ -37,10 +37,12 @@ pub(crate) mod shake {
 
 
     pub(crate) fn h_msg<const M: usize>(
-        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
+        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[&[u8]],
     ) -> [u8; M] {
         let mut digest = [0u8; M];
-        shake256(&[r, pk_seed, pk_root, m], &mut digest);
+        let mut inp = [r, pk_seed, pk_root, &[], &[], &[], &[], &[]];
+        inp[3..3 + m.len()].copy_from_slice(m); // m can have up to 5 elements
+        shake256(&inp, &mut digest);
         digest
     }
 
@@ -53,9 +55,11 @@ pub(crate) mod shake {
     }
 
 
-    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[u8]) -> [u8; N] {
+    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[&[u8]]) -> [u8; N] {
         let mut digest = [0u8; N];
-        shake256(&[sk_prf, opt_rand, m], &mut digest);
+        let mut inp = [sk_prf, opt_rand, &[], &[], &[], &[], &[]];
+        inp[2..2 + m.len()].copy_from_slice(m); // m can have up to 5 elements
+        shake256(&inp, &mut digest);
         digest
     }
 
@@ -106,10 +110,12 @@ pub(crate) mod sha2_cat_1 {
 
 
     pub(crate) fn h_msg<const M: usize>(
-        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
+        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[&[u8]],
     ) -> [u8; M] {
         let mut digest1 = [0u8; 32];
-        sha2_256(&[r, pk_seed, pk_root, m], &mut digest1);
+        let mut inp = [r, pk_seed, pk_root, &[], &[], &[], &[], &[]];
+        inp[3..3 + m.len()].copy_from_slice(m); // m can have up to 5 elements
+        sha2_256(&inp, &mut digest1);
         let mut result = [0u8; M];
         let mut start = 0;
         let mut counter = 0u32;
@@ -134,7 +140,7 @@ pub(crate) mod sha2_cat_1 {
     }
 
 
-    fn hmac_sha_256(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 32] {
+    fn hmac_sha_256(key: &[u8], a0: &[u8], m: &[&[u8]]) -> [u8; 32] {
         let mut padding = [0x36; 64];
         for (p, &k) in padding.iter_mut().zip(key.iter()) {
             *p ^= k;
@@ -142,7 +148,9 @@ pub(crate) mod sha2_cat_1 {
         let mut inner_hasher = Sha256::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        inner_hasher.update(b1);
+        for i in m {
+            inner_hasher.update(i);
+        }
         for p in &mut padding {
             *p ^= 0x6a;
         }
@@ -153,7 +161,7 @@ pub(crate) mod sha2_cat_1 {
     }
 
 
-    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[u8]) -> [u8; N] {
+    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[&[u8]]) -> [u8; N] {
         let mut digest = [0u8; N];
         let full_digest = hmac_sha_256(sk_prf, opt_rand, m);
         digest.copy_from_slice(&full_digest[0..N]);
@@ -223,10 +231,12 @@ pub(crate) mod sha2_cat_3_5 {
 
 
     pub(crate) fn h_msg<const M: usize>(
-        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[u8],
+        r: &[u8], pk_seed: &[u8], pk_root: &[u8], m: &[&[u8]],
     ) -> [u8; M] {
         let mut digest1 = [0u8; 64];
-        sha2_512(&[r, pk_seed, pk_root, m], &mut digest1);
+        let mut inp = [r, pk_seed, pk_root, &[], &[], &[], &[], &[]];
+        inp[3..3 + m.len()].copy_from_slice(m); // m can have up to 5 elements
+        sha2_512(&inp, &mut digest1);
         let mut result = [0u8; M];
         let mut start = 0;
         let mut counter = 0u32;
@@ -251,7 +261,7 @@ pub(crate) mod sha2_cat_3_5 {
     }
 
 
-    fn hmac_sha_512(key: &[u8], a0: &[u8], b1: &[u8]) -> [u8; 64] {
+    fn hmac_sha_512(key: &[u8], a0: &[u8], m: &[&[u8]]) -> [u8; 64] {
         let mut padding = [0x36; 128];
         for (p, &k) in padding.iter_mut().zip(key.iter()) {
             *p ^= k;
@@ -259,7 +269,9 @@ pub(crate) mod sha2_cat_3_5 {
         let mut inner_hasher = Sha512::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        inner_hasher.update(b1);
+        for i in m {
+            inner_hasher.update(i);
+        }
         for p in &mut padding {
             *p ^= 0x6a;
         }
@@ -270,7 +282,7 @@ pub(crate) mod sha2_cat_3_5 {
     }
 
 
-    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[u8]) -> [u8; N] {
+    pub(crate) fn prf_msg<const N: usize>(sk_prf: &[u8], opt_rand: &[u8], m: &[&[u8]]) -> [u8; N] {
         let mut digest = [0u8; N];
         let full_digest = hmac_sha_512(sk_prf, opt_rand, m);
         digest.copy_from_slice(&full_digest[0..N]);

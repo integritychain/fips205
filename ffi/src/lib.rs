@@ -46,7 +46,7 @@ pub extern "C" fn slh_dsa_sha2_128f_keygen(
     let (Some(public_out), Some(private_out)) = (public_out, private_out) else {
         return SLH_DSA_NULL_PTR_ERROR;
     };
-    let Ok((pk, sk)) = fips205::slh_dsa_sha2_128f::KG::try_keygen_vt() else {
+    let Ok((pk, sk)) = fips205::slh_dsa_sha2_128f::KG::try_keygen() else {
         return SLH_DSA_KEYGEN_ERROR;
     };
 
@@ -76,7 +76,7 @@ pub extern "C" fn slh_dsa_sha2_128f_sign(
     let Ok(sk) = fips205::slh_dsa_sha2_128f::PrivateKey::try_from_bytes(&private_key.data) else {
         return SLH_DSA_DESERIALIZATION_ERROR;
     };
-    let Ok(sig) = sk.try_sign_ct(&message, true) else {
+    let Ok(sig) = sk.try_sign(&message, true) else {
         return SLH_DSA_SIGN_ERROR;
     };
     signature_out.data = sig;
@@ -98,7 +98,7 @@ pub extern "C" fn slh_dsa_sha2_128f_verify(
     let Ok(sk) = fips205::slh_dsa_sha2_128f::PublicKey::try_from_bytes(&public_key.data) else {
         return SLH_DSA_DESERIALIZATION_ERROR;
     };
-    let res = sk.try_verify_vt(&message, &signature.data);
+    let res = sk.try_verify(&message, &signature.data);
 
     if res.is_ok() && res.unwrap() {
         SLH_DSA_OK

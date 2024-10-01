@@ -42,6 +42,7 @@
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
 pub mod traits;
+pub use types::Ph;
 
 mod fors;
 mod hashers;
@@ -104,8 +105,8 @@ macro_rules! functionality {
         /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
         ///
         /// // Generate public/private key pair and signature
-        /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-        /// let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate a msg signature
+        /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+        /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
         ///
         /// // Serialize the public key, and send with message and signature bytes
         /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -113,14 +114,14 @@ macro_rules! functionality {
         ///
         /// // Deserialize the public key, then use it to verify the msg signature
         /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-        /// let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+        /// let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
         /// assert!(v);
         /// # Ok(())
         /// # }
         /// ```
         #[cfg(feature = "default-rng")]
-        pub fn try_keygen_vt() -> Result<(PublicKey, PrivateKey), &'static str> {
-            KG::try_keygen_vt()
+        pub fn try_keygen() -> Result<(PublicKey, PrivateKey), &'static str> {
+            KG::try_keygen()
         }
 
 
@@ -142,16 +143,16 @@ macro_rules! functionality {
         /// let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
         ///
         /// // Generate key pair and signature
-        /// let (pk, sk) = slh_dsa_shake_128s::try_keygen_with_rng_vt(&mut rng)?;  // Generate both public and secret keys
-        /// let sig = sk.try_sign_ct(&message, true)?;  // Use the secret key to generate a message signature        ///
-        /// let v = pk.try_verify_vt(&message, &sig)?;
+        /// let (pk, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;  // Generate both public and secret keys
+        /// let sig = sk.try_sign(&message, b"context", true)?;  // Use the secret key to generate a message signature        ///
+        /// let v = pk.try_verify(&message, &sig, b"context")?;
         /// assert!(v);
         /// # Ok(())}
         /// ```
-        pub fn try_keygen_with_rng_vt(
+        pub fn try_keygen_with_rng(
             rng: &mut impl CryptoRngCore,
         ) -> Result<(PublicKey, PrivateKey), &'static str> {
-            KG::try_keygen_with_rng_vt(rng)
+            KG::try_keygen_with_rng(rng)
         }
 
 
@@ -159,7 +160,7 @@ macro_rules! functionality {
             type PrivateKey = PrivateKey;
             type PublicKey = PublicKey;
 
-            fn try_keygen_with_rng_vt(
+            fn try_keygen_with_rng(
                 rng: &mut impl CryptoRngCore,
             ) -> Result<(PublicKey, PrivateKey), &'static str> {
                 let res = crate::slh::slh_keygen_with_rng::<D, H, HP, K, LEN, M, N>(rng, &HASHERS);
@@ -171,11 +172,35 @@ macro_rules! functionality {
         impl Signer for PrivateKey {
             type Signature = [u8; SIG_LEN];
 
-            fn try_sign_with_rng_ct(
-                &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+            fn try_sign_with_rng(
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &m, &self.0, randomize,
+                    rng, &HASHERS, &m, &self.0, ctx, randomize,
+                );
+                sig.map(|s| s.deserialize())
+            }
+
+            /// blah!
+            /// # Errors
+            fn _test_only_raw_sign(
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+            ) -> Result<[u8; SIG_LEN], &'static str> {
+                let mut opt_rand = (self.0).pk_seed;
+
+                // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
+                if randomize {
+                    // 5: opt_rand ←$ Bn
+                    rng.try_fill_bytes(&mut opt_rand)
+                        .map_err(|_| "Alg17: rng failed")?;
+
+                    // 6: end if
+                }
+                let sig = crate::slh::slh_sign_internal::<A, D, H, HP, K, LEN, M, N>(
+                    &HASHERS,
+                    &[m],
+                    &self.0,
+                    opt_rand,
                 );
                 sig.map(|s| s.deserialize())
             }
@@ -185,12 +210,22 @@ macro_rules! functionality {
         impl Verifier for PublicKey {
             type Signature = [u8; SIG_LEN];
 
-            fn try_verify_vt(
-                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
+            fn try_verify(
+                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8],
             ) -> Result<bool, &'static str> {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
-                    &HASHERS, &m, &sig, &self.0,
+                    &HASHERS, &m, &sig, ctx, &self.0,
+                );
+                Ok(res)
+            }
+
+            fn _test_only_raw_verify(
+                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
+            ) -> Result<bool, &'static str> {
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                let res = crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
+                    &HASHERS, &[m], &sig, &self.0,
                 );
                 Ok(res)
             }
@@ -264,16 +299,18 @@ macro_rules! functionality {
                 let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
                 for i in 0..5u8 {
                     message[3] = i;
-                    let (pk1, sk1) = KG::try_keygen_with_rng_vt(&mut rng).unwrap();
+                    let (pk1, sk1) = KG::try_keygen_with_rng(&mut rng).unwrap();
                     let pk1_bytes = pk1.into_bytes();
                     let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
                     let sk1_bytes = sk1.into_bytes();
                     let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
-                    let sig = sk2.try_sign_with_rng_ct(&mut rng, &message, true).unwrap();
-                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    let sig = sk2
+                        .try_sign_with_rng(&mut rng, &message, b"context", true)
+                        .unwrap();
+                    let result = pk2.try_verify(&message, &sig, b"context").unwrap();
                     assert_eq!(result, true, "Signature failed to verify");
                     message[3] = (i + 1);
-                    let result = pk2.try_verify_vt(&message, &sig).unwrap();
+                    let result = pk2.try_verify(&message, &sig, b"context").unwrap();
                     assert_eq!(result, false, "Signature should not have verified");
                 }
             }
@@ -286,17 +323,17 @@ macro_rules! functionality {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128s parameter set is claimed to be in security strength category 1.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_128s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_128s::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_128s::PublicKey`] and [`slh_dsa_sha2_128s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_128s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -334,17 +371,17 @@ pub mod slh_dsa_sha2_128s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128s parameter set is claimed to be in security strength category 1.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_128s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_128s::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_128s::PublicKey`] and [`slh_dsa_shake_128s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_128s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -382,17 +419,17 @@ pub mod slh_dsa_shake_128s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128f parameter set is claimed to be in security strength category 1.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_128f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_128f::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_128f::PublicKey`] and [`slh_dsa_sha2_128f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_128f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -430,17 +467,17 @@ pub mod slh_dsa_sha2_128f {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128f parameter set is claimed to be in security strength category 1.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_128f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_128f::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_128f::PublicKey`] and [`slh_dsa_shake_128f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_128f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -478,17 +515,17 @@ pub mod slh_dsa_shake_128f {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192s parameter set is claimed to be in security strength category 3.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_192s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_192s::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_192s::PublicKey`] and [`slh_dsa_sha2_192s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_192s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -526,17 +563,17 @@ pub mod slh_dsa_sha2_192s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192s parameter set is claimed to be in security strength category 3.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_192s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_192s::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_192s::PublicKey`] and [`slh_dsa_shake_192s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_192s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -574,17 +611,17 @@ pub mod slh_dsa_shake_192s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192f parameter set is claimed to be in security strength category 3.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_192f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_192f::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_192f::PublicKey`] and [`slh_dsa_sha2_192f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_192f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -622,17 +659,17 @@ pub mod slh_dsa_sha2_192f {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192f parameter set is claimed to be in security strength category 3.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_192f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_192f::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_192f::PublicKey`] and [`slh_dsa_shake_192f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_192f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -670,17 +707,17 @@ pub mod slh_dsa_shake_192f {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256s parameter set is claimed to be in security strength category 5.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_256s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_256s::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_256s::PublicKey`] and [`slh_dsa_sha2_256s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_256s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -718,17 +755,17 @@ pub mod slh_dsa_sha2_256s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE_256s parameter set is claimed to be in security strength category 5.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_256s::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_256s::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_256s::PublicKey`] and [`slh_dsa_shake_256s::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_256s::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -766,17 +803,17 @@ pub mod slh_dsa_shake_256s {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256f parameter set is claimed to be in security strength category 5.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_256f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_sha2_256f::try_keygen`] function below
 /// to generate both [`slh_dsa_sha2_256f::PublicKey`] and [`slh_dsa_sha2_256f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_sha2_256f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_sha2_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
@@ -814,17 +851,17 @@ pub mod slh_dsa_sha2_256f {
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-256f parameter set is claimed to be in security strength category 5.
 ///
-/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_256f::try_keygen_vt`] function below
+/// **1)** The basic usage is for an originator to start with the [`slh_dsa_shake_256f::try_keygen`] function below
 /// to generate both [`slh_dsa_shake_256f::PublicKey`] and [`slh_dsa_shake_256f::PrivateKey`] structs. The resulting
 /// [`slh_dsa_shake_256f::PrivateKey`] struct implements the [`traits::Signer`] trait which supplies several functions
-/// to sign byte-array messages, such as [`traits::Signer::try_sign_ct()`], resulting in a Signature byte-array.
+/// to sign byte-array messages, such as [`traits::Signer::try_sign()`], resulting in a Signature byte-array.
 ///
 /// **2)** Both the `PrivateKey` and `PublicKey` structs implement the [`traits::SerDes`] trait. The originator
 /// utilizes the [`traits::SerDes::into_bytes()`] functions to serialize the `PublicKey` struct into a byte-array for
 /// distribution. The remote party utilizes the [`traits::SerDes::try_from_bytes()`] function to deserialize the
 /// `PublicKey` byte-array into its struct.
 ///
-/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify_vt()`] function implemented on the
+/// **3)** Finally, the remote party uses the [`traits::Verifier::try_verify()`] function implemented on the
 /// [`slh_dsa_shake_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.

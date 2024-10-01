@@ -8,8 +8,8 @@ fn sign(runner: &mut CtRunner, mut _rng: &mut BenchRng) {
 
     let message = [0u8, 1, 2, 3, 4, 5, 6, 7];
 
-    let (_pk1, sk1) = slh_dsa_shake_128s::try_keygen_vt().unwrap();  // Generate both public and secret keys
-    let (_pk2, sk2) = slh_dsa_shake_128s::try_keygen_vt().unwrap();  // Generate both public and secret keys
+    let (_pk1, sk1) = slh_dsa_shake_128s::try_keygen().unwrap();  // Generate both public and secret keys
+    let (_pk2, sk2) = slh_dsa_shake_128s::try_keygen().unwrap();  // Generate both public and secret keys
 
     let mut inputs: Vec<slh_dsa_shake_128s::PrivateKey> = Vec::new();
     let mut classes = Vec::new();
@@ -27,7 +27,7 @@ fn sign(runner: &mut CtRunner, mut _rng: &mut BenchRng) {
     for (class, input) in classes.into_iter().zip(inputs.into_iter()) {
         runner.run_one(class, || {
             for _ in 0..ITERATIONS_INNER {
-                let _ = input.try_sign_ct(&message, true);
+                let _ = input.try_sign(&message, true);
             }
         })
     }

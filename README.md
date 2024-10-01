@@ -30,8 +30,8 @@ use fips205::traits::{SerDes, Signer, Verifier};
 let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
 
 // Generate key pair and signature
-let (pk1, sk) = slh_dsa_shake_128s::try_keygen_vt()?;  // Generate both public and secret keys
-let sig_bytes = sk.try_sign_ct(&msg_bytes, true)?;  // Use the secret key to generate signature
+let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
+let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate signature
 
 // Serialize the public key, and send with message and signature bytes
 let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
@@ -39,7 +39,7 @@ let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
 
 // Deserialize the public key, then use it to verify the msg signature
 let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-let v = pk2.try_verify_vt(&msg_recv, &sig_recv)?;
+let v = pk2.try_verify(&msg_recv, &sig_recv, b"context")?;
 assert!(v); 
 # Ok(())
 # }

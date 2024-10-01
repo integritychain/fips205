@@ -13,6 +13,8 @@ use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use std::fs::File;
 use std::panic;
+// use fips205::slh_dsa_sha2_128f::_test_only_raw_sign;
+// use fips205::slh_dsa_shake_192f::PrivateKey;
 
 fn dehex<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
@@ -82,7 +84,7 @@ macro_rules! test_keygen {
             rnd.push(&test.sk_seed);
 
             // Generate key
-            let (pk, sk) = KG::try_keygen_with_rng_vt(&mut rnd).unwrap();
+            let (pk, sk) = KG::try_keygen_with_rng(&mut rnd).unwrap();
 
             // Check against known answers
             let pk_match = pk.into_bytes() == test.pk.as_slice();
@@ -197,12 +199,15 @@ macro_rules! test_sign {
 
             // Calculate signature
             let sig_exp = if $deterministic {
-                sk.try_sign_ct(&test.message, false)
+                //sk.try_sign(&test.message, false)
+                let mut rnd = TestRng::new();
+                sk._test_only_raw_sign(&mut rnd, &test.message, false)
                     .expect("Error signing message")
             } else {
                 let mut rnd = TestRng::new();
                 rnd.push(test.additional_randomness.as_slice());
-                sk.try_sign_with_rng_ct(&mut rnd, &test.message, true)
+                //                sk.try_sign_with_rng(&mut rnd, &test.message, true)
+                sk._test_only_raw_sign(&mut rnd, &test.message, true)
                     .expect("Error signing message")
             };
 
@@ -321,7 +326,7 @@ macro_rules! test_verify {
                 .expect("Unable to load public key");
 
                 // Verify signature
-                pk.try_verify_vt(
+                pk._test_only_raw_verify(
                     test.message.as_slice(),
                     test.signature
                         .as_slice()

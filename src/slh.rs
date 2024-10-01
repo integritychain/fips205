@@ -22,7 +22,7 @@ pub(crate) fn slh_keygen_with_rng<
 >(
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>,
 ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
-    let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
+    //let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
 
     //
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
@@ -39,6 +39,45 @@ pub(crate) fn slh_keygen_with_rng<
     let mut pk_seed = [0u8; N];
     rng.try_fill_bytes(&mut pk_seed)
         .map_err(|_| "Alg17: rng failed3")?;
+
+    slh_keygen_internal::<D, H, HP, K, LEN, M, N>(hashers, sk_seed, sk_prf, pk_seed)
+}
+
+
+/// Algorithm 17: `slh_keygen()` on page 34.
+/// Generate an SLH-DSA key pair.
+///
+/// Input: (none) <br>
+/// Output: SLH-DSA key pair `(SK, PK)`.
+#[allow(clippy::similar_names)] // sk_seed and pk_seed
+pub(crate) fn slh_keygen_internal<
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
+>(
+    hashers: &Hashers<K, LEN, M, N>, sk_seed: [u8; N], sk_prf: [u8; N], pk_seed: [u8; N],
+) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
+    let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
+    //
+    // //
+    // // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
+    // let mut sk_seed = [0u8; N];
+    // rng.try_fill_bytes(&mut sk_seed)
+    //     .map_err(|_| "Alg17: rng failed1")?;
+    //
+    // // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
+    // let mut sk_prf = [0u8; N];
+    // rng.try_fill_bytes(&mut sk_prf)
+    //     .map_err(|_| "Alg17: rng failed2")?;
+    //
+    // // 3: PK.seed ←$ B^n
+    // let mut pk_seed = [0u8; N];
+    // rng.try_fill_bytes(&mut pk_seed)
+    //     .map_err(|_| "Alg17: rng failed3")?;
 
     // 4:
     // 5: ADRS ← toByte(0, 32)    ▷ Generate the public key for the top-level XMSS tree
@@ -77,12 +116,11 @@ pub(crate) fn slh_sign_with_rng<
     const N: usize,
 >(
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, m: &[u8], sk: &SlhPrivateKey<N>,
-    randomize: bool,
+    ctx: &[u8], randomize: bool,
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
-    let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
     //
     // 1: ADRS ← toByte(0, 32)
-    let mut adrs = Adrs::default();
+    //let mut adrs = Adrs::default();
 
     // 2:
     // 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
@@ -96,6 +134,48 @@ pub(crate) fn slh_sign_with_rng<
 
         // 6: end if
     }
+
+    let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
+    slh_sign_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sk, opt_rand)
+}
+
+
+/// Algorithm 18: `slh_sign(M, SK)` on page 35.
+/// Generate an SLH-DSA signature.
+///
+/// Input: Message `M`, private key `SK = (SK.seed, SK.prf, PK.seed, PK.root)`. <br>
+/// Output: SLH-DSA signature `SIG`.
+#[allow(clippy::similar_names)]
+#[allow(clippy::cast_possible_truncation)] // temporary, investigating idx_leaf int sizes
+pub(crate) fn slh_sign_internal<
+    const A: usize,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
+>(
+    hashers: &Hashers<K, LEN, M, N>, m: &[&[u8]], sk: &SlhPrivateKey<N>, opt_rand: [u8; N],
+) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
+    let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
+    //
+    // 1: ADRS ← toByte(0, 32)
+    let mut adrs = Adrs::default();
+    //
+    // // 2:
+    // // 3: opt_rand ← PK.seed    ▷ Set opt_rand to either PK.seed
+    // let mut opt_rand = sk.pk_seed;
+    //
+    // // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
+    // if randomize {
+    //     // 5: opt_rand ←$ Bn
+    //     rng.try_fill_bytes(&mut opt_rand)
+    //         .map_err(|_| "Alg17: rng failed")?;
+    //
+    //     // 6: end if
+    // }
 
     // 7: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
     let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
@@ -175,7 +255,6 @@ pub(crate) fn slh_sign_with_rng<
     Ok(sig)
 }
 
-
 /// Algorithm 19: `slh_verify(M, SIG, PK)`
 /// Verify an SLH-DSA signature.
 ///
@@ -193,7 +272,42 @@ pub(crate) fn slh_verify<
     const M: usize,
     const N: usize,
 >(
-    hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>,
+    hashers: &Hashers<K, LEN, M, N>, m: &[u8], sig: &SlhDsaSig<A, D, HP, K, LEN, N>, ctx: &[u8],
+    pk: &SlhPublicKey<N>,
+) -> bool {
+    //let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
+
+    // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
+    // 2:   return false
+    // 3: end if
+    // The above size is performed in the wrapper/adapter deserialize function
+
+    // 4: ADRS ← toByte(0, 32)
+    //let mut adrs = Adrs::default();
+
+    let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
+    slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sig, pk)
+}
+
+
+/// Algorithm 19: `slh_verify(M, SIG, PK)`
+/// Verify an SLH-DSA signature.
+///
+/// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
+/// Output: Boolean.
+#[allow(clippy::cast_possible_truncation)] // TODO: temporary
+#[allow(clippy::similar_names)]
+pub(crate) fn slh_verify_internal<
+    const A: usize,
+    const D: usize,
+    const H: usize,
+    const HP: usize,
+    const K: usize,
+    const LEN: usize,
+    const M: usize,
+    const N: usize,
+>(
+    hashers: &Hashers<K, LEN, M, N>, m: &[&[u8]], sig: &SlhDsaSig<A, D, HP, K, LEN, N>,
     pk: &SlhPublicKey<N>,
 ) -> bool {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());

@@ -10,9 +10,9 @@ pub fn sign(message: &str) -> String {
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
     let randomize = true;
 
-    let (pk, sk) = slh_dsa_sha2_128f::try_keygen_with_rng_vt(&mut rng).expect("keygen failed");
-    let sig = sk.try_sign_with_rng_ct(&mut rng, message.as_ref(), randomize).expect("sign failed");
-    assert!(pk.try_verify_vt(message.as_ref(), &sig).expect("verify error"), "verify failed");
+    let (pk, sk) = slh_dsa_sha2_128f::try_keygen_with_rng(&mut rng).expect("keygen failed");
+    let sig = sk.try_sign_with_rng(&mut rng, message.as_ref(), randomize).expect("sign failed");
+    assert!(pk.try_verify(message.as_ref(), &sig).expect("verify error"), "verify failed");
 
     let sk_hex = hex::encode(&sk.into_bytes());
     let sig_hex = hex::encode(&sig);
