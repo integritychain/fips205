@@ -4,40 +4,42 @@
 #![deny(missing_docs)]
 #![doc = include_str!("../README.md")]
 
-// Implements FIPS 205 draft Stateless Hash-Based Digital Signature Standard.
-// See <https://csrc.nist.gov/pubs/fips/205/ipd>
+// Implements FIPS 205 Stateless Hash-Based Digital Signature Standard.
+// See <https://csrc.nist.gov/pubs/fips/205/final>
 //
-// Algorithm 1 toInt(X, n)                                                 --> helpers.rs
-// Algorithm 2 toByte(x, n)                                                --> helpers.rs
-// Algorithm 3 base_2b (X, b, out_len)                                     --> helpers.rs
-// Algorithm 4 chain(X, i, s, PK.seed, ADRS)                               --> wots.rs
-// Algorithm 5 wots_PKgen(SK.seed, PK.seed, ADRS)                          --> wots.rs
-// Algorithm 6 wots_sign(M, SK.seed, PK.seed, ADRS)                        --> wots.rs
-// Algorithm 7 wots_PKFromSig(sig, M, PK.seed, ADRS)                       --> wots.rs
-// Algorithm 8 xmss_node(SK.seed, i, z, PK.seed, ADRS)                     --> xmss.rs
-// Algorithm 9 xmss_sign(M, SK.seed, idx, PK.seed, ADRS)                   --> xmss.rs
-// Algorithm 10 xmss_PKFromSig(idx, SIGXMSS, M, PK.seed, ADRS)             --> xmss.rs
-// Algorithm 11 ht_sign(M, SK.seed, PK.seed, idxtree, idxleaf)             --> hypertree.rs
-// Algorithm 12 ht_verify(M, SIGHT, PK.seed, idxtree, idxleaf, PK.root)    --> hypertree.rs
-// Algorithm 13 fors_SKgen(SK.seed, PK.seed, ADRS, idx)                    --> fors.rs
-// Algorithm 14 fors_node(SK.seed, i, z, PK.seed, ADRS)                    --> fors.rs
-// Algorithm 15 fors_sign(md, SK.seed, PK.seed, ADRS)                      --> fors.rs
-// Algorithm 16 fors_pkFromSig(SIGFORS, md, PK.seed, ADRS)                 --> fors.rs
-// Algorithm 17 slh_keygen()                                               --> slh.rs
-// Algorithm 18 slh_sign(M, SK)                                            --> slh.rs
-// Algorithm 19 slh_verify(M, SIG, PK)                                     --> slh.rs
-// Algorithm 20 gen_len2 (n, lgw)                                          --> precomputed
+// Algorithm 1 gen_len2 (n, lgw)                                           --> precomputed
+// Algorithm 2 toInt(X, n)                                                 --> helpers.rs
+// Algorithm 3 toByte(x, n)                                                --> helpers.rs
+// Algorithm 4 base_2b(X, b, out_len)                                      --> helpers.rs
+// Algorithm 5 chain(X, i, s, PK.seed, ADRS)                               --> wots.rs
+// Algorithm 6 wots_PKgen(SK.seed, PK.seed, ADRS)                          --> wots.rs
+// Algorithm 7 wots_sign(M, SK.seed, PK.seed, ADRS)                        --> wots.rs
+// Algorithm 8 wots_PKFromSig(sig, M, PK.seed, ADRS)                       --> wots.rs
+// Algorithm 9 xmss_node(SK.seed, i, z, PK.seed, ADRS)                     --> xmss.rs
+// Algorithm 10 xmss_sign(M, SK.seed, idx, PK.seed, ADRS)                  --> xmss.rs
+// Algorithm 11 xmss_PKFromSig(idx, SIGXMSS, M, PK.seed, ADRS)             --> xmss.rs
+// Algorithm 12 ht_sign(M, SK.seed, PK.seed, idxtree, idxleaf)             --> hypertree.rs
+// Algorithm 13 ht_verify(M, SIGHT, PK.seed, idxtree, idxleaf, PK.root)    --> hypertree.rs
+// Algorithm 14 fors_SKgen(SK.seed, PK.seed, ADRS, idx)                    --> fors.rs
+// Algorithm 15 fors_node(SK.seed, i, z, PK.seed, ADRS)                    --> fors.rs
+// Algorithm 16 fors_sign(md, SK.seed, PK.seed, ADRS)                      --> fors.rs
+// Algorithm 17 fors_pkFromSig(SIGFORS, md, PK.seed, ADRS)                 --> fors.rs
+// Algorithm 18 slh_keygen_internal(SK.seed, SK.prf, PK.seed)              --> slh.rs
+// Algorithm 19 slh_sign_internal(M, SK, addrnd)                           --> slh.rs
+// Algorithm 20 slh_verify_internal(M, SIG, PK)                            --> slh.rs
+// Algorithm 21 slh_keygen()                                               --> slh.rs
+// Algorithm 22 slh_sign(M, ctx, SK)                                       --> slh.rs
+// Algorithm 23 hash_slh_sign(M, ctx, PH, SK)                              --> slh.rs
+// Algorithm 24 slh_verify(M, SIG, ctx, PK)                                --> slh.rs
+// Algorithm 25 hash_slh_verify(M, SIG, ctx, PH, PK)                       --> slh.rs
 // Fairly elaborate hashing is found in hashers.rs
 // Signature serialize/deserialize and Adrs support can be found in helpers.rs
 // types are in types.rs, traits are in traits.rs, and lib.rs provides wrappers into slh.rs
 
 
 // TODO: Roadmap
-// 1. Additional (external) top-level test vectors
-// 2. Implement fuzz harness for completeness
-// 3. Revisit internal checks/asserts/ensure
-// 4. Expansion of testing/functionality for C FFI and Python bindings
-// 5. Better exposure of randomize, rng support for testing FFI/Python
+// 1. Additional (external) top-level test vectors, particularly for hash variants (!!)
+// 2. Implement fuzz harness, embedded target, code provenance functionality
 
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
@@ -54,7 +56,7 @@ mod wots;
 mod xmss;
 
 
-// Per eqns 5.1-4 on page 16, LGW=4, W=16 and LEN2=3 are constant across all security parameter sets.
+// Per eqns 5.1-4 on page 17, LGW=4, W=16 and LEN2=3 are constant across all security parameter sets.
 const LGW: u32 = 4;
 const W: u32 = 16;
 const LEN2: u32 = 3;
@@ -174,11 +176,14 @@ macro_rules! functionality {
             fn try_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
+                if ctx.len() > 255 {
+                    return Err("ctx must be less than 256 bytes");
+                };
                 let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &mp, &self.0, randomize,
                 );
-                sig.map(|s| s.deserialize())
+                sig.map(|s| s.serialize())
             }
 
             /// # Errors
@@ -186,6 +191,9 @@ macro_rules! functionality {
                 &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph,
                 randomize: bool,
             ) -> Result<Self::Signature, &'static str> {
+                if ctx.len() > 255 {
+                    return Err("ctx must be less than 256 bytes");
+                };
                 let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
                 let (oid, phm_len) = hash_message(message, ph, &mut phm);
                 let mp: &[&[u8]] = &[
@@ -198,7 +206,7 @@ macro_rules! functionality {
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &mp, &self.0, randomize, // BAD
                 );
-                sig.map(|s| s.deserialize())
+                sig.map(|s| s.serialize())
             }
 
             /// blah!
@@ -222,7 +230,7 @@ macro_rules! functionality {
                     &self.0,
                     opt_rand,
                 );
-                sig.map(|s| s.deserialize())
+                sig.map(|s| s.serialize())
             }
         }
 
@@ -231,7 +239,10 @@ macro_rules! functionality {
             type Signature = [u8; SIG_LEN];
 
             fn verify(&self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8]) -> bool {
-                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                if ctx.len() > 255 {
+                    return false;
+                };
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS, &mp, &sig, &self.0,
@@ -242,7 +253,10 @@ macro_rules! functionality {
             fn verify_hash(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], ph: &Ph,
             ) -> bool {
-                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                if ctx.len() > 255 {
+                    return false;
+                };
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
                 let (oid, phm_len) = hash_message(m, ph, &mut phm);
                 let mp: &[&[u8]] = &[
@@ -261,7 +275,7 @@ macro_rules! functionality {
             fn _test_only_raw_verify(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
             ) -> Result<bool, &'static str> {
-                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::serialize(sig_bytes);
+                let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 let res = crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS,
                     &[m],
@@ -358,7 +372,7 @@ macro_rules! functionality {
                     let result = pk2.verify_hash(&message, &sig, b"context", &ph);
                     assert!(result, "Signature failed to verify");
                     let result = pk2.verify_hash(&message, &sig, b"some other context", &ph);
-                assert!(!result, "Signature should not have verified");
+                    assert!(!result, "Signature should not have verified");
                 }
             }
         }
@@ -366,7 +380,7 @@ macro_rules! functionality {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-128s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-128s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128s parameter set is claimed to be in security strength category 1.
 ///
@@ -414,7 +428,7 @@ pub mod slh_dsa_sha2_128s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-128s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-128s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128s parameter set is claimed to be in security strength category 1.
 ///
@@ -462,7 +476,7 @@ pub mod slh_dsa_shake_128s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-128f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-128f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-128f parameter set is claimed to be in security strength category 1.
 ///
@@ -510,7 +524,7 @@ pub mod slh_dsa_sha2_128f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-128f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-128f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-128f parameter set is claimed to be in security strength category 1.
 ///
@@ -558,7 +572,7 @@ pub mod slh_dsa_shake_128f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-192s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-192s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192s parameter set is claimed to be in security strength category 3.
 ///
@@ -606,7 +620,7 @@ pub mod slh_dsa_sha2_192s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-192s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-192s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192s parameter set is claimed to be in security strength category 3.
 ///
@@ -654,7 +668,7 @@ pub mod slh_dsa_shake_192s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-192f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-192f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-192f parameter set is claimed to be in security strength category 3.
 ///
@@ -702,7 +716,7 @@ pub mod slh_dsa_sha2_192f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-192f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-192f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-192f parameter set is claimed to be in security strength category 3.
 ///
@@ -750,7 +764,7 @@ pub mod slh_dsa_shake_192f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-256s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-256s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256s parameter set is claimed to be in security strength category 5.
 ///
@@ -798,7 +812,7 @@ pub mod slh_dsa_sha2_256s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-256s** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-256s** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE_256s parameter set is claimed to be in security strength category 5.
 ///
@@ -846,7 +860,7 @@ pub mod slh_dsa_shake_256s {
 }
 
 
-/// Functionality for the **SLH-DSA-SHA2-256f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHA2-256f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHA2-256f parameter set is claimed to be in security strength category 5.
 ///
@@ -894,7 +908,7 @@ pub mod slh_dsa_sha2_256f {
 }
 
 
-/// Functionality for the **SLH-DSA-SHAKE-256f** security parameter set per FIPS 205 section 10. This includes specific
+/// Functionality for the **SLH-DSA-SHAKE-256f** security parameter set per FIPS 205 section 11. This includes specific
 /// sizes for the public key, secret key, and signature along with a number of internal constants. The
 /// SLH-DSA-SHAKE-256f parameter set is claimed to be in security strength category 5.
 ///

@@ -149,9 +149,7 @@ pub(crate) mod sha2_cat_1 {
         let mut inner_hasher = Sha256::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        for i in m {
-            inner_hasher.update(i);
-        }
+        m.iter().for_each(|item| inner_hasher.update(item));
         for p in &mut padding {
             *p ^= 0x6a;
         }
@@ -270,9 +268,7 @@ pub(crate) mod sha2_cat_3_5 {
         let mut inner_hasher = Sha512::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        for i in m {
-            inner_hasher.update(i);
-        }
+        m.iter().for_each(|item| inner_hasher.update(item));
         for p in &mut padding {
             *p ^= 0x6a;
         }

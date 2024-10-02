@@ -158,6 +158,7 @@ pub trait Signer {
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes the default OS RNG and operates in constant time
     /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
+    /// Uses a FIPS 205 context string (default: an empty string).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails; propagates internal errors.
@@ -205,6 +206,7 @@ pub trait Signer {
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes a supplied RNG and operates in constant time
     /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
+    /// Uses a FIPS 205 context string (default: an empty string).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails; propagates internal errors.
@@ -259,7 +261,7 @@ pub trait Verifier {
     type Signature;
 
     /// Verifies a digital signature with respect to a `PublicKey`. This function operates in
-    /// variable time.
+    /// variable time. Uses a FIPS 205 context string (default: an empty string).
     ///
     /// # Examples
     /// ```rust

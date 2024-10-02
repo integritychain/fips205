@@ -7,14 +7,14 @@
 ![Rust Version][rustc-image]
 
 [FIPS 205] Stateless Hash-Based Digital Signature Standard written in pure Rust for server, 
-desktop, browser and embedded applications. The code repository includes C FFI and Python bindings.
+desktop, browser and embedded applications. The source repository includes examples demonstrating 
+benchmarking, constant-time statistical measurements, and WASM execution.
 
 This crate implements the FIPS 205 **final/released** standard in pure Rust with minimal and mainstream dependencies. All 
 twelve (!!) security parameter sets are fully functional. The implementation does not require the standard library, 
 e.g. `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the 
 full range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
 towards safety  and correctness; further performance optimizations will be implemented as the standard matures. 
-This crate will quickly follow any changes to FIPS 205 as they become available.
 
 See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf> for a full description of the target functionality.
 
@@ -50,7 +50,9 @@ desired [security parameter](#modules) below.
 
 ## Notes
 
-* This crate is fully functional and corresponds to the final/released FIPS 205.    
+* This crate is fully functional and corresponds to the final/released FIPS 205, including
+  the pre-hash variants which formalize methods for signing a hash of the message instead of 
+  the message itself (along with metadata about the hasher used).
 * Constant-time assurances target the source-code level only, and are a work in progress.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * Requires Rust **1.70** or higher. The minimum supported Rust version may be changed in the future, 
