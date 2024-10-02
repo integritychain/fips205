@@ -39,6 +39,7 @@ impl TestRng {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_128s() {
     use fips205::slh_dsa_shake_128s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -62,6 +63,7 @@ fn vector_slh_dsa_shake_128s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_128f() {
     use fips205::slh_dsa_shake_128f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -85,6 +87,7 @@ fn vector_slh_dsa_shake_128f() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_192s() {
     use fips205::slh_dsa_shake_192s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -108,6 +111,7 @@ fn vector_slh_dsa_shake_192s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_192f() {
     use fips205::slh_dsa_shake_192f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -131,6 +135,7 @@ fn vector_slh_dsa_shake_192f() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_256s() {
     use fips205::slh_dsa_shake_256s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -154,6 +159,7 @@ fn vector_slh_dsa_shake_256s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_shake_256f() {
     use fips205::slh_dsa_shake_256f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -177,6 +183,7 @@ fn vector_slh_dsa_shake_256f() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_128s() {
     use fips205::slh_dsa_sha2_128s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -200,6 +207,7 @@ fn vector_slh_dsa_sha2_128s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_128f() {
     use fips205::slh_dsa_sha2_128f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -223,6 +231,7 @@ fn vector_slh_dsa_sha2_128f() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_192s() {
     use fips205::slh_dsa_sha2_192s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -246,6 +255,7 @@ fn vector_slh_dsa_sha2_192s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_192f() {
     use fips205::slh_dsa_sha2_192f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -269,6 +279,7 @@ fn vector_slh_dsa_sha2_192f() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_256s() {
     use fips205::slh_dsa_sha2_256s::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();
@@ -292,6 +303,7 @@ fn vector_slh_dsa_sha2_256s() {
 
 
 #[test]
+#[allow(deprecated)]
 fn vector_slh_dsa_sha2_256f() {
     use fips205::slh_dsa_sha2_256f::KG;
     let m = decode("D81C4D8D734FCBFBEADE3D3F8A039FAA2A2C9957E835AD55B22E75BF57BB556AC8").unwrap();

@@ -1,7 +1,16 @@
 #![no_std]
-#![deny(clippy::pedantic)]
-#![deny(warnings)]
-#![deny(missing_docs)]
+#![deny(clippy::pedantic, warnings, missing_docs, unsafe_code)]
+// Most of the 'allow' category...
+#![deny(absolute_paths_not_starting_with_crate, dead_code)]
+#![deny(elided_lifetimes_in_paths, explicit_outlives_requirements, keyword_idents)]
+#![deny(let_underscore_drop, macro_use_extern_crate, meta_variable_misuse, missing_abi)]
+#![deny(non_ascii_idents, rust_2021_incompatible_closure_captures)]
+#![deny(rust_2021_incompatible_or_patterns, rust_2021_prefixes_incompatible_syntax)]
+#![deny(rust_2021_prelude_collisions, single_use_lifetimes, trivial_casts)]
+#![deny(trivial_numeric_casts, unreachable_pub, unsafe_op_in_unsafe_fn, unstable_features)]
+#![deny(unused_extern_crates, unused_import_braces, unused_lifetimes, unused_macro_rules)]
+#![deny(unused_qualifications, unused_results, variant_size_differences)]
+//
 #![doc = include_str!("../README.md")]
 
 // Implements FIPS 205 Stateless Hash-Based Digital Signature Standard.
@@ -209,8 +218,9 @@ macro_rules! functionality {
                 sig.map(|s| s.serialize())
             }
 
-            /// blah!
-            /// # Errors
+        /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
+        /// the external API.
+        /// # Errors
             fn _test_only_raw_sign(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
@@ -259,19 +269,15 @@ macro_rules! functionality {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
                 let (oid, phm_len) = hash_message(m, ph, &mut phm);
-                let mp: &[&[u8]] = &[
-                    &[1u8],
-                    &[ctx.len().to_le_bytes()[0]],
-                    ctx,
-                    &oid,
-                    &phm[0..phm_len],
-                ];
+                let mp: &[&[u8]] = &[&[1u8], &[ctx.len().to_le_bytes()[0]], ctx, &oid, &phm[0..phm_len]];
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS, &mp, &sig, &self.0,
                 );
                 res
             }
 
+            /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
+            /// the external API.
             fn _test_only_raw_verify(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
             ) -> Result<bool, &'static str> {

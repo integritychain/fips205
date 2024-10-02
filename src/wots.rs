@@ -1,5 +1,4 @@
 use crate::hashers::Hashers;
-use crate::helpers;
 use crate::helpers::{base_2b, to_byte};
 use crate::types::{Adrs, WotsPk, WotsSig, WOTS_PK, WOTS_PRF};
 
@@ -82,8 +81,7 @@ pub(crate) fn wots_pkgen<const K: usize, const LEN: usize, const M: usize, const
         adrs.set_chain_address(i);
 
         // 8: tmp[i] ← chain(sk, 0, w − 1, PK.seed, ADRS)    ▷ Compute public value for chain i
-        tmp[i as usize] =
-            chain(hashers, sk, 0, crate::W - 1, pk_seed, &adrs);
+        tmp[i as usize] = chain(hashers, sk, 0, crate::W - 1, pk_seed, &adrs);
 
         // 9: end for
     }
@@ -139,7 +137,7 @@ pub(crate) fn wots_sign<const K: usize, const LEN: usize, const M: usize, const 
 
     // 7: msg ← msg ∥ base_2b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &helpers::to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
+        &to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N)..],

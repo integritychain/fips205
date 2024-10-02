@@ -223,6 +223,7 @@ macro_rules! test_sign {
 }
 
 #[test]
+#[allow(deprecated)]
 fn run_signing_tests() {
     let mut fail_count = 0;
     let file = "tests/nist_acvp_vectors/SLH-DSA-sigGen-FIPS205/internalProjection.json";
@@ -353,6 +354,7 @@ macro_rules! test_verify {
 }
 
 #[test]
+#[allow(deprecated)]
 fn run_verification_tests() {
     let mut fail_count = 0;
     let file = "tests/nist_acvp_vectors/SLH-DSA-sigVer-FIPS205/internalProjection.json";

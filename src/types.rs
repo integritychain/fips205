@@ -32,7 +32,7 @@ pub(crate) struct SlhDsaSig<
 
 /// Fig 16 on page 33
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
-pub struct SlhPublicKey<const N: usize> {
+pub(crate) struct SlhPublicKey<const N: usize> {
     pub(crate) pk_seed: [u8; N],
     pub(crate) pk_root: [u8; N],
 }
@@ -40,7 +40,7 @@ pub struct SlhPublicKey<const N: usize> {
 
 /// Fig 15 on page 33
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
-pub struct SlhPrivateKey<const N: usize> {
+pub(crate) struct SlhPrivateKey<const N: usize> {
     pub(crate) sk_seed: [u8; N],
     pub(crate) sk_prf: [u8; N],
     pub(crate) pk_seed: [u8; N],
@@ -77,18 +77,18 @@ pub(crate) struct HtSig<const D: usize, const HP: usize, const LEN: usize, const
 
 /// Fig 10 on page 19
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
-pub struct WotsSig<const LEN: usize, const N: usize> {
+pub(crate) struct WotsSig<const LEN: usize, const N: usize> {
     pub(crate) data: [[u8; N]; LEN],
 }
 
 
 #[derive(Clone, Zeroize, ZeroizeOnDrop)]
-pub struct WotsPk<const N: usize>(pub(crate) [u8; N]);
+pub(crate) struct WotsPk<const N: usize>(pub(crate) [u8; N]);
 
 
 /// Fig 11 on page 22
 #[derive(Clone, Debug, Zeroize, ZeroizeOnDrop)]
-pub struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
+pub(crate) struct XmssSig<const HP: usize, const LEN: usize, const N: usize> {
     pub(crate) sig_wots: WotsSig<LEN, N>,
     pub(crate) auth: [[u8; N]; HP],
 }
@@ -112,7 +112,7 @@ pub(crate) const FORS_PRF: u32 = 6;
 
 /// Straddling the line between struct, enum and union...
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
-#[repr(align(32))]  // TODO: check alignment size perf/requirements
+#[repr(align(32))] // TODO: check alignment size perf/requirements
 pub(crate) struct Adrs {
     pub(crate) f0: [u8; 4],
     // layer address

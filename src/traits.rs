@@ -247,8 +247,10 @@ pub trait Signer {
     ) -> Result<Self::Signature, &'static str>;
 
 
-    /// blah
+    /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
+    /// the external API.
     /// # Errors
+    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
     fn _test_only_raw_sign(
         &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
     ) -> Result<Self::Signature, &'static str>;
@@ -291,15 +293,16 @@ pub trait Verifier {
     #[must_use]
     fn verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8]) -> bool;
 
-
-    /// blah
+    /// blah todo
     #[must_use]
     fn verify_hash(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8], ph: &Ph)
         -> bool;
 
 
-    /// blah
+    /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
+    /// the external API.
     /// # Errors
+    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
     fn _test_only_raw_verify(
         &self, m: &[u8], sig_bytes: &Self::Signature,
     ) -> Result<bool, &'static str>;
