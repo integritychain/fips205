@@ -190,10 +190,7 @@ macro_rules! test_sign {
 
             // Load private key
             let sk = PrivateKey::try_from_bytes(
-                test.sk
-                    .as_slice()
-                    .try_into()
-                    .expect("Wrong length private key"),
+                test.sk.as_slice().try_into().expect("Wrong length private key"),
             )
             .expect("Unable to load private key");
 
@@ -319,20 +316,14 @@ macro_rules! test_verify {
             let is_valid: Result<bool, _> = panic::catch_unwind(|| {
                 // Load public key
                 let pk = PublicKey::try_from_bytes(
-                    test.pk
-                        .as_slice()
-                        .try_into()
-                        .expect("Wrong length public key"),
+                    test.pk.as_slice().try_into().expect("Wrong length public key"),
                 )
                 .expect("Unable to load public key");
 
                 // Verify signature
                 pk._test_only_raw_verify(
                     test.message.as_slice(),
-                    test.signature
-                        .as_slice()
-                        .try_into()
-                        .expect("Signature length incorrect"),
+                    test.signature.as_slice().try_into().expect("Signature length incorrect"),
                 )
                 .expect("Verification failed")
             });

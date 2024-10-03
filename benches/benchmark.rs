@@ -25,42 +25,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let (pk_shake_256s, sk_shake_256s) = slh_dsa_shake_256s::KG::try_keygen().unwrap();
     let (pk_shake_256f, sk_shake_256f) = slh_dsa_shake_256f::KG::try_keygen().unwrap();
 
-    let sig_sha2_128s = sk_sha2_128s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_sha2_128f = sk_sha2_128f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_sha2_192s = sk_sha2_192s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_sha2_192f = sk_sha2_192f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_sha2_256s = sk_sha2_256s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_sha2_256f = sk_sha2_256f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_128s = sk_shake_128s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_128f = sk_shake_128f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_192s = sk_shake_192s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_192f = sk_shake_192f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_256s = sk_shake_256s
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
-    let sig_shake_256f = sk_shake_256f
-        .try_sign(&message, b"context", hedged)
-        .unwrap();
+    let sig_sha2_128s = sk_sha2_128s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_sha2_128f = sk_sha2_128f.try_sign(&message, b"context", hedged).unwrap();
+    let sig_sha2_192s = sk_sha2_192s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_sha2_192f = sk_sha2_192f.try_sign(&message, b"context", hedged).unwrap();
+    let sig_sha2_256s = sk_sha2_256s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_sha2_256f = sk_sha2_256f.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_128s = sk_shake_128s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_128f = sk_shake_128f.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_192s = sk_shake_192s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_192f = sk_shake_192f.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_256s = sk_shake_256s.try_sign(&message, b"context", hedged).unwrap();
+    let sig_shake_256f = sk_shake_256f.try_sign(&message, b"context", hedged).unwrap();
 
     c.bench_function("sha2_128f  keygen", |b| b.iter(|| slh_dsa_sha2_128f::KG::try_keygen()));
     c.bench_function("sha2_192f  keygen", |b| b.iter(|| slh_dsa_sha2_192f::KG::try_keygen()));

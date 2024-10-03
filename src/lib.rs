@@ -49,6 +49,7 @@
 // TODO: Roadmap
 // 1. Additional (external) top-level test vectors, particularly for hash variants (!!)
 // 2. Implement fuzz harness, embedded target, code provenance functionality
+// 3. Experiment with struct alignment for performance uplift? (and fixed size 'slices')
 
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
@@ -102,10 +103,10 @@ macro_rules! functionality {
         // ----- PRIMARY FUNCTIONS ---
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
-        /// This function utilizes the OS default random number generator, and makes no (constant)
-        /// timing assurances.
+        /// This function utilizes the OS default random number generator, and operates in constant
+        /// timing.
         /// # Errors
-        /// Returns an error when the random number generator fails; propagates internal errors.
+        /// Returns an error when the random number generator fails.
         /// # Examples
         /// ```rust
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
@@ -116,16 +117,24 @@ macro_rules! functionality {
         ///
         /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
         ///
-        /// // Generate public/private key pair and signature
-        /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-        /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
         ///
-        /// // Serialize the public key, and send with message and signature bytes
+        /// // Generate both public and secret keys. This only fails when the OS rng fails.
+        /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+        /// // Use the secret key to generate a signature. The second parameter is the
+        /// // context string (often just an empty &[]), and the last parameter selects
+        /// // the preferred hedged variant. This only fails when the OS rng fails.
+        /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+        ///
+        ///
+        /// // Serialize the public key, and send with message and signature bytes. These
+        /// // statements model sending byte arrays over the wire.
         /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
         /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
         ///
-        /// // Deserialize the public key, then use it to verify the msg signature
+        ///
+        /// // Deserialize the public key. This only fails on a malformed key.
         /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+        /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
         /// # Ok(())
@@ -144,20 +153,35 @@ macro_rules! functionality {
         /// ```rust
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
         /// use fips205::traits::{SerDes, Signer, Verifier};
-        /// use rand_chacha::rand_core::SeedableRng;
         /// # use std::error::Error;
+        /// # use rand_core::OsRng;
         /// #
         /// # fn main() -> Result<(), Box<dyn Error>> {
         ///
-        /// let message = [0u8, 1, 2, 3, 4, 5, 6, 7];
-        /// let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
+        /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+        /// let mut rng = OsRng;
         ///
-        /// // Generate key pair and signature
-        /// let (pk, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;  // Generate both public and secret keys
-        /// let sig = sk.try_sign(&message, b"context", true)?;  // Use the secret key to generate a message signature        ///
-        /// let v = pk.verify(&message, &sig, b"context");
+        /// // Generate both public and secret keys. This only fails when the OS rng fails.
+        /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
+        /// // Use the secret key to generate a signature. The second parameter is the
+        /// // context string (often just an empty &[]), and the last parameter selects
+        /// // the preferred hedged variant. This only fails when the OS rng fails.
+        /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+        ///
+        ///
+        /// // Serialize the public key, and send with message and signature bytes. These
+        /// // statements model sending byte arrays over the wire.
+        /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+        /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+        ///
+        ///
+        /// // Deserialize the public key. This only fails on a malformed key.
+        /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+        /// // Use the public key to verify the msg signature
+        /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
-        /// # Ok(())}
+        /// # Ok(())
+        /// # }
         /// ```
         pub fn try_keygen_with_rng(
             rng: &mut impl CryptoRngCore,
@@ -170,6 +194,7 @@ macro_rules! functionality {
             type PrivateKey = PrivateKey;
             type PublicKey = PublicKey;
 
+            // Documented in traits.rs
             fn try_keygen_with_rng(
                 rng: &mut impl CryptoRngCore,
             ) -> Result<(PublicKey, PrivateKey), &'static str> {
@@ -182,6 +207,7 @@ macro_rules! functionality {
         impl Signer for PrivateKey {
             type Signature = [u8; SIG_LEN];
 
+            // Documented in traits.rs
             fn try_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
@@ -195,8 +221,8 @@ macro_rules! functionality {
                 sig.map(|s| s.serialize())
             }
 
-            /// # Errors
-            fn try_sign_hash_with_rng(
+            // Documented in traits.rs
+            fn try_hash_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph,
                 hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
@@ -218,9 +244,7 @@ macro_rules! functionality {
                 sig.map(|s| s.serialize())
             }
 
-        /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
-        /// the external API.
-        /// # Errors
+            // Documented in traits.rs
             fn _test_only_raw_sign(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
@@ -229,8 +253,7 @@ macro_rules! functionality {
                 // 4: if (hedged) then    ▷ or to a random n-byte string
                 if hedged {
                     // 5: opt_rand ←$ Bn
-                    rng.try_fill_bytes(&mut opt_rand)
-                        .map_err(|_| "Alg17: rng failed")?;
+                    rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg17: rng failed")?;
 
                     // 6: end if
                 }
@@ -248,6 +271,7 @@ macro_rules! functionality {
         impl Verifier for PublicKey {
             type Signature = [u8; SIG_LEN];
 
+            // Documented in traits.rs
             fn verify(&self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8]) -> bool {
                 if ctx.len() > 255 {
                     return false;
@@ -260,7 +284,8 @@ macro_rules! functionality {
                 res
             }
 
-            fn verify_hash(
+            // Documented in traits.rs
+            fn hash_verify(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], ph: &Ph,
             ) -> bool {
                 if ctx.len() > 255 {
@@ -269,15 +294,20 @@ macro_rules! functionality {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
                 let (oid, phm_len) = hash_message(m, ph, &mut phm);
-                let mp: &[&[u8]] = &[&[1u8], &[ctx.len().to_le_bytes()[0]], ctx, &oid, &phm[0..phm_len]];
+                let mp: &[&[u8]] = &[
+                    &[1u8],
+                    &[ctx.len().to_le_bytes()[0]],
+                    ctx,
+                    &oid,
+                    &phm[0..phm_len],
+                ];
                 let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS, &mp, &sig, &self.0,
                 );
                 res
             }
 
-            /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
-            /// the external API.
+            // Documented in traits.rs
             fn _test_only_raw_verify(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
             ) -> Result<bool, &'static str> {
@@ -298,6 +328,7 @@ macro_rules! functionality {
         impl SerDes for PublicKey {
             type ByteArray = [u8; PK_LEN];
 
+            // Documented in traits.rs
             fn into_bytes(self) -> Self::ByteArray {
                 let mut out = [0u8; PK_LEN];
                 out[0..(PK_LEN / 2)].copy_from_slice(&self.0.pk_seed);
@@ -305,6 +336,7 @@ macro_rules! functionality {
                 out
             }
 
+            // Documented in traits.rs
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
                 // Result: opportunity for validation
                 //let mut pk = SlhPublicKey::default();
@@ -319,6 +351,7 @@ macro_rules! functionality {
         impl SerDes for PrivateKey {
             type ByteArray = [u8; SK_LEN];
 
+            // Documented in traits.rs
             fn into_bytes(self) -> Self::ByteArray {
                 let mut bytes = [0u8; SK_LEN];
                 bytes[0..(SK_LEN / 4)].copy_from_slice(&self.0.sk_seed);
@@ -328,9 +361,8 @@ macro_rules! functionality {
                 bytes
             }
 
+            // Documented in traits.rs
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
-                // Result: opportunity for validation
-                //let mut sk = SlhPrivateKey::default();
                 let mut sk = SlhPrivateKey {
                     sk_seed: [0u8; N],
                     sk_prf: [0u8; N],
@@ -338,10 +370,8 @@ macro_rules! functionality {
                     pk_root: [0u8; N],
                 };
                 sk.sk_seed.copy_from_slice(&bytes[0..(SK_LEN / 4)]);
-                sk.sk_prf
-                    .copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
-                sk.pk_seed
-                    .copy_from_slice(&bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
+                sk.sk_prf.copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
+                sk.pk_seed.copy_from_slice(&bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
                 sk.pk_root.copy_from_slice(&bytes[(3 * SK_LEN / 4)..]);
                 Ok(PrivateKey(sk))
             }
@@ -364,20 +394,18 @@ macro_rules! functionality {
                 let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
                 let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
 
-                let sig = sk2
-                    .try_sign_with_rng(&mut rng, &message, b"context", true)
-                    .unwrap();
+                let sig = sk2.try_sign_with_rng(&mut rng, &message, b"context", true).unwrap();
                 let result = pk2.verify(&message, &sig, b"context");
                 assert!(result, "Signature failed to verify");
                 let result = pk2.verify(&message, &sig, b"some other context");
                 assert!(!result, "Signature should not have verified");
                 for ph in [Ph::SHA256, Ph::SHA512, Ph::SHAKE128, Ph::SHAKE256] {
                     let sig = sk2
-                        .try_sign_hash_with_rng(&mut rng, &message, b"context", &ph, true)
+                        .try_hash_sign_with_rng(&mut rng, &message, b"context", &ph, true)
                         .unwrap();
-                    let result = pk2.verify_hash(&message, &sig, b"context", &ph);
+                    let result = pk2.hash_verify(&message, &sig, b"context", &ph);
                     assert!(result, "Signature failed to verify");
-                    let result = pk2.verify_hash(&message, &sig, b"some other context", &ph);
+                    let result = pk2.hash_verify(&message, &sig, b"some other context", &ph);
                     assert!(!result, "Signature should not have verified");
                 }
             }

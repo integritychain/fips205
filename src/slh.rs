@@ -25,18 +25,15 @@ pub(crate) fn slh_keygen_with_rng<
     //
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
     let mut sk_seed = [0u8; N];
-    rng.try_fill_bytes(&mut sk_seed)
-        .map_err(|_| "Alg17: rng failed1")?;
+    rng.try_fill_bytes(&mut sk_seed).map_err(|_| "Alg17: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
     let mut sk_prf = [0u8; N];
-    rng.try_fill_bytes(&mut sk_prf)
-        .map_err(|_| "Alg17: rng failed2")?;
+    rng.try_fill_bytes(&mut sk_prf).map_err(|_| "Alg17: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
     let mut pk_seed = [0u8; N];
-    rng.try_fill_bytes(&mut pk_seed)
-        .map_err(|_| "Alg17: rng failed3")?;
+    rng.try_fill_bytes(&mut pk_seed).map_err(|_| "Alg17: rng failed3")?;
 
     // 4/5/6: implemented by ? operator on the above steps; not timing/order sensitive
 
@@ -108,7 +105,7 @@ pub(crate) fn slh_sign_with_rng<
     // 2:   return ⊥    ▷ return an error indication if the context string is too long
     // 3: end if
     // The ctx length is checked in both calling functions (where it is a bit more
-    // visible and immediate): `try_sign_with_rng()` and `try_sign_hash_with_rng()`
+    // visible and immediate): `try_sign_with_rng()` and `try_hash_sign_with_rng()`
 
     // 4: 𝑎𝑑𝑑𝑟𝑛𝑑 ←− 𝔹𝑛     ▷ skip lines 4 through 7 for the deterministic variant
     let mut opt_rand = sk.pk_seed;
@@ -117,8 +114,7 @@ pub(crate) fn slh_sign_with_rng<
     // 6:   return ⊥
     if hedged {
         //
-        rng.try_fill_bytes(&mut opt_rand)
-            .map_err(|_| "Alg17: rng failed")?;
+        rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg17: rng failed")?;
 
         // 7: end if
     }
@@ -260,7 +256,7 @@ pub(crate) fn slh_verify<
     // 2:   return false
     // 3: end if
     // The ctx length is checked in both calling functions (where it is a bit more
-    // visible and immediate): `verify()` and `verify_hash()`
+    // visible and immediate): `verify()` and `hash_verify()`
 
 
     // 4: 𝑀 ′ ← toByte(0, 1) ∥ toByte(|𝑐𝑡𝑥|, 1) ∥ 𝑐𝑡𝑥 ∥ 𝑀

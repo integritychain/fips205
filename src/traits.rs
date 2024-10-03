@@ -5,10 +5,411 @@ use crate::Ph;
 use rand_core::OsRng;
 
 
+/// The `KeyGen` trait is defined to allow trait objects.
+pub trait KeyGen {
+    /// A public key specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
+    type PublicKey;
+    /// A private (secret) key specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
+    type PrivateKey;
+
+
+    /// Generates a public and private key pair specific to this security parameter set.
+    /// This function utilizes the **OS default** random number generator. This function operates
+    /// in constant-time relative to secret data.
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "default-rng")]
+    fn try_keygen() -> Result<(Self::PublicKey, Self::PrivateKey), &'static str> {
+        Self::try_keygen_with_rng(&mut OsRng)
+    }
+
+
+    /// Generates a public and private key pair specific to this security parameter set.
+    /// This function utilizes the **provided** random number generator. This function operates
+    /// in constant-time relative to secret data.
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use rand_core::OsRng;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let mut rng = OsRng;
+    ///
+    /// // Generate both public and secret keys. This only fails when the provided rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_keygen_with_rng(
+        rng: &mut impl CryptoRngCore,
+    ) -> Result<(Self::PublicKey, Self::PrivateKey), &'static str>;
+}
+
+
+/// The Signer trait is implemented for the `PrivateKey` struct on each of the security parameter sets
+pub trait Signer {
+    /// The signature is specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
+    type Signature;
+
+
+    /// Attempt to sign the given message, returning a digital signature on success, or an error if
+    /// something went wrong. This function utilizes the **OS default** random number generator.
+    /// This function operates in constant-time relative to secret data (excluding the random number
+    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "default-rng")]
+    fn try_sign(
+        &self, message: &[u8], ctx: &[u8], hedged: bool,
+    ) -> Result<Self::Signature, &'static str> {
+        self.try_sign_with_rng(&mut OsRng, message, ctx, hedged)
+    }
+
+
+    /// Attempt to sign the hash of a given message, returning a digital signature on success, or an
+    /// error if something went wrong. This function utilizes the **OS default** random number
+    /// generator. This function operates in constant-time relative to secret data (excluding the
+    /// random number generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use fips205::Ph;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_hash_sign(&msg_bytes, b"context", &Ph::SHA256, true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the signature on the message hash
+    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA256);
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "default-rng")]
+    fn try_hash_sign(
+        &self, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
+    ) -> Result<Self::Signature, &'static str> {
+        self.try_hash_sign_with_rng(&mut OsRng, message, ctx, ph, hedged)
+    }
+
+
+    /// Attempt to sign a given message, returning a digital signature on success, or an
+    /// error if something went wrong. This function utilizes a **provided** random number generator.
+    /// This function operates in constant-time relative to secret data (excluding the random number
+    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    ///
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use rand_core::OsRng;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let mut rng = OsRng;
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The third parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// let sig_bytes = sk.try_sign_with_rng(&mut rng, &msg_bytes, b"context", true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_sign_with_rng(
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], hedged: bool,
+    ) -> Result<Self::Signature, &'static str>;
+
+
+    /// Attempt to sign the hash of a given message, returning a digital signature on success, or an
+    /// error if something went wrong. This function utilizes a **provided** random number generator.
+    /// This function operates in constant-time relative to secret data (excluding the random number
+    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    ///
+    /// # Errors
+    /// Returns an error when the random number generator fails.
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use rand_core::OsRng;
+    /// # use fips205::Ph;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let mut rng = OsRng;
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The third parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// let sig_bytes =
+    ///     sk.try_hash_sign_with_rng(&mut rng, &msg_bytes, b"context", &Ph::SHA512, true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA512);
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn try_hash_sign_with_rng(
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
+    ) -> Result<Self::Signature, &'static str>;
+
+
+    /// As of October 4 2024, the available NIST test vectors are applied to the **internal** functions
+    /// rather than the external API. This function should not be used outside of this scenario.
+    /// # Errors
+    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
+    fn _test_only_raw_sign(
+        &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
+    ) -> Result<Self::Signature, &'static str>;
+}
+
+
+/// The Verifier trait is implemented for `PublicKey` on each of the security parameter sets
+pub trait Verifier {
+    /// The signature is specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
+    type Signature;
+
+
+    /// Verifies a digital signature with respect to a `PublicKey`. This function does not operates on
+    /// secret data, so it need/does not provide constant-time assurances. Uses a FIPS 205 context string
+    /// (default: an empty string).
+    ///
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the msg signature
+    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    fn verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8]) -> bool;
+
+
+    /// Verifies a digital signature on the hash of a message with respect to a `PublicKey`. As this
+    /// function operates on purely public data, it need/does not provide constant-time assurances.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use fips205::Ph;
+    /// #
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    ///
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Use the secret key to generate a signature. The second parameter is the
+    /// // context string (often just an empty &[]), and the last parameter selects
+    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// let sig_bytes = sk.try_hash_sign(&msg_bytes, b"context", &Ph::SHA256, true)?;
+    ///
+    ///
+    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
+    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    ///
+    ///
+    /// // Deserialize the public key. This only fails on a malformed key.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// // Use the public key to verify the signature on the message hash
+    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA256);
+    /// assert!(v);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    fn hash_verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8], ph: &Ph)
+        -> bool;
+
+
+    /// As of October 4 2024, the available NIST test vectors are applied to the **internal** functions
+    /// rather than the external API. This function should not be used outside of this scenario.
+    /// # Errors
+    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
+    fn _test_only_raw_verify(
+        &self, m: &[u8], sig_bytes: &Self::Signature,
+    ) -> Result<bool, &'static str>;
+}
+
+
 /// The `SerDes` trait provides for validated serialization and deserialization of fixed size elements
 pub trait SerDes {
     /// The fixed-size byte array to be serialized or deserialized
     type ByteArray;
+
 
     /// Produces a byte array of fixed-size specific to the struct being serialized.
     /// # Examples
@@ -37,6 +438,7 @@ pub trait SerDes {
     /// # }
     /// ```
     fn into_bytes(self) -> Self::ByteArray;
+
 
     /// Consumes a byte array of fixed-size specific to the struct being deserialized; performs validation
     /// # Errors
@@ -69,241 +471,4 @@ pub trait SerDes {
     fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str>
     where
         Self: Sized;
-}
-
-
-/// The `KeyGen` trait is defined to allow trait objects.
-pub trait KeyGen {
-    /// A public key specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
-    type PublicKey;
-    /// A private (secret) key specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
-    type PrivateKey;
-
-    /// Generates a public and private key pair specific to this security parameter set. <br>
-    /// This function utilizes the OS default random number generator, and makes no (constant)
-    /// timing assurances.
-    /// # Errors
-    /// Returns an error when the random number generator fails; propagates internal errors.
-    /// # Examples
-    /// ```rust
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// # use std::error::Error;
-    /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    ///
-    /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
-    ///
-    /// // Serialize the public key, and send with message and signature bytes
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
-    ///
-    /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-    /// assert!(v);
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "default-rng")]
-    fn try_keygen() -> Result<(Self::PublicKey, Self::PrivateKey), &'static str> {
-        Self::try_keygen_with_rng(&mut OsRng)
-    }
-
-    /// Generates a public and private key pair specific to this security parameter set. <br>
-    /// This function utilizes a supplied random number generator, and makes no (constant)
-    /// timing assurances..
-    /// # Errors
-    /// Returns an error when the random number generator fails; propagates internal errors.
-    /// # Examples
-    /// ```rust
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// # use std::error::Error;
-    /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    ///
-    /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
-    ///
-    /// // Serialize the public key, and send with message and signature bytes
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
-    ///
-    /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-    /// assert!(v);
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn try_keygen_with_rng(
-        rng: &mut impl CryptoRngCore,
-    ) -> Result<(Self::PublicKey, Self::PrivateKey), &'static str>;
-}
-
-
-/// The Signer trait is implemented for the `PrivateKey` struct on each of the security parameter sets
-pub trait Signer {
-    /// The signature is specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
-    type Signature;
-
-    /// Attempt to sign the given message, returning a digital signature on success, or an error if
-    /// something went wrong. This function utilizes the default OS RNG and operates in constant time
-    /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
-    /// Uses a FIPS 205 context string (default: an empty string).
-    ///
-    /// # Errors
-    /// Returns an error when the random number generator fails; propagates internal errors.
-    /// # Examples
-    /// ```rust
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// # use std::error::Error;
-    /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    ///
-    /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
-    ///
-    /// // Serialize the public key, and send with message and signature bytes
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
-    ///
-    /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-    /// assert!(v);
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "default-rng")]
-    fn try_sign(
-        &self, message: &[u8], ctx: &[u8], hedged: bool,
-    ) -> Result<Self::Signature, &'static str> {
-        self.try_sign_with_rng(&mut OsRng, message, ctx, hedged)
-    }
-
-    /// blah
-    /// # Errors
-    #[cfg(feature = "default-rng")]
-    fn try_sign_hash(
-        &self, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
-    ) -> Result<Self::Signature, &'static str> {
-        self.try_sign_hash_with_rng(&mut OsRng, message, ctx, ph, hedged)
-    }
-
-    /// Attempt to sign the given message, returning a digital signature on success, or an error if
-    /// something went wrong. This function utilizes a supplied RNG and operates in constant time
-    /// with respect to the `PrivateKey` only (not including rejection loop; work in progress).
-    /// Uses a FIPS 205 context string (default: an empty string).
-    ///
-    /// # Errors
-    /// Returns an error when the random number generator fails; propagates internal errors.
-    /// # Examples
-    /// ```rust
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// # use std::error::Error;
-    /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    ///
-    /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
-    ///
-    /// // Serialize the public key, and send with message and signature bytes
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
-    ///
-    /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-    /// assert!(v);
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn try_sign_with_rng(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], hedged: bool,
-    ) -> Result<Self::Signature, &'static str>;
-
-
-    /// blah
-    /// # Errors
-    fn try_sign_hash_with_rng(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
-    ) -> Result<Self::Signature, &'static str>;
-
-
-    /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
-    /// the external API.
-    /// # Errors
-    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
-    fn _test_only_raw_sign(
-        &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
-    ) -> Result<Self::Signature, &'static str>;
-}
-
-
-/// The Verifier trait is implemented for `PublicKey` on each of the security parameter sets
-pub trait Verifier {
-    /// The signature is specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
-    type Signature;
-
-    /// Verifies a digital signature with respect to a `PublicKey`. This function operates in
-    /// variable time. Uses a FIPS 205 context string (default: an empty string).
-    ///
-    /// # Examples
-    /// ```rust
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// # use std::error::Error;
-    /// #
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    ///
-    /// // Generate public/private key pair and signature
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;  // Generate both public and secret keys
-    /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  // Use the secret key to generate a msg signature
-    ///
-    /// // Serialize the public key, and send with message and signature bytes
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
-    ///
-    /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-    /// assert!(v);
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[must_use]
-    fn verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8]) -> bool;
-
-    /// blah todo
-    #[must_use]
-    fn verify_hash(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8], ph: &Ph)
-        -> bool;
-
-
-    /// As of Oct 2 2024, the NIST test vectors are applied to the **internal** functions rather than
-    /// the external API.
-    /// # Errors
-    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
-    fn _test_only_raw_verify(
-        &self, m: &[u8], sig_bytes: &Self::Signature,
-    ) -> Result<bool, &'static str>;
 }
