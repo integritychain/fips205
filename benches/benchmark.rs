@@ -10,7 +10,7 @@ use fips205::{
 #[allow(clippy::redundant_closure)]
 pub fn criterion_benchmark(c: &mut Criterion) {
     let message = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    let randomize = false;
+    let hedged = false;
 
     let (pk_sha2_128s, sk_sha2_128s) = slh_dsa_sha2_128s::KG::try_keygen().unwrap();
     let (pk_sha2_128f, sk_sha2_128f) = slh_dsa_sha2_128f::KG::try_keygen().unwrap();
@@ -26,40 +26,40 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let (pk_shake_256f, sk_shake_256f) = slh_dsa_shake_256f::KG::try_keygen().unwrap();
 
     let sig_sha2_128s = sk_sha2_128s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_sha2_128f = sk_sha2_128f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_sha2_192s = sk_sha2_192s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_sha2_192f = sk_sha2_192f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_sha2_256s = sk_sha2_256s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_sha2_256f = sk_sha2_256f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_128s = sk_shake_128s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_128f = sk_shake_128f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_192s = sk_shake_192s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_192f = sk_shake_192f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_256s = sk_shake_256s
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
     let sig_shake_256f = sk_shake_256f
-        .try_sign(&message, b"context", randomize)
+        .try_sign(&message, b"context", hedged)
         .unwrap();
 
     c.bench_function("sha2_128f  keygen", |b| b.iter(|| slh_dsa_sha2_128f::KG::try_keygen()));
@@ -76,40 +76,40 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("shake_256s keygen", |b| b.iter(|| slh_dsa_shake_256s::KG::try_keygen()));
     //
     c.bench_function("sha2_128f  sign  ", |b| {
-        b.iter(|| sk_sha2_128f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_128f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("sha2_192f  sign  ", |b| {
-        b.iter(|| sk_sha2_192f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_192f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("sha2_256f  sign  ", |b| {
-        b.iter(|| sk_sha2_256f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_256f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_128f sign  ", |b| {
-        b.iter(|| sk_shake_128f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_128f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_192f sign  ", |b| {
-        b.iter(|| sk_shake_192f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_192f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_256f sign  ", |b| {
-        b.iter(|| sk_shake_256f.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_256f.try_sign(&message, b"context", hedged))
     });
     c.bench_function("sha2_128s  sign  ", |b| {
-        b.iter(|| sk_sha2_128s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_128s.try_sign(&message, b"context", hedged))
     });
     c.bench_function("sha2_192s  sign  ", |b| {
-        b.iter(|| sk_sha2_192s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_192s.try_sign(&message, b"context", hedged))
     });
     c.bench_function("sha2_256s  sign  ", |b| {
-        b.iter(|| sk_sha2_256s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_sha2_256s.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_128s sign  ", |b| {
-        b.iter(|| sk_shake_128s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_128s.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_192s sign  ", |b| {
-        b.iter(|| sk_shake_192s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_192s.try_sign(&message, b"context", hedged))
     });
     c.bench_function("shake_256s sign  ", |b| {
-        b.iter(|| sk_shake_256s.try_sign(&message, b"context", randomize))
+        b.iter(|| sk_shake_256s.try_sign(&message, b"context", hedged))
     });
     //
     c.bench_function("sha2_128f  verify", |b| {

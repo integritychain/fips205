@@ -189,18 +189,18 @@ pub trait Signer {
     /// ```
     #[cfg(feature = "default-rng")]
     fn try_sign(
-        &self, message: &[u8], ctx: &[u8], randomize: bool,
+        &self, message: &[u8], ctx: &[u8], hedged: bool,
     ) -> Result<Self::Signature, &'static str> {
-        self.try_sign_with_rng(&mut OsRng, message, ctx, randomize)
+        self.try_sign_with_rng(&mut OsRng, message, ctx, hedged)
     }
 
     /// blah
     /// # Errors
     #[cfg(feature = "default-rng")]
     fn try_sign_hash(
-        &self, message: &[u8], ctx: &[u8], ph: &Ph, randomize: bool,
+        &self, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
     ) -> Result<Self::Signature, &'static str> {
-        self.try_sign_hash_with_rng(&mut OsRng, message, ctx, ph, randomize)
+        self.try_sign_hash_with_rng(&mut OsRng, message, ctx, ph, hedged)
     }
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
@@ -236,14 +236,14 @@ pub trait Signer {
     /// # }
     /// ```
     fn try_sign_with_rng(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], randomize: bool,
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], hedged: bool,
     ) -> Result<Self::Signature, &'static str>;
 
 
     /// blah
     /// # Errors
     fn try_sign_hash_with_rng(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, randomize: bool,
+        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
     ) -> Result<Self::Signature, &'static str>;
 
 
@@ -252,7 +252,7 @@ pub trait Signer {
     /// # Errors
     #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
     fn _test_only_raw_sign(
-        &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+        &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
     ) -> Result<Self::Signature, &'static str>;
 }
 

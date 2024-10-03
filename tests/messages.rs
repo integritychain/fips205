@@ -6,10 +6,10 @@ use rand_chacha::rand_core::SeedableRng;
 #[test]
 fn test_browser_message() {
     let msg = b"asdf";
-    let randomize = true;
+    let hedged = true;
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
     let (pk, sk) = slh_dsa_sha2_128f::KG::try_keygen_with_rng(&mut rng).unwrap();
-    let sig = sk.try_sign_with_rng(&mut rng, msg, &[], randomize).unwrap();
+    let sig = sk.try_sign_with_rng(&mut rng, msg, &[], hedged).unwrap();
     assert!(pk.verify(msg, &sig, b"context"));
 
     assert_eq!(sk.into_bytes(), *hex::decode("932b30e756257dda01d47dd4a1b0e62abb8fa01f222ad8554ed821a89f82cbbb3f537f509949e758624a70946a776986052a5761098a9b4ecbfaa10a92aee325").unwrap(), "sk not correct");

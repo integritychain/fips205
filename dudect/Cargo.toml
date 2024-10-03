@@ -1,16 +1,15 @@
 [package]
 name = "fips205-dudect"
-version = "0.1.0"
+version = "0.4.0"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
 publish = false
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [dependencies]
 fips205 = { path = ".." }
 dudect-bencher = "0.6"
+rand_core = { version = "0.6.4", default-features = false }
 
 
 [profile.bench]

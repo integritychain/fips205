@@ -183,14 +183,14 @@ macro_rules! functionality {
             type Signature = [u8; SIG_LEN];
 
             fn try_sign_with_rng(
-                &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], randomize: bool,
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
                 if ctx.len() > 255 {
                     return Err("ctx must be less than 256 bytes");
                 };
                 let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &mp, &self.0, randomize,
+                    rng, &HASHERS, &mp, &self.0, hedged,
                 );
                 sig.map(|s| s.serialize())
             }
@@ -198,7 +198,7 @@ macro_rules! functionality {
             /// # Errors
             fn try_sign_hash_with_rng(
                 &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph,
-                randomize: bool,
+                hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
                 if ctx.len() > 255 {
                     return Err("ctx must be less than 256 bytes");
@@ -213,7 +213,7 @@ macro_rules! functionality {
                     &phm[0..phm_len],
                 ];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &mp, &self.0, randomize, // BAD
+                    rng, &HASHERS, &mp, &self.0, hedged, // BAD
                 );
                 sig.map(|s| s.serialize())
             }
@@ -222,12 +222,12 @@ macro_rules! functionality {
         /// the external API.
         /// # Errors
             fn _test_only_raw_sign(
-                &self, rng: &mut impl CryptoRngCore, m: &[u8], randomize: bool,
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
                 let mut opt_rand = (self.0).pk_seed;
 
-                // 4: if (RANDOMIZE) then    ▷ or to a random n-byte string
-                if randomize {
+                // 4: if (hedged) then    ▷ or to a random n-byte string
+                if hedged {
                     // 5: opt_rand ←$ Bn
                     rng.try_fill_bytes(&mut opt_rand)
                         .map_err(|_| "Alg17: rng failed")?;

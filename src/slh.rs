@@ -86,7 +86,7 @@ pub(crate) fn slh_keygen_internal<
 /// calling function, and this collection proceeds down into the hasher (to help avoid memory
 /// allocation, buffer copies, etc).
 ///
-/// Input: Message `M`, context string `ctx`, private key `SK`. `randomize` == hedged variant <br>
+/// Input: Message `M`, context string `ctx`, private key `SK`. `hedged` == hedged variant <br>
 /// Output: SLH-DSA signature `SIG`.
 #[allow(clippy::similar_names)]
 #[allow(clippy::cast_possible_truncation)] // temporary, investigating idx_leaf int sizes
@@ -101,7 +101,7 @@ pub(crate) fn slh_sign_with_rng<
     const N: usize,
 >(
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>, mp: &[&[u8]],
-    sk: &SlhPrivateKey<N>, randomize: bool,
+    sk: &SlhPrivateKey<N>, hedged: bool,
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
     //
     // 1: if |𝑐𝑡𝑥| > 255 then
@@ -115,7 +115,7 @@ pub(crate) fn slh_sign_with_rng<
 
     // 5: if 𝑎𝑑𝑑𝑟𝑛𝑑 = NULL then
     // 6:   return ⊥
-    if randomize {
+    if hedged {
         //
         rng.try_fill_bytes(&mut opt_rand)
             .map_err(|_| "Alg17: rng failed")?;
@@ -160,7 +160,7 @@ pub(crate) fn slh_sign_internal<
     // 2: 𝑜𝑝𝑡_𝑟𝑎𝑛𝑑 ← 𝑎𝑑𝑑𝑟𝑛𝑑    ▷ substitute 𝑜𝑝𝑡_𝑟𝑎𝑛𝑑 ← PK.seed for the deterministic variant
     // This is handled in the calling function
 
-    // 3: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate randomizer
+    // 3: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate hedgedr
     let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
 
     // 4: SIG ← R

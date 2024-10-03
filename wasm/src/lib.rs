@@ -8,10 +8,10 @@ use fips205::traits::{SerDes, Signer, Verifier};
 pub fn sign(message: &str) -> String {
     let seed = 123;
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
-    let randomize = true;
+    let hedged = true;
 
     let (pk, sk) = slh_dsa_sha2_128f::try_keygen_with_rng(&mut rng).expect("keygen failed");
-    let sig = sk.try_sign_with_rng(&mut rng, message.as_ref(), randomize).expect("sign failed");
+    let sig = sk.try_sign_with_rng(&mut rng, message.as_ref(), hedged).expect("sign failed");
     assert!(pk.verify(message.as_ref(), &sig).expect("verify error"), "verify failed");
 
     let sk_hex = hex::encode(&sk.into_bytes());

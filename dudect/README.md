@@ -1,25 +1,31 @@
-This needs work...
+An example constant-time workbench. It can be sensitive to config/defaults, so is
+not entirely definitive. A work in progress.
 
-See https://docs.rs/dudect-bencher/latest/dudect_bencher/
+See <https://docs.rs/dudect-bencher/latest/dudect_bencher/>
 
-Dudect can indicate something terribly wrong, but not too much else.
-
+> t-values greater than 5 are generally considered a good indication that the function is not constant time. t-values less than 5 does not necessarily imply that the function is constant-time, since there may be other input distributions under which the function behaves significantly differently.
 
 ~~~
-$ cargo run --release -- --continuous sign
-    Finished release [optimized] target(s) in 7.34s
-     Running `target/release/fips205-dudect --continuous sign`
-running 1 benchmark continuously
-bench sign seeded with 0x2e4df99cf3c2b95b
-bench sign ... : n == +0.000M, max t = +1.89036, max tau = +0.56996, (5/tau)^2 = 76
-bench sign ... : n == +0.000M, max t = +3.41458, max tau = +0.72799, (5/tau)^2 = 47
-bench sign ... : n == +0.000M, max t = +3.15437, max tau = +0.56654, (5/tau)^2 = 77
-bench sign ... : n == +0.000M, max t = +3.68377, max tau = +0.57531, (5/tau)^2 = 75
-bench sign ... : n == +0.000M, max t = +4.21598, max tau = +0.48046, (5/tau)^2 = 108
-bench sign ... : n == +0.000M, max t = +3.89742, max tau = +0.39987, (5/tau)^2 = 156
-bench sign ... : n == +0.000M, max t = +4.01349, max tau = +0.37924, (5/tau)^2 = 173
-bench sign ... : n == +0.000M, max t = +3.47164, max tau = +0.30566, (5/tau)^2 = 267
-bench sign ... : n == +0.000M, max t = +3.55797, max tau = +0.29547, (5/tau)^2 = 286
-bench sign ... : n == +0.000M, max t = +2.97639, max tau = +0.23604, (5/tau)^2 = 448
-~~~
+October 3, 2024
+Intel® Core™ i7-7700K CPU @ 4.20GHz × 8  Circa 2017  Rust 1.81
 
+$ cd dudect  # this directory
+$ cargo clean
+$ time RUSTFLAGS="-C target-cpu=native" cargo run --release
+
+...
+   Compiling fips205-dudect v0.4.0 (/home/eric/work/fips205/dudect)
+    Finished `release` profile [optimized] target(s) in 7.36s
+     Running `target/release/fips205-dudect`
+
+running 1 bench
+bench keygen_and_sign seeded with 0x89b5d1d7e0207f97
+bench keygen_and_sign ... : n == +0.001M, max t = -1.03786, max tau = -0.03383, (5/tau)^2 = 21840
+
+dudect benches complete
+
+
+real	63m43.206s
+user	64m12.095s
+sys	0m2.511s
+~~~

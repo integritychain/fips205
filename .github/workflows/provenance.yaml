@@ -1,0 +1,48 @@
+name: provenance
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    strategy:
+      matrix:
+        rust:
+          - 1.72
+        target:
+          - thumbv7em-none-eabi
+          - x86_64-pc-windows-gnu
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - run: cargo build --target ${{ matrix.target }} --release --no-default-features --features "slh_dsa_sha2_128s slh_dsa_shake_128s slh_dsa_sha2_128f slh_dsa_shake_128f slh_dsa_sha2_192s slh_dsa_shake_192s slh_dsa_sha2_192f slh_dsa_shake_192f slh_dsa_sha2_256s slh_dsa_shake_256s slh_dsa_sha2_256f slh_dsa_shake_256f"
+      - name: Attest
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: '${{ github.workspace }}/target/*/release/libfips205.rlib'
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}--libfips204.rlib
+          path: '${{ github.workspace }}/target/*/release/libfips205.rlib'
+          retention-days: 60
+      - name: Checkout actions-oidc-debugger
+        uses: actions/checkout@v4
+        with:
+          repository: github/actions-oidc-debugger
+          ref: main
+          path: ./.github/actions/actions-oidc-debugger
+      - name: Debug OIDC Claims
+        uses: ./.github/actions/actions-oidc-debugger
+        with:
+          audience: '${{ github.server_url }}/${{ github.repository_owner }}'
