@@ -237,7 +237,6 @@ pub(crate) fn slh_sign_internal<
 ///
 /// Input: Message `M`, signature `SIG`, context string `ctx`, public key `PK = (PK.seed, PK.root)`. <br>
 /// Output: Boolean.
-#[allow(clippy::cast_possible_truncation)] // TODO: temporary
 #[allow(clippy::similar_names)]
 pub(crate) fn slh_verify<
     const A: usize,
@@ -273,7 +272,6 @@ pub(crate) fn slh_verify<
 ///
 /// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>
 /// Output: Boolean.
-#[allow(clippy::cast_possible_truncation)] // TODO: temporary
 #[allow(clippy::similar_names)]
 pub(crate) fn slh_verify_internal<
     const A: usize,
@@ -293,7 +291,7 @@ pub(crate) fn slh_verify_internal<
     // 1: if |SIG| != (1 + k(1 + a) + h + d · len) · n then
     // 2:   return false
     // 3: end if
-    // The above size is performed in the wrapper/adapter deserialize function
+    // The above size check is performed in the wrapper/adapter deserialize function
 
     // 4: ADRS ← toByte(0, 32)
     let mut adrs = Adrs::default();
@@ -337,7 +335,8 @@ pub(crate) fn slh_verify_internal<
     adrs.set_type_and_clear(FORS_TREE);
 
     // 16: ADRS.setKeyPairAddress(idx_leaf)
-    adrs.set_key_pair_address(idx_leaf as u32);
+    let Ok(idx_leaf_u32) = u32::try_from(idx_leaf) else { return false };  // should never fail
+    adrs.set_key_pair_address(idx_leaf_u32);
 
     // 17: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
     let pk_fors =
@@ -350,7 +349,7 @@ pub(crate) fn slh_verify_internal<
         sig_ht,
         &pk.pk_seed,
         idx_tree,
-        idx_leaf as u32,
+        idx_leaf_u32,
         &pk.pk_root,
     )
 }

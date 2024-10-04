@@ -106,7 +106,8 @@ pub trait KeyGen {
 pub trait Signer {
     /// The signature is specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
     type Signature;
-
+    /// The public key that corresponds to the private/secret key
+    type PublicKey;
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes the **OS default** random number generator.
@@ -294,6 +295,31 @@ pub trait Signer {
     fn try_hash_sign_with_rng(
         &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
     ) -> Result<Self::Signature, &'static str>;
+
+
+    /// Retrieves the public key associated with this private/secret key
+    /// # Examples
+    /// ```rust
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// # use std::error::Error;
+    /// # use rand_core::OsRng;
+    /// # use fips205::Ph;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let mut rng = OsRng;
+    ///
+    ///
+    /// // Generate both public and secret keys, but only hang onto the secret key.
+    /// let (_, sk) = slh_dsa_shake_128s::try_keygen()?;
+    ///
+    /// // The public key can be derived from the secret key
+    /// let pk = sk.get_public_key();
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn get_public_key(&self) -> Self::PublicKey;
 
 
     /// As of October 4 2024, the available NIST test vectors are applied to the **internal** functions

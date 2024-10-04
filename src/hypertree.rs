@@ -157,5 +157,5 @@ pub(crate) fn ht_verify<
     // 15: else
     // 16:   return false
     // 17: end if
-    node == *pk_root // TODO: CT equal (double-check: is this in signing path??)
+    node == *pk_root // Public data, thus no CT eq required
 }

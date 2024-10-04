@@ -48,7 +48,7 @@
 
 // TODO: Roadmap
 // 1. Additional (external) top-level test vectors, particularly for hash variants (!!)
-// 2. Implement fuzz harness, embedded target, code provenance functionality
+// 2. Implement fuzz harness, embedded target, revise WASM test
 // 3. Experiment with struct alignment for performance uplift? (and fixed size 'slices')
 
 
@@ -206,6 +206,7 @@ macro_rules! functionality {
 
         impl Signer for PrivateKey {
             type Signature = [u8; SIG_LEN];
+            type PublicKey = PublicKey;
 
             // Documented in traits.rs
             fn try_sign_with_rng(
@@ -242,6 +243,11 @@ macro_rules! functionality {
                     rng, &HASHERS, &mp, &self.0, hedged, // BAD
                 );
                 sig.map(|s| s.serialize())
+            }
+
+            // Documented in traits.rs
+            fn get_public_key(&self) -> Self::PublicKey {
+                PublicKey(SlhPublicKey{pk_seed: self.0.pk_seed, pk_root: self.0.pk_root})
             }
 
             // Documented in traits.rs
@@ -338,8 +344,6 @@ macro_rules! functionality {
 
             // Documented in traits.rs
             fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
-                // Result: opportunity for validation
-                //let mut pk = SlhPublicKey::default();
                 let mut pk = SlhPublicKey { pk_seed: [0u8; N], pk_root: [0u8; N] };
                 pk.pk_seed.copy_from_slice(&bytes[..(PK_LEN / 2)]);
                 pk.pk_root.copy_from_slice(&bytes[(PK_LEN / 2)..]);
@@ -373,6 +377,8 @@ macro_rules! functionality {
                 sk.sk_prf.copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
                 sk.pk_seed.copy_from_slice(&bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
                 sk.pk_root.copy_from_slice(&bytes[(3 * SK_LEN / 4)..]);
+                let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(&HASHERS, sk.sk_seed, sk.sk_prf, sk.pk_seed);
+                if sk_test.pk_root != sk.pk_root { return Err("Corrupted key")}
                 Ok(PrivateKey(sk))
             }
         }

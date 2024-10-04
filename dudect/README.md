@@ -11,21 +11,22 @@ Intel® Core™ i7-7700K CPU @ 4.20GHz × 8  Circa 2017  Rust 1.81
 
 $ cd dudect  # this directory
 $ cargo clean
-$ time RUSTFLAGS="-C target-cpu=native" cargo run --release
+$ time RUSTFLAGS="-C target-cpu=native" cargo run --release  # A ~11 hour run
 
 ...
+   Compiling fips205 v0.4.0 (/home/eric/work/fips205)
    Compiling fips205-dudect v0.4.0 (/home/eric/work/fips205/dudect)
-    Finished `release` profile [optimized] target(s) in 7.36s
+    Finished `release` profile [optimized] target(s) in 12.04s
      Running `target/release/fips205-dudect`
 
 running 1 bench
-bench keygen_and_sign seeded with 0x89b5d1d7e0207f97
-bench keygen_and_sign ... : n == +0.001M, max t = -1.03786, max tau = -0.03383, (5/tau)^2 = 21840
+bench keygen_and_sign seeded with 0x54522172d8fff6c0
+bench keygen_and_sign ... : n == +0.007M, max t = +3.04638, max tau = +0.03693, (5/tau)^2 = 18331
 
 dudect benches complete
 
 
-real	63m43.206s
-user	64m12.095s
-sys	0m2.511s
+real	660m35.132s
+user	660m47.614s
+sys	0m2.662s
 ~~~

@@ -12,8 +12,8 @@ dudect-bencher = "0.6"
 rand_core = { version = "0.6.4", default-features = false }
 
 
-[profile.bench]
-debug = true
+[profile.release]
+debug = false
 debug-assertions = false
 incremental = false
 lto = true
