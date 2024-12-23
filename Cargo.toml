@@ -1,8 +1,8 @@
-workspace = { members = ['ffi'], exclude = ["dudect", "ct_cm4"] }
+workspace = { members = ['ffi'], exclude = ["dudect", "ct_cm4", "fuzz"] }
 
 [package]
 name = "fips205"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "FIPS 205: Stateless Hash-Based Digital Signature Standard"
