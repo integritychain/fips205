@@ -12,6 +12,12 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
 
+    let ph = match data[0] % 3 {
+            0 => Ph::SHA256,
+            1 => Ph::SHA512,
+            _ => Ph::SHAKE256,
+    };
+
     // Generate a valid key pair first
     if let Ok((pk, sk)) = slh_dsa_sha2_128f::try_keygen() {
         // Split fuzz data into message and context
@@ -25,8 +31,8 @@ fuzz_target!(|data: &[u8]| {
         }
 
         // Test 2: Hash verification with valid signature
-        if let Ok(valid_hash_sig) = sk.try_hash_sign(message, context, &Ph::SHA256, true) {
-            let _ = pk.hash_verify(message, &valid_hash_sig, context, &Ph::SHA256);
+        if let Ok(valid_hash_sig) = sk.try_hash_sign(message, context, &ph, true) {
+            let _ = pk.hash_verify(message, &valid_hash_sig, context, &ph);
         }
 
         // Test 3: Try to deserialize and verify with potentially malformed public key

@@ -122,7 +122,7 @@ pub trait KeyGen {
     ///
     /// // Generate both public and secret keys. This only fails when the provided rng fails.
     /// let (pk1, sk) = slh_dsa_shake_128s::KG::keygen_with_seeds(&[0u8; slh_dsa_shake_128s::N],
-    ///                 &[1u8; slh_dsa_shake_128s::N], &[1u8; slh_dsa_shake_128s::N]);
+    ///                 &[1u8; slh_dsa_shake_128s::N], &[2u8; slh_dsa_shake_128s::N]);
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
     /// // the preferred hedged variant. This only fails when the OS rng fails.
@@ -143,12 +143,12 @@ pub trait KeyGen {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     fn keygen_with_seeds<const N: usize>(
         sk_seed: &[u8; N], sk_prf: &[u8; N], pk_seed: &[u8; N]
     ) -> (Self::PublicKey, Self::PrivateKey) {
         Self::try_keygen_with_rng(&mut DummyRng {data: [*sk_seed, *sk_prf, *pk_seed], i: 0 }).expect("rng will not fail")
     }
-
 }
 
 // This is for the deterministic keygen functions; will be refactored more nicely
