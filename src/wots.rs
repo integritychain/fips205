@@ -137,7 +137,7 @@ pub(crate) fn wots_sign<const K: usize, const LEN: usize, const M: usize, const 
 
     // 7: msg ← msg ∥ base_2b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
+        &to_byte(csum, (crate::LEN2 * crate::LGW).div_ceil(8)),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N)..],
@@ -208,7 +208,7 @@ pub(crate) fn wots_pk_from_sig<const K: usize, const LEN: usize, const M: usize,
 
     // 7: msg ← msg ∥ base_2b(toByte(csum, ceil(len2·lgw/8)), lgw, len2)    ▷ Convert csum to base w
     base_2b(
-        &to_byte(csum, (crate::LEN2 * crate::LGW + 7) / 8),
+        &to_byte(csum, (crate::LEN2 * crate::LGW).div_ceil(8)),
         crate::LGW,
         crate::LEN2,
         &mut msg[(2 * N)..],

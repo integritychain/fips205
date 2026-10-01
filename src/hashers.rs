@@ -31,7 +31,9 @@ pub(crate) mod shake {
 
     fn shake256(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Shake256::default();
-        input.iter().for_each(|item| hasher.update(item));
+        for item in input {
+            hasher.update(item);
+        }
         let mut reader = hasher.finalize_xof();
         reader.read(out);
     }
@@ -86,7 +88,9 @@ pub(crate) mod shake {
         let mut hasher = Shake256::default();
         hasher.update(pk_seed);
         hasher.update(&adrs.to_32_bytes());
-        ml.iter().for_each(|item| hasher.update(item));
+        for item in ml {
+            hasher.update(item);
+        }
         let mut reader = hasher.finalize_xof();
         let mut result = [0u8; Y];
         reader.read(&mut result);
@@ -104,7 +108,9 @@ pub(crate) mod sha2_cat_1 {
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Sha256::new();
-        input.iter().for_each(|item| hasher.update(item));
+        for item in input {
+            hasher.update(item);
+        }
         let result = hasher.finalize();
         out.copy_from_slice(&result[0..out.len()]);
     }
@@ -149,7 +155,9 @@ pub(crate) mod sha2_cat_1 {
         let mut inner_hasher = Sha256::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        m.iter().for_each(|item| inner_hasher.update(item));
+        for item in m {
+            inner_hasher.update(item);
+        }
         for p in &mut padding {
             *p ^= 0x6a;
         }
@@ -193,7 +201,9 @@ pub(crate) mod sha2_cat_1 {
         hasher.update(pk_seed);
         hasher.update(&zeros[0..(64 - N)]);
         hasher.update(adrs.to_22_bytes());
-        ml.iter().for_each(|item| hasher.update(item));
+        for item in ml {
+            hasher.update(item);
+        }
         let digest = hasher.finalize();
         result.copy_from_slice(&digest[0..N]);
         result
@@ -215,7 +225,9 @@ pub(crate) mod sha2_cat_3_5 {
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Sha256::new();
-        input.iter().for_each(|item| hasher.update(item));
+        for item in input {
+            hasher.update(item);
+        }
         let result = hasher.finalize();
         out.copy_from_slice(&result[0..out.len()]);
     }
@@ -223,7 +235,9 @@ pub(crate) mod sha2_cat_3_5 {
 
     fn sha2_512(input: &[&[u8]], out: &mut [u8]) {
         let mut hasher = Sha512::new();
-        input.iter().for_each(|item| hasher.update(item));
+        for item in input {
+            hasher.update(item);
+        }
         let result = hasher.finalize();
         out.copy_from_slice(&result[0..out.len()]);
     }
@@ -268,7 +282,9 @@ pub(crate) mod sha2_cat_3_5 {
         let mut inner_hasher = Sha512::new();
         inner_hasher.update(&padding[..]);
         inner_hasher.update(a0);
-        m.iter().for_each(|item| inner_hasher.update(item));
+        for item in m {
+            inner_hasher.update(item);
+        }
         for p in &mut padding {
             *p ^= 0x6a;
         }
@@ -312,7 +328,9 @@ pub(crate) mod sha2_cat_3_5 {
         hasher.update(pk_seed);
         hasher.update(&zeros[0..(128 - N)]);
         hasher.update(adrs.to_22_bytes());
-        ml.iter().for_each(|item| hasher.update(item));
+        for item in ml {
+            hasher.update(item);
+        }
         let digest = hasher.finalize();
         result.copy_from_slice(&digest[0..N]);
         result

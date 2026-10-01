@@ -131,7 +131,7 @@ pub(crate) fn ht_verify<
 
         if idx_leaf.is_err() {
             return false;
-        };
+        }
         let idx_leaf = idx_leaf.unwrap();
 
         // 7: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree

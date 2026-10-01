@@ -178,23 +178,23 @@ pub(crate) fn slh_sign_internal<
     let digest = (hashers.h_msg)(&r, &sk.pk_seed, &sk.pk_root, m);
 
     // 6: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K * A + 7) / 8;
+    let index1 = (K * A).div_ceil(8);
     let md = &digest[0..index1];
 
     // 7: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h-h/d)/8)]    ▷ next ceil((h-h/d)/8) bytes
-    let index2 = index1 + (H - H / D + 7) / 8;
+    let index2 = index1 + (H - H / D).div_ceil(8);
     let tmp_idx_tree = &digest[index1..index2];
 
     // 8: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h-h/d)/8) : ceil(k·a/8) + ceil((h-h/d)/8) + ceil(h/8d)]    ▷ next ceil(h/8d) bytes
-    let index3 = index2 + (H + 8 * D - 1) / (8 * D);
+    let index3 = index2 + H.div_ceil(8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 9: idx_tree ← toInt(tmp_idx_tree, ceil((h-h/d)/8)) mod 2^{h−h/d}
-    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
+    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32).div_ceil(8))
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 10: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32))
         & (u64::MAX >> (64 - h32 / d32));
 
     // 11: ADRS.setTreeAddress(idx_tree)
@@ -309,23 +309,23 @@ pub(crate) fn slh_verify_internal<
     let digest = (hashers.h_msg)(r, &pk.pk_seed, &pk.pk_root, m);
 
     // 9: md ← digest[0 : ceil(k·a/8)]    ▷ first ceil(k·a/8) bytes
-    let index1 = (K * A + 7) / 8;
+    let index1 = (K * A).div_ceil(8);
     let md = &digest[0..index1];
 
     // 10: tmp_idx_tree ← digest[ceil(k·a/8) : ceil(k·a/8) + ceil((h - h/d)/8)]     ▷ next ceil((h - h/d)/8) bytes
-    let index2 = index1 + (H - H / D + 7) / 8;
+    let index2 = index1 + (H - H / D).div_ceil(8);
     let tmp_idx_tree = &digest[index1..index2];
 
     // 11: tmp_idx_leaf ← digest[ceil(k·a/8) + ceil((h - h/d)/8) : ceil(k·a/8) + ceil((h - h/d)/8) + ceil(h/8d)]  ▷ next ceil(h/8d) bytes
-    let index3 = index2 + (H + 8 * D - 1) / (8 * D);
+    let index3 = index2 + H.div_ceil(8 * D);
     let tmp_idx_leaf = &digest[index2..index3];
 
     // 12: idx_tree ← toInt(tmp_idx_tree, ceil((h - h/d)/8)) mod 2^{h−h/d}
-    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32 + 7) / 8)
+    let idx_tree = helpers::to_int(tmp_idx_tree, (h32 - h32 / d32).div_ceil(8))
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 13: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, (h32 + 8 * d32 - 1) / (8 * d32))
+    let idx_leaf = helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32))
         & (u64::MAX >> (64 - h32 / d32));
 
     // 14: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key

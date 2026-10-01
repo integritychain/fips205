@@ -23,34 +23,33 @@ See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf> for a full descri
 The functionality is extremely simple to use, as demonstrated by the following example.
 
 ~~~rust
-use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets. 
-use fips205::traits::{SerDes, Signer, Verifier};
 # use std::error::Error;
 #
 # fn main() -> Result<(), Box<dyn Error>> {
+# #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+use fips205::traits::{SerDes, Signer, Verifier};
 
 let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
 
-  
 // Generate both public and secret keys. This only fails when the OS rng fails.
-let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?; 
+let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
 // Use the secret key to generate a signature. The second parameter is the
 // context string (often just an empty &[]), and the last parameter selects
 // the preferred hedged variant. This only fails when the OS rng fails.
-let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;  
+let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
 
-  
 // Serialize the public key, and send with message and signature bytes. These
 // statements model sending byte arrays over the wire.
 let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
 let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
 
-  
 // Deserialize the public key. This only fails on a malformed key.
 let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
 // Use the public key to verify the msg signature
 let v = pk2.verify(&msg_recv, &sig_recv, b"context");
-assert!(v); 
+assert!(v);
+# }
 # Ok(())
 # }
 ~~~

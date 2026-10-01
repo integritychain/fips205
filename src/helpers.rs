@@ -32,9 +32,9 @@ pub(crate) fn to_int(x: &[u8], n: u32) -> u64 {
 ///
 /// Input: Integer `x`, string length `n`. <br>
 /// Output: Byte string of length `n` containing binary representation of `x` in big-endian byte-order.
-pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize] {
-    let mut s = [0u8; ((crate::LEN2 * crate::LGW + 7) / 8) as usize]; // Size fixed across all profiles (2)
-    debug_assert_eq!(n, ((crate::LEN2 * crate::LGW + 7) / 8)); // just in case life changes
+pub(crate) fn to_byte(x: u32, n: u32) -> [u8; (crate::LEN2 * crate::LGW).div_ceil(8) as usize] {
+    let mut s = [0u8; (crate::LEN2 * crate::LGW).div_ceil(8) as usize]; // Size fixed across all profiles (2)
+    debug_assert_eq!(n, (crate::LEN2 * crate::LGW).div_ceil(8)); // just in case life changes
     debug_assert_eq!(n, 2); // optimize: this resolves into a two-byte (be) write!
 
     // 1: total ← x
@@ -63,7 +63,7 @@ pub(crate) fn to_byte(x: u32, n: u32) -> [u8; ((crate::LEN2 * crate::LGW + 7) / 
 /// Input: Byte string `X` of length at least `ceil(out_len·b/8)`, integer `b`, output length `out_len`. <br>
 /// Output: Array of `out_len` integers in the range `[0, . . . , 2^b − 1]`.
 pub(crate) fn base_2b(x: &[u8], b: u32, out_len: u32, baseb: &mut [u32]) {
-    debug_assert!(x.len() >= ((out_len * b + 7) / 8) as usize);
+    debug_assert!(x.len() >= (out_len * b).div_ceil(8) as usize);
     debug_assert!(b < 16);
     debug_assert_eq!(out_len as usize, baseb.len());
 
