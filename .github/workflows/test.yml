@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
 
   cargo_outdated:
@@ -60,7 +60,8 @@ jobs:
       - name: Install cargo outdated
         run: cargo install --locked cargo-outdated
       - name: Run cargo outdated
-        run: cargo outdated -R
+        # Exclude rand_core: Latest 0.10 drops `os_rng`, which breaks resolution while we stay on 0.6
+        run: cargo outdated -R -x rand_core
 
 
   clippy:
