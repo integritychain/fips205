@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs security-parameter link points at `https://docs.rs/fips205/latest/fips205/#modules`
 
 ### Changed
+- NIST ACVP sample vectors are the ACVP-Server `975de31eb83d` set, gzipped under
+  `tests/nist_vectors`. External pre-hash groups are skipped until `hash_sign` /
+  `hash_verify` take a digest and OID. `FIPS205_NIST_SMOKE=1` runs a subset
 - Crate and sample versions are **0.5.0** (`fips205`, `fips205-ffi`, `wasm`, `dudect`,
   `fuzz`)
 - Raised MSRV to **1.85**; CI MSRV jobs updated accordingly

@@ -255,6 +255,22 @@ macro_rules! functionality {
             fn _test_only_raw_sign(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
+                self.sign_internal(rng, m, hedged)
+            }
+        }
+
+        impl PrivateKey {
+            /// `slh_sign_internal`: sign `m` with no external domain separator.
+            ///
+            /// Hidden from the docs and not part of [`crate::traits::Signer`].
+            /// `cargo test --test` does not set `cfg(test)` on this library, so the
+            /// NIST harness in `tests/nist_vectors` can call it. The public
+            /// `_test_only_raw_sign` trait method goes away once that harness is the
+            /// only caller.
+            #[doc(hidden)]
+            pub fn sign_internal(
+                &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
+            ) -> Result<[u8; SIG_LEN], &'static str> {
                 let mut opt_rand = (self.0).pk_seed;
 
                 // 4: if (hedged) then    ▷ or to a random n-byte string
@@ -318,14 +334,23 @@ macro_rules! functionality {
             fn _test_only_raw_verify(
                 &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
             ) -> Result<bool, &'static str> {
+                Ok(self.verify_internal(m, sig_bytes))
+            }
+        }
+
+        impl PublicKey {
+            /// `slh_verify_internal`: verify `m` with no external domain separator.
+            ///
+            /// See [`PrivateKey::sign_internal`].
+            #[doc(hidden)]
+            pub fn verify_internal(&self, m: &[u8], sig_bytes: &[u8; SIG_LEN]) -> bool {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
-                let res = crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
+                crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS,
                     &[m],
                     &sig,
                     &self.0,
-                );
-                Ok(res)
+                )
             }
         }
 
