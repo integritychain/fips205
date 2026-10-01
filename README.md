@@ -66,7 +66,7 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
   [`wasm/README.md`](wasm/README.md).
 * Constant-time assurances target the source-code level only, with confirmation via
-  manual review/inspection, the embedded target, and the `dudect` dynamic tests.
+  manual review/inspection and the `dudect` dynamic tests.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
   plus all twelve `slh_dsa_*` parameter sets. That OS RNG path is for hosted

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   crate re-exports `CryptoRng`, `RngCore`, and `RngError`.
 - Bare-metal / `no_std`: use `default-features = false` plus the desired `slh_dsa_*`
   feature(s); default features pull an OS RNG backend that will not build on many
-  embedded targets. Use `keygen_with_seeds` or `*_with_rng`.
+  bare-metal targets. Use `keygen_with_seeds` or `*_with_rng`.
 - `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID
   (`pre_hash`) instead of the message and `Ph`. The library does not hash the message.
   An empty OID or a digest longer than 1024 bytes is rejected. `Ph` is gone.

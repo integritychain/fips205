@@ -48,7 +48,7 @@
 
 // TODO: Roadmap
 // 1. Additional (external) top-level test vectors, particularly for hash variants (!!)
-// 2. Implement fuzz harness, embedded target, revise WASM test
+// 2. Implement fuzz harness, revise WASM test
 // 3. Experiment with struct alignment for performance uplift? (and fixed size 'slices')
 
 
