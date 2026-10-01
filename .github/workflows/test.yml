@@ -182,6 +182,22 @@ jobs:
         run: cargo test --release --test nist_vectors
 
 
+  ffi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build shared library and run C tests
+        run: |
+          cargo build -p fips205-ffi
+          make -C ffi/tests check
+      - name: Python NIST vectors
+        run: |
+          cd ffi/python
+          FIPS205_PYTHON_TESTING_LIBRARY=../../target/debug/libfips205.so \
+            PYTHONPATH=. python3 test/nist.py
+
+
 
 
 

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fips205"
+dynamic = ["version"]
+description = "SLH-DSA (FIPS 205) -- hash-based digital signatures"
+authors = [{name = "Eric Schorn", email = "eschorn@integritychain.com"}]
+keywords = [
+ "cryptography",
+ "signing",
+ "FIPS",
+ "FIPS205",
+ "SLH-DSA",
+ "hash-based",
+ "post-quantum",
+]
+# README.md duplicates the module docstring.
+readme = "README.md"
+dependencies = []
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Topic :: Security :: Cryptography",
+  "License :: OSI Approved :: MIT License",
+  "License :: DFSG approved",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/integritychain/fips205/tree/main/ffi/python"
+Repository = "https://github.com/integritychain/fips205.git"
+Issues = "https://github.com/integritychain/fips205/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "fips205.__version__"}

@@ -9,3 +9,5 @@
 **/node_modules
 **/pkg
 **/dist
+ffi/tests/baseline-*
+ffi/tests/link-two

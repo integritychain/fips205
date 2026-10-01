@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 description = "C shared library exposing FIPS 205: Stateless Hash-Based Digital Signature Standard"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
 documentation = "https://docs.rs/fips205"
-categories = ["cryptography", "no-std"]
+categories = ["cryptography"]
 repository = "https://github.com/integritychain/fips205"
 keywords = ["FIPS", "FIPS205", "hash", "signature"]
 # MSRV set at 1.85 for Debian stable (trixie), e.g. https://packages.debian.org/trixie/rustc
@@ -17,6 +17,20 @@ crate-type = ["staticlib", "cdylib"]
 bench = false
 name = "fips205"
 
+
+[dependencies]
+rand_core = { version = "0.6.4" }
+pastey = ">=0.1, <0.3"
+
 [dependencies.fips205]
 path = ".."
-#version = "0.5.0"
+version = "0.5.0"
+default-features = false
+# The four 128-bit sets. 192 and 256 stay Rust-only for this release.
+features = [
+    "default-rng",
+    "slh_dsa_sha2_128s",
+    "slh_dsa_sha2_128f",
+    "slh_dsa_shake_128s",
+    "slh_dsa_shake_128f",
+]
