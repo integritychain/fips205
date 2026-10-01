@@ -15,8 +15,8 @@ pub trait KeyGen {
 
 
     /// Generates a public and private key pair specific to this security parameter set.
-    /// This function utilizes the **OS default** random number generator. This function operates
-    /// in constant-time relative to secret data.
+    /// This function utilizes the **OS default** random number generator. Key generation does
+    /// not branch on the secret seed. The random number generator is not part of this claim.
     /// # Errors
     /// Returns an error when the random number generator fails.
     /// # Examples
@@ -33,7 +33,7 @@ pub trait KeyGen {
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// // the preferred hedged variant. This fails when the OS rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
     ///
     /// // Serialize the public key, and send with message and signature bytes. These
@@ -41,7 +41,7 @@ pub trait KeyGen {
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -57,8 +57,8 @@ pub trait KeyGen {
 
 
     /// Generates a public and private key pair specific to this security parameter set.
-    /// This function utilizes the **provided** random number generator. This function operates
-    /// in constant-time relative to secret data.
+    /// This function utilizes the **provided** random number generator. Key generation does
+    /// not branch on the secret seed. The random number generator is not part of this claim.
     /// # Errors
     /// Returns an error when the random number generator fails.
     /// # Examples
@@ -77,7 +77,7 @@ pub trait KeyGen {
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// // the preferred hedged variant. This fails when the provided rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign_with_rng(&mut rng, &msg_bytes, b"context", true)?;
     ///
     ///
@@ -87,7 +87,7 @@ pub trait KeyGen {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -102,10 +102,8 @@ pub trait KeyGen {
 
     /// Generates a public and private key pair specific to this security parameter set.
     /// This function utilizes **three provided seeds** rather than a random number
-    /// generator in order to deterministically generate keys. This function operates
-    /// in constant-time relative to secret data.
-    /// # Errors
-    /// Returns an error when the random number generator fails.
+    /// generator in order to deterministically generate keys. Key generation does not
+    /// branch on the secret seed.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -123,7 +121,7 @@ pub trait KeyGen {
     ///                 &[1u8; slh_dsa_shake_128s::N], &[2u8; slh_dsa_shake_128s::N]);
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// // the preferred hedged variant. This fails when the provided rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign_with_rng(&mut rng, &msg_bytes, b"context", true)?;
     ///
     ///
@@ -133,7 +131,7 @@ pub trait KeyGen {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -179,10 +177,11 @@ pub trait Signer {
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes the **OS default** random number generator.
-    /// This function operates in constant-time relative to secret data (excluding the random number
-    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
+    /// the message digest, which is public once `R` is in the signature. The random number
+    /// generator is not part of this claim. The context is often empty (`&[]`).
     /// # Errors
-    /// Returns an error when the random number generator fails.
+    /// Returns an error when the random number generator fails or `ctx` is longer than 255 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -197,7 +196,7 @@ pub trait Signer {
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// // the preferred hedged variant. This fails when the OS rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
     ///
     /// // Serialize the public key, and send with message and signature bytes. These
@@ -205,7 +204,7 @@ pub trait Signer {
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -226,8 +225,9 @@ pub trait Signer {
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
     /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
     /// This function does not hash `hash` again. It utilizes the **OS default** random number
-    /// generator. This function operates in constant-time relative to secret data (excluding the
-    /// random number generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// generator. Signing does not branch on the secret seed. WOTS chain lengths and FORS
+    /// indices follow the message digest, which is public once `R` is in the signature. The
+    /// random number generator is not part of this claim. The context is often empty (`&[]`).
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
     /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
@@ -255,7 +255,7 @@ pub trait Signer {
     /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
     /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
@@ -274,11 +274,12 @@ pub trait Signer {
 
     /// Attempt to sign a given message, returning a digital signature on success, or an
     /// error if something went wrong. This function utilizes a **provided** random number generator.
-    /// This function operates in constant-time relative to secret data (excluding the random number
-    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
+    /// the message digest, which is public once `R` is in the signature. The random number
+    /// generator is not part of this claim. The context is often empty (`&[]`).
     ///
     /// # Errors
-    /// Returns an error when the random number generator fails.
+    /// Returns an error when the random number generator fails or `ctx` is longer than 255 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -295,7 +296,7 @@ pub trait Signer {
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
     /// // Use the secret key to generate a signature. The third parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// // the preferred hedged variant. This fails when the provided rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign_with_rng(&mut rng, &msg_bytes, b"context", true)?;
     ///
     ///
@@ -305,7 +306,7 @@ pub trait Signer {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -323,8 +324,9 @@ pub trait Signer {
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
     /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
     /// This function does not hash `hash` again. It utilizes a **provided** random number generator.
-    /// This function operates in constant-time relative to secret data (excluding the random number
-    /// generator internals). Uses a FIPS 205 context string (default: an empty string).
+    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
+    /// the message digest, which is public once `R` is in the signature. The random number
+    /// generator is not part of this claim. The context is often empty (`&[]`).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
@@ -358,7 +360,7 @@ pub trait Signer {
     /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_512);
@@ -400,9 +402,9 @@ pub trait Verifier {
     type Signature;
 
 
-    /// Verifies a digital signature with respect to a `PublicKey`. This function does not operates on
-    /// secret data, so it need/does not provide constant-time assurances. Uses a FIPS 205 context string
-    /// (default: an empty string).
+    /// Verifies a digital signature with respect to a `PublicKey`. Verification uses only public
+    /// data, so it makes no constant-time claim. The context is often empty (`&[]`). Returns
+    /// `false` when `ctx` is longer than 255 bytes or the signature does not verify.
     ///
     /// # Examples
     /// ```rust
@@ -418,7 +420,7 @@ pub trait Verifier {
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the OS rng fails.
+    /// // the preferred hedged variant. This fails when the OS rng fails or the context is longer than 255 bytes.
     /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
     ///
     /// // Serialize the public key, and send with message and signature bytes. These
@@ -426,7 +428,7 @@ pub trait Verifier {
     /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -441,8 +443,8 @@ pub trait Verifier {
 
     /// Verifies a HashSLH-DSA signature over a precomputed digest. `hash` is `PH(M)` and `hash_oid`
     /// is the DER encoding of that pre-hash, including the tag and length; see [`crate::pre_hash`].
-    /// The caller must supply the same digest and OID that were signed. As this function operates on
-    /// purely public data, it need/does not provide constant-time assurances. Returns `false` when
+    /// The caller must supply the same digest and OID that were signed. Verification uses only
+    /// public data, so it makes no constant-time claim. Returns `false` when
     /// `ctx` is longer than 255 bytes, `hash_oid` is empty, `hash` is longer than 1024 bytes, or the
     /// signature does not verify.
     ///
@@ -470,7 +472,7 @@ pub trait Verifier {
     /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
     /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
-    /// // Deserialize the public key. This only fails on a malformed key.
+    /// // A public key of the right length always decodes.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
@@ -493,6 +495,9 @@ pub trait SerDes {
 
 
     /// Produces a byte array of fixed-size specific to the struct being serialized.
+    ///
+    /// Encode a key when the bytes are needed. Decoding a private key costs a key
+    /// generation, so keep the `PrivateKey` rather than decoding it on each use.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -522,9 +527,18 @@ pub trait SerDes {
     fn into_bytes(self) -> Self::ByteArray;
 
 
-    /// Consumes a byte array of fixed-size specific to the struct being deserialized; performs validation
+    /// Consumes a byte array of fixed-size specific to the struct being deserialized.
+    ///
+    /// A public key is `PK.seed` followed by `PK.root`. Every array of that length is
+    /// accepted. The `Result` stays so this trait also covers the private key.
+    ///
+    /// A private key is checked by recomputing `PK.root` from `SK.seed` and `PK.seed`
+    /// (FIPS 205 `slh_keygen_internal`). That walk is a full key generation. Decode a
+    /// private key once and keep the `PrivateKey`. `SK.prf` is not part of the check.
+    ///
     /// # Errors
-    /// Returns an error on malformed input.
+    /// Returns an error when a private key's stored `PK.root` does not match the value
+    /// recomputed from its seeds. Public-key decode does not fail.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;

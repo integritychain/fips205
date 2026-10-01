@@ -114,8 +114,8 @@ macro_rules! functionality {
         // ----- PRIMARY FUNCTIONS ---
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
-        /// This function utilizes the OS default random number generator, and operates in constant
-        /// timing.
+        /// This function utilizes the OS default random number generator. Key generation does
+        /// not branch on the secret seed. The random number generator is not part of this claim.
         /// # Errors
         /// Returns an error when the random number generator fails.
         /// # Examples
@@ -132,7 +132,7 @@ macro_rules! functionality {
         /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
         /// // Use the secret key to generate a signature. The second parameter is the
         /// // context string (often just an empty &[]), and the last parameter selects
-        /// // the preferred hedged variant. This only fails when the OS rng fails.
+        /// // the preferred hedged variant. This fails when the OS rng fails or the context is longer than 255 bytes.
         /// let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
         ///
         /// // Serialize the public key, and send with message and signature bytes. These
@@ -140,7 +140,7 @@ macro_rules! functionality {
         /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
         /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
         ///
-        /// // Deserialize the public key. This only fails on a malformed key.
+        /// // A public key of the right length always decodes.
         /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
         /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -154,10 +154,10 @@ macro_rules! functionality {
 
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
-        /// This function utilizes a supplied random number generator, and makes no (constant)
-        /// timing assurances.
+        /// This function utilizes a supplied random number generator. Key generation does not
+        /// branch on the secret seed. The random number generator is not part of this claim.
         /// # Errors
-        /// Returns an error when the random number generator fails; propagates internal errors.
+        /// Returns an error when the random number generator fails.
         /// # Examples
         /// ```rust
         /// # use std::error::Error;
@@ -174,7 +174,7 @@ macro_rules! functionality {
         /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
         /// // Use the secret key to generate a signature. The second parameter is the
         /// // context string (often just an empty &[]), and the last parameter selects
-        /// // the preferred hedged variant. This only fails when the provided rng fails.
+        /// // the preferred hedged variant. This fails when the provided rng fails or the context is longer than 255 bytes.
         /// let sig_bytes = sk.try_sign_with_rng(&mut rng, &msg_bytes, b"context", true)?;
         ///
         ///
@@ -184,7 +184,7 @@ macro_rules! functionality {
         /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
         ///
         ///
-        /// // Deserialize the public key. This only fails on a malformed key.
+        /// // A public key of the right length always decodes.
         /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
         /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");

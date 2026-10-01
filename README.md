@@ -12,7 +12,9 @@ benchmarking, constant-time statistical measurements, and WASM execution.
 
 This crate implements the FIPS 205 **final/released** standard in pure Rust with minimal and mainstream dependencies,
 and without any unsafe code. All twelve (!!) security parameter sets are fully functional. The implementation's
-key- and signature-generation functionality operates in constant-time, does not require the standard library, e.g. 
+key- and signature-generation functionality does not branch on the secret seed. WOTS chain
+lengths and FORS indices follow the message digest, which is public once the signature's
+random value is known. It does not require the standard library, e.g. 
 `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the full 
 range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
 towards safety and correctness; further performance optimizations will be implemented as the standard matures.
@@ -36,7 +38,7 @@ let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
 let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
 // Use the secret key to generate a signature. The second parameter is the
 // context string (often just an empty &[]), and the last parameter selects
-// the preferred hedged variant. This only fails when the OS rng fails.
+// the preferred hedged variant. This fails when the OS rng fails or the context is longer than 255 bytes.
 let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
 
 // Serialize the public key, and send with message and signature bytes. These
@@ -44,7 +46,7 @@ let sig_bytes = sk.try_sign(&msg_bytes, b"context", true)?;
 let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
 let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
 
-// Deserialize the public key. This only fails on a malformed key.
+// A public key of the right length always decodes.
 let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
 // Use the public key to verify the msg signature
 let v = pk2.verify(&msg_recv, &sig_recv, b"context");
@@ -65,8 +67,9 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   An empty OID or a digest longer than 1024 bytes is rejected.
 * C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
   [`wasm/README.md`](wasm/README.md).
-* Constant-time assurances target the source-code level only, with confirmation via
-  manual review/inspection and the `dudect` dynamic tests.
+* Constant-time assurances are about the secret seed, checked by source review and
+  the `dudect` tests. The message-digest loops and the RNG are outside that claim.
+  Verify uses only public data.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
   plus all twelve `slh_dsa_*` parameter sets. That OS RNG path is for hosted
