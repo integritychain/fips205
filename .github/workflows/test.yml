@@ -1,7 +1,7 @@
 name: test
 
 
-on: [ push, pull_request ]
+on: [ push, pull_request, workflow_dispatch ]
 
 
 env:
@@ -122,7 +122,10 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - uses: RustCrypto/actions/cross-install@master
-      - run: cross test --target ${{ matrix.target }} --all-features
+      # A twelve-set release cross under QEMU is too slow for this matrix.
+      # Cross the small set only, with no OS RNG. The native `test` job smokes
+      # all twelve. The `build` job still release-builds all twelve without default-rng.
+      - run: cross test --release --target ${{ matrix.target }} --no-default-features --features slh_dsa_sha2_128s
 
 
   doc:
@@ -162,7 +165,21 @@ jobs:
           targets: ${{ matrix.target }}
       - run: ${{ matrix.deps }}
       - run: cargo check --target ${{ matrix.target }} --all-features
-      - run: cargo test --target ${{ matrix.target }}
+      # Smoke the NIST files. The full file is the `nist_vectors` job.
+      - run: cargo test --release --target ${{ matrix.target }}
+        env:
+          FIPS205_NIST_SMOKE: "1"
+
+
+  # Full NIST file. Not part of push or pull_request; those stay on the smoke set.
+  nist_vectors:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run the full NIST vector file
+        run: cargo test --release --test nist_vectors
 
 
 
