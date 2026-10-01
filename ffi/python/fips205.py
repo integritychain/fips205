@@ -55,8 +55,8 @@ Hedged signing is the default. `sign(..., hedged=False)` is the
 deterministic variant. Pass 16 bytes as `hedged` to supply `opt_rand`.
 
 HashSLH-DSA takes a digest and a DER OID. `HASH_OIDS` maps NIST
-hyphenated names such as `"SHA2-256"` onto those bytes. This module
-does not hash the message.
+hyphenated names such as `"SHA2-256"`, and short names such as
+`"SHA256"`, onto those bytes. This module does not hash the message.
 
 ## Implementation Notes
 
@@ -100,20 +100,31 @@ from typing import Any, Dict, Optional, Tuple, Type, Union
 
 
 # NIST hyphenated names used by ACVP, mapped to DER OIDs (tag and length included).
+# hash_sign and hash_verify accept one of these names, or the raw OID bytes.
 HASH_OIDS: Dict[str, bytes] = {
-    "SHA2-224": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04]),
-    "SHA2-256": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01]),
-    "SHA2-384": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02]),
-    "SHA2-512": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03]),
-    "SHA2-512/224": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x05]),
-    "SHA2-512/256": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x06]),
-    "SHA3-224": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x07]),
-    "SHA3-256": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08]),
-    "SHA3-384": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09]),
-    "SHA3-512": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0A]),
-    "SHAKE-128": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0B]),
-    "SHAKE-256": bytes([0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0C]),
+    "SHA2-224": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x04",
+    "SHA2-256": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01",
+    "SHA2-384": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02",
+    "SHA2-512": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03",
+    "SHA2-512/224": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x05",
+    "SHA2-512/256": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x06",
+    "SHA3-224": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x07",
+    "SHA3-256": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x08",
+    "SHA3-384": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x09",
+    "SHA3-512": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x0a",
+    "SHAKE-128": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x0b",
+    "SHAKE-256": b"\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x0c",
 }
+# Names that are not the ACVP spelling, kept as lookups on the same bytes.
+for _short, _long in (
+    ("SHA224", "SHA2-224"),
+    ("SHA256", "SHA2-256"),
+    ("SHA384", "SHA2-384"),
+    ("SHA512", "SHA2-512"),
+    ("SHA512/224", "SHA2-512/224"),
+    ("SHA512/256", "SHA2-512/256"),
+):
+    HASH_OIDS[_short] = HASH_OIDS[_long]
 
 
 class _KeygenSeed(ctypes.Structure):
@@ -311,7 +322,11 @@ class PrivateKey:
         context: bytes = b"",
         hedged: Union[bool, bytes] = True,
     ) -> bytes:
-        """Sign a precomputed digest. This function does not hash it again."""
+        """Sign a precomputed digest.
+
+        `hash_oid` is a DER OID, or a name in `HASH_OIDS`. This function
+        does not hash `digest` again.
+        """
         if isinstance(hash_oid, str):
             hash_oid = HASH_OIDS[hash_oid]
         return self._sign("hash_sign", digest, hash_oid, context, hedged)
