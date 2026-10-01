@@ -1,9 +1,11 @@
 [package]
 name = "fips205-dudect"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
 publish = false
 edition = "2021"
+# MSRV set at 1.85 for Debian stable (trixie), e.g. https://packages.debian.org/trixie/rustc
+rust-version = "1.85"
 
 
 [dependencies]

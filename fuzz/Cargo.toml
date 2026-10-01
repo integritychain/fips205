@@ -1,12 +1,13 @@
 [package]
 name = "fips205-fuzz"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
 description = "Fuzz harness for FIPS 205 (release) ML-DSA"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 publish = false
-rust-version = "1.70"
+# MSRV set at 1.85 for Debian stable (trixie), e.g. https://packages.debian.org/trixie/rustc
+rust-version = "1.85"
 
 
 [package.metadata]

@@ -66,7 +66,7 @@ desired [security parameter](#modules) below.
 * Constant-time assurances target the source-code level only, with confirmation via
   manual review/inspection, the embedded target, and the `dudect` dynamic tests.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
-* Requires Rust **1.70** or higher. The minimum supported Rust version may be changed in the future, 
+* Requires Rust **1.85** or higher (Debian stable / trixie). The minimum supported Rust version may be changed in the future, 
   but it will be done with a minor version bump (when the major version is larger than 0).
 * All on-by-default features of this library are covered by `SemVer`.
 * The FIPS 205 standard and this software should be considered experimental -- USE AT YOUR OWN RISK!
@@ -90,7 +90,7 @@ defined in the Apache-2.0 license, shall be dual licensed as above, without any 
 [build-image]: https://github.com/integritychain/fips205/workflows/test/badge.svg
 [build-link]: https://github.com/integritychain/fips205/actions?query=workflow%3Atest
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[rustc-image]: https://img.shields.io/badge/rustc-1.70+-blue.svg
+[rustc-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
 
 [//]: # (general links)
 
