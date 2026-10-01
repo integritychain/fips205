@@ -17,8 +17,7 @@ lengths and FORS indices follow the message digest, which is public once the sig
 random value is known. It does not require the standard library, e.g. 
 `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the full 
 range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
-towards safety and correctness; further performance optimizations will be implemented as the standard matures.
-This crate will quickly follow any changes to FIPS 205 standard/vectors as they become available.
+towards safety and correctness.
 
 See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf> for a full description of the target functionality.
 
@@ -84,7 +83,6 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * Requires Rust **1.85** or higher (Debian stable / trixie). The minimum supported Rust version may be changed in the future,
   but it will be done with a minor version bump (when the major version is larger than 0).
 * All on-by-default features of this library are covered by `SemVer`.
-* The FIPS 205 standard and this software should be considered experimental -- USE AT YOUR OWN RISK!
 
 ## License
 

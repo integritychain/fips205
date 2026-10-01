@@ -19,7 +19,7 @@ HashSLH-DSA in C takes a digest and a DER OID. The caller hashes. There is no `l
 # Quick start
 
 ~~~
-$ cargo build -p fips205-ffi
+$ cargo build --release -p fips205-ffi
 $ make -C ffi/tests check
 ~~~
 
@@ -28,7 +28,7 @@ $ make -C ffi/tests check
 
 # Shared library names (Linux ELF SONAME)
 
-`cargo build -p fips205-ffi` produces **`libfips205.so`** (or `libfips205.dylib` on macOS).
+`cargo build --release -p fips205-ffi` produces **`libfips205.so`** (or `libfips205.dylib` on macOS).
 
 On ELF targets, `build.rs` sets the SONAME to **`libfips205.so.0`**.
 
@@ -42,11 +42,11 @@ On ELF targets, `build.rs` sets the SONAME to **`libfips205.so.0`**.
 
 # Python
 
-The wrapper lives in `ffi/python/`, not `ffi/fips205.py`. From that directory, with the debug library just built:
+The wrapper lives in `ffi/python/`, not `ffi/fips205.py`. From that directory, with the release library just built:
 
 ~~~
 $ cd ffi/python
-$ FIPS205_PYTHON_TESTING_LIBRARY=../../target/debug/libfips205.so \
+$ FIPS205_PYTHON_TESTING_LIBRARY=../../target/release/libfips205.so \
     PYTHONPATH=. python3 test/nist.py
 ~~~
 

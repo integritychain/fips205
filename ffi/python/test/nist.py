@@ -3,7 +3,7 @@
 
 From the ffi/python/ directory:
 
-FIPS205_PYTHON_TESTING_LIBRARY=../../target/debug/libfips205.so PYTHONPATH=. python3 test/nist.py
+FIPS205_PYTHON_TESTING_LIBRARY=../../target/release/libfips205.so PYTHONPATH=. python3 test/nist.py
 """
 
 from __future__ import annotations

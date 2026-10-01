@@ -1,7 +1,9 @@
 Figure-of-merit only; no particular care has been taken to disable turbo-boost etc.
 Note that constant-time restrictions on the implementation do impact performance.
 
-Additional performance optimizations will follow the next update to FIPS 205.
+FIPS 205 is final. The figures below are the October 3, 2024 measurement on an
+Intel Core i7-7700K with Rust 1.81.0. They stay until a run of the current tree
+replaces them.
 
 ~~~
 October 3, 2024

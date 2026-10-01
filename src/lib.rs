@@ -46,12 +46,6 @@
 // types are in types.rs, traits are in traits.rs, and lib.rs provides wrappers into slh.rs
 
 
-// TODO: Roadmap
-// 1. Additional (external) top-level test vectors, particularly for hash variants (!!)
-// 2. Implement fuzz harness, revise WASM test
-// 3. Experiment with struct alignment for performance uplift? (and fixed size 'slices')
-
-
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
 pub mod traits;
 pub use crate::types::pre_hash;

@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Usage: (cargo build -p fips205-ffi && cd tests && make)
+# Usage: (cargo build --release -p fips205-ffi && cd tests && make)
 
 # If the library and its development headers are installed system-wide,
 # run the tests with:
