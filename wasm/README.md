@@ -1,21 +1,46 @@
+# WASM demo for FIPS 205
+
+Browser demo that builds this crate to WebAssembly (`wasm-pack`) and serves a small
+Webpack app under [`www/`](www/).
+
+The demo uses a fixed ChaCha8 seed so results can be compared with the native tests.
+It does not call the OS RNG at runtime.
 
 
-One-off installation
+## Prerequisites
+
+1. Rust toolchain with the `wasm32-unknown-unknown` target
+   (`rustup target add wasm32-unknown-unknown`)
+2. [`wasm-pack`](https://rustwasm.github.io/wasm-pack/)
+   (`cargo install wasm-pack`)
+3. Node.js with npm (LTS is fine). Install from [nodejs.org](https://nodejs.org/)
+   or your OS package manager. npm is included with Node.
+
+
+## Run the demo
 
 ~~~
-$ cargo install wasm-pack
-$ sudo npm install npm@latest -g
-~~~
-
-To run:
-
-~~~
-$ cd wasm    # this directory
+$ cd wasm
 $ wasm-pack build
 $ cd www
 $ npm install
-$ export NODE_OPTIONS=--openssl-legacy-provider
 $ npm run start
-
-go to http://localhost:8080/
 ~~~
+
+Then open http://localhost:8080/ .
+
+
+## Layout
+
+| Path | Role |
+|---|---|
+| `src/` | Rust crate (`fips205-wasm`) with the `sign` export |
+| `pkg/` | Produced by `wasm-pack build` (gitignored); consumed by `www/` as `file:../pkg` |
+| `www/` | Webpack + `webpack-dev-server` front end |
+
+
+## Optional: OS RNG in the browser
+
+This demo does not need OS entropy. If you change the code to use `getrandom` on
+`wasm32-unknown-unknown`, this crate already depends on `getrandom` 0.2 with the
+`js` feature, which is the backend for that version.
