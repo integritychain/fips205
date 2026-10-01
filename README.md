@@ -16,7 +16,7 @@ key- and signature-generation functionality operates in constant-time, does not 
 `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the full 
 range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
 towards safety and correctness; further performance optimizations will be implemented as the standard matures.
-This crate will quickly follow any changes to FIPS 204 standard/vectors as they become available.
+This crate will quickly follow any changes to FIPS 205 standard/vectors as they become available.
 
 See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf> for a full description of the target functionality.
 
@@ -54,18 +54,30 @@ assert!(v);
 # }
 ~~~
 
-The detailed Rust [Documentation][docs-link] lives under each **Module** corresponding to the 
-desired [security parameter](#modules) below. 
+The Rust [Documentation][docs-link] lives under each **Module** corresponding to the desired
+[security parameter][docs-modules]. 
 
 ## Notes
 
-* This crate is fully functional and corresponds to the final/released FIPS 205 (August 13, 2024), 
-  including the pre-hash variants which formalize methods for signing a hash of the message instead 
-  of the message itself (along with metadata about the hasher used).
+* This crate is fully functional and corresponds to the final released FIPS 205 (August 13, 2024).
+* `hash_sign` and `hash_verify` will take a precomputed digest and a DER-encoded OID
+  (`pre_hash` lists the NIST CSOR encodings). The library will not hash the message.
+* C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
+  [`wasm/README.md`](wasm/README.md).
 * Constant-time assurances target the source-code level only, with confirmation via
   manual review/inspection, the embedded target, and the `dudect` dynamic tests.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
-* Requires Rust **1.85** or higher (Debian stable / trixie). The minimum supported Rust version may be changed in the future, 
+* RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
+  plus all twelve `slh_dsa_*` parameter sets. That OS RNG path is for hosted
+  environments; it will **not** compile on bare-metal targets that lack a `getrandom`
+  backend (for example `thumbv7em-none-eabi`). Embedded builds use
+  `default-features = false`, the parameter-set feature they need, and
+  `keygen_with_seeds` or `*_with_rng`:
+  `fips205 = { version = "0.5", default-features = false, features = ["slh_dsa_sha2_128s"] }`.
+  Custom generators must implement `CryptoRngCore` from `rand_core` 0.6
+  (`CryptoRng` + `RngCore`). This crate re-exports `CryptoRng`, `RngCore`, and
+  `RngError`. Key generation and signing call `try_fill_bytes`.
+* Requires Rust **1.85** or higher (Debian stable / trixie). The minimum supported Rust version may be changed in the future,
   but it will be done with a minor version bump (when the major version is larger than 0).
 * All on-by-default features of this library are covered by `SemVer`.
 * The FIPS 205 standard and this software should be considered experimental -- USE AT YOUR OWN RISK!
@@ -86,6 +98,7 @@ defined in the Apache-2.0 license, shall be dual licensed as above, without any 
 [crate-link]: https://crates.io/crates/fips205
 [docs-image]: https://docs.rs/fips205/badge.svg
 [docs-link]: https://docs.rs/fips205/
+[docs-modules]: https://docs.rs/fips205/latest/fips205/#modules
 [build-image]: https://github.com/integritychain/fips205/workflows/test/badge.svg
 [build-link]: https://github.com/integritychain/fips205/actions?query=workflow%3Atest
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg

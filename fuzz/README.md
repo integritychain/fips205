@@ -36,4 +36,4 @@ INFO: fuzzed for 1046 seconds, wrapping up soon
 INFO: exiting: 0 time: 1104s
 ~~~
 
-Coverage status is a work-in-progress; see FIPS 204 code for example runs
+Coverage status is a work-in-progress.

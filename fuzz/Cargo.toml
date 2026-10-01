@@ -2,7 +2,7 @@
 name = "fips205-fuzz"
 version = "0.5.0"
 authors = ["Eric Schorn <eschorn@integritychain.com>"]
-description = "Fuzz harness for FIPS 205 (release) ML-DSA"
+description = "Fuzz harness for FIPS 205 SLH-DSA"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 publish = false

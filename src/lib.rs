@@ -56,6 +56,10 @@
 pub mod traits;
 pub use types::Ph;
 
+/// The `rand_core` types are re-exported so that users of fips205 do not
+/// have to worry about using the exact correct version of `rand_core`.
+pub use rand_core::{CryptoRng, Error as RngError, RngCore};
+
 mod fors;
 mod hashers;
 mod helpers;
