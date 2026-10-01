@@ -1,52 +1,50 @@
 Figure-of-merit only; no particular care has been taken to disable turbo-boost etc.
 Note that constant-time restrictions on the implementation do impact performance.
 
-FIPS 205 is final. The figures below are the October 3, 2024 measurement on an
-Intel Core i7-7700K with Rust 1.81.0. They stay until a run of the current tree
-replaces them.
-
 ~~~
-October 3, 2024
-Intel® Core™ i7-7700K CPU @ 4.20GHz × 8 Circa 2017 w/ Rust 1.81.0
+October 1, 2026
+13th Gen Intel® Core™ i7-13700K, Rust 1.85.1
+Bench profile: opt-level 3, LTO, codegen-units 1, overflow checks off.
+Turbo Boost was left enabled.
 
-$ RUSTFLAGS="-C target-cpu=native" cargo bench
+$ RUSTFLAGS="-C target-cpu=native" cargo bench --bench benchmark
 
-sha2_128f  keygen       time:   [1.7823 ms 1.7830 ms 1.7839 ms]
-sha2_192f  keygen       time:   [2.6234 ms 2.6256 ms 2.6279 ms]
-sha2_256f  keygen       time:   [6.8753 ms 6.8797 ms 6.8858 ms]
-shake_128f keygen       time:   [2.7946 ms 2.7953 ms 2.7961 ms]
-shake_192f keygen       time:   [4.0918 ms 4.0954 ms 4.0993 ms]
-shake_256f keygen       time:   [10.704 ms 10.717 ms 10.739 ms]
-sha2_128s  keygen       time:   [113.89 ms 113.90 ms 113.92 ms]
-sha2_192s  keygen       time:   [166.62 ms 166.63 ms 166.65 ms]
-sha2_256s  keygen       time:   [109.25 ms 109.34 ms 109.43 ms]
-shake_128s keygen       time:   [178.32 ms 178.41 ms 178.52 ms]
-shake_192s keygen       time:   [261.50 ms 261.55 ms 261.63 ms]
-shake_256s keygen       time:   [173.21 ms 173.22 ms 173.23 ms]
+sha2_128f  keygen       time:   [315.83 µs 315.95 µs 316.08 µs]
+sha2_192f  keygen       time:   [530.10 µs 530.25 µs 530.39 µs]
+sha2_256f  keygen       time:   [1.0517 ms 1.0521 ms 1.0525 ms]
+shake_128f keygen       time:   [1.6899 ms 1.6941 ms 1.6980 ms]
+shake_192f keygen       time:   [2.4966 ms 2.5062 ms 2.5174 ms]
+shake_256f keygen       time:   [6.6860 ms 6.7259 ms 6.7730 ms]
+sha2_128s  keygen       time:   [20.186 ms 20.188 ms 20.190 ms]
+sha2_192s  keygen       time:   [33.893 ms 33.905 ms 33.923 ms]
+sha2_256s  keygen       time:   [16.798 ms 16.816 ms 16.843 ms]
+shake_128s keygen       time:   [107.14 ms 107.34 ms 107.55 ms]
+shake_192s keygen       time:   [159.65 ms 160.12 ms 160.74 ms]
+shake_256s keygen       time:   [103.06 ms 103.28 ms 103.57 ms]
 
-sha2_128f  sign         time:   [41.623 ms 41.635 ms 41.654 ms]
-sha2_192f  sign         time:   [68.686 ms 68.886 ms 69.138 ms]
-sha2_256f  sign         time:   [141.52 ms 141.54 ms 141.56 ms]
-shake_128f sign         time:   [65.349 ms 65.364 ms 65.381 ms]
-shake_192f sign         time:   [106.67 ms 106.68 ms 106.70 ms]
-shake_256f sign         time:   [217.07 ms 217.25 ms 217.45 ms]
-sha2_128s  sign         time:   [867.34 ms 868.15 ms 869.14 ms]
-sha2_192s  sign         time:   [1.5404 s 1.5414 s 1.5426 s]
-sha2_256s  sign         time:   [1.3559 s 1.3563 s 1.3568 s]
-shake_128s sign         time:   [1.3682 s 1.3730 s 1.3788 s]
-shake_192s sign         time:   [2.3982 s 2.4085 s 2.4198 s]
-shake_256s sign         time:   [2.0949 s 2.1288 s 2.1678 s]
+sha2_128f  sign         time:   [7.4326 ms 7.4345 ms 7.4378 ms]
+sha2_192f  sign         time:   [15.675 ms 15.675 ms 15.676 ms]
+sha2_256f  sign         time:   [25.306 ms 25.319 ms 25.331 ms]
+shake_128f sign         time:   [39.302 ms 39.579 ms 40.046 ms]
+shake_192f sign         time:   [64.201 ms 64.342 ms 64.505 ms]
+shake_256f sign         time:   [129.79 ms 130.14 ms 130.60 ms]
+sha2_128s  sign         time:   [154.01 ms 154.02 ms 154.03 ms]
+sha2_192s  sign         time:   [369.93 ms 369.94 ms 369.95 ms]
+sha2_256s  sign         time:   [285.17 ms 285.29 ms 285.47 ms]
+shake_128s sign         time:   [816.49 ms 818.62 ms 822.37 ms]
+shake_192s sign         time:   [1.4296 s 1.4319 s 1.4352 s]
+shake_256s sign         time:   [1.2308 s 1.2322 s 1.2345 s]
 
-sha2_128f  verify       time:   [2.5693 ms 2.5735 ms 2.5781 ms]
-sha2_192f  verify       time:   [3.8974 ms 3.9857 ms 4.0836 ms]
-sha2_256f  verify       time:   [3.8619 ms 3.8760 ms 3.8925 ms]
-shake_128f verify       time:   [3.9791 ms 4.0046 ms 4.0349 ms]
-shake_192f verify       time:   [5.7540 ms 5.7838 ms 5.8202 ms]
-shake_256f verify       time:   [6.1739 ms 6.3059 ms 6.4543 ms]
-sha2_128s  verify       time:   [887.76 µs 898.88 µs 912.39 µs]
-sha2_192s  verify       time:   [1.3260 ms 1.3372 ms 1.3522 ms]
-sha2_256s  verify       time:   [1.9167 ms 1.9321 ms 1.9527 ms]
-shake_128s verify       time:   [1.3037 ms 1.3070 ms 1.3109 ms]
-shake_192s verify       time:   [1.9459 ms 1.9595 ms 1.9802 ms]
-shake_256s verify       time:   [2.8772 ms 2.8875 ms 2.9002 ms]
+sha2_128f  verify       time:   [455.02 µs 455.07 µs 455.15 µs]
+sha2_192f  verify       time:   [849.25 µs 849.39 µs 849.57 µs]
+sha2_256f  verify       time:   [709.10 µs 709.17 µs 709.26 µs]
+shake_128f verify       time:   [2.2483 ms 2.2490 ms 2.2498 ms]
+shake_192f verify       time:   [3.4347 ms 3.4638 ms 3.5019 ms]
+shake_256f verify       time:   [3.3624 ms 3.3636 ms 3.3649 ms]
+sha2_128s  verify       time:   [156.32 µs 156.40 µs 156.51 µs]
+sha2_192s  verify       time:   [326.73 µs 326.79 µs 326.85 µs]
+sha2_256s  verify       time:   [387.29 µs 387.38 µs 387.50 µs]
+shake_128s verify       time:   [792.04 µs 792.68 µs 793.41 µs]
+shake_192s verify       time:   [1.1451 ms 1.1454 ms 1.1457 ms]
+shake_256s verify       time:   [1.7177 ms 1.7254 ms 1.7355 ms]
 ~~~
