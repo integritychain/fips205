@@ -1,3 +1,6 @@
+// Recorded browser vector is SLH-DSA-SHA2-128f. The cross job builds SHA2-128s alone.
+#![cfg(feature = "slh_dsa_sha2_128f")]
+
 use fips205::slh_dsa_sha2_128f;
 use fips205::traits::{KeyGen, SerDes, Signer, Verifier};
 use rand_chacha::rand_core::SeedableRng;

@@ -23,7 +23,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -65,6 +65,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -91,6 +92,7 @@ pub trait KeyGen {
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
+    /// # }
     /// # Ok(())
     /// # }
     /// ```
@@ -108,6 +110,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{KeyGen, SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -135,6 +138,7 @@ pub trait KeyGen {
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
+    /// # }
     /// # Ok(())
     /// # }
     /// ```
@@ -183,7 +187,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -231,7 +235,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
@@ -279,6 +283,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -305,6 +310,7 @@ pub trait Signer {
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
+    /// # }
     /// # Ok(())
     /// # }
     /// ```
@@ -327,6 +333,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
     /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
@@ -356,6 +363,7 @@ pub trait Signer {
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_512);
     /// assert!(v);
+    /// # }
     /// # Ok(())
     /// # }
     /// ```
@@ -367,6 +375,7 @@ pub trait Signer {
     /// Retrieves the public key associated with this private/secret key
     /// # Examples
     /// ```rust
+    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{KeyGen, Signer};
     ///
@@ -379,6 +388,7 @@ pub trait Signer {
     ///
     /// // The public key can be derived from the secret key
     /// let _pk = sk.get_public_key();
+    /// # }
     /// ```
     fn get_public_key(&self) -> Self::PublicKey;
 }
@@ -398,7 +408,7 @@ pub trait Verifier {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -440,7 +450,7 @@ pub trait Verifier {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
@@ -487,7 +497,7 @@ pub trait SerDes {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -519,7 +529,7 @@ pub trait SerDes {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "default-rng")] {
+    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///

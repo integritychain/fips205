@@ -122,7 +122,7 @@ macro_rules! functionality {
         /// ```rust
         /// # use std::error::Error;
         /// # fn main() -> Result<(), Box<dyn Error>> {
-        /// # #[cfg(feature = "default-rng")] {
+        /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
         /// use fips205::traits::{SerDes, Signer, Verifier};
         ///
@@ -162,6 +162,7 @@ macro_rules! functionality {
         /// ```rust
         /// # use std::error::Error;
         /// # fn main() -> Result<(), Box<dyn Error>> {
+        /// # #[cfg(feature = "slh_dsa_shake_128s")] {
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
         /// use fips205::traits::{SerDes, Signer, Verifier};
         /// use rand_chacha::rand_core::SeedableRng;
@@ -188,6 +189,7 @@ macro_rules! functionality {
         /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
+        /// # }
         /// # Ok(())
         /// # }
         /// ```
