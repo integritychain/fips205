@@ -11,3 +11,4 @@
 **/dist
 ffi/tests/baseline-*
 ffi/tests/link-two
+**/__pycache__/
