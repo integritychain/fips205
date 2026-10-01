@@ -2,7 +2,6 @@ use rand_core::CryptoRngCore;
 use rand_core::RngCore;
 use rand_core::CryptoRng;
 
-use crate::Ph;
 #[cfg(feature = "default-rng")]
 use rand_core::OsRng;
 
@@ -219,39 +218,43 @@ pub trait Signer {
     }
 
 
-    /// Attempt to sign the hash of a given message, returning a digital signature on success, or an
-    /// error if something went wrong. This function utilizes the **OS default** random number
+    /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
+    /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
+    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
+    /// This function does not hash `hash` again. It utilizes the **OS default** random number
     /// generator. This function operates in constant-time relative to secret data (excluding the
     /// random number generator internals). Uses a FIPS 205 context string (default: an empty string).
     /// # Errors
-    /// Returns an error when the random number generator fails.
+    /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
+    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// # #[cfg(feature = "default-rng")] {
+    /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// use fips205::Ph;
+    /// use sha2::{Digest, Sha256};
     ///
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let digest = Sha256::digest(msg_bytes);
     ///
     /// // Generate both public and secret keys. This only fails when the OS rng fails.
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
-    /// // Use the secret key to generate a signature. The second parameter is the
-    /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the OS rng fails.
-    /// let sig_bytes = sk.try_hash_sign(&msg_bytes, b"context", &Ph::SHA256, true)?;
+    /// // Sign the digest. The second parameter is the context string (often just an empty &[]),
+    /// // and the last parameter selects the preferred hedged variant.
+    /// let sig_bytes = sk.try_hash_sign(&digest, b"context", &pre_hash::SHA2_256, true)?;
     ///
-    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // Serialize the public key, and send with digest and signature bytes. These
     /// // statements model sending byte arrays over the wire.
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
+    /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     /// // Deserialize the public key. This only fails on a malformed key.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// // Use the public key to verify the signature on the message hash
-    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA256);
+    /// // Use the public key to verify the signature on the digest
+    /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
     /// assert!(v);
     /// # }
     /// # Ok(())
@@ -259,9 +262,9 @@ pub trait Signer {
     /// ```
     #[cfg(feature = "default-rng")]
     fn try_hash_sign(
-        &self, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
+        &self, hash: &[u8], ctx: &[u8], hash_oid: &[u8], hedged: bool,
     ) -> Result<Self::Signature, &'static str> {
-        self.try_hash_sign_with_rng(&mut OsRng, message, ctx, ph, hedged)
+        self.try_hash_sign_with_rng(&mut OsRng, hash, ctx, hash_oid, hedged)
     }
 
 
@@ -310,50 +313,54 @@ pub trait Signer {
     ) -> Result<Self::Signature, &'static str>;
 
 
-    /// Attempt to sign the hash of a given message, returning a digital signature on success, or an
-    /// error if something went wrong. This function utilizes a **provided** random number generator.
+    /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
+    /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
+    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
+    /// This function does not hash `hash` again. It utilizes a **provided** random number generator.
     /// This function operates in constant-time relative to secret data (excluding the random number
     /// generator internals). Uses a FIPS 205 context string (default: an empty string).
     ///
     /// # Errors
-    /// Returns an error when the random number generator fails.
+    /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
+    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// use fips205::Ph;
     /// use rand_chacha::rand_core::SeedableRng;
+    /// use sha2::{Digest, Sha512};
     ///
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let digest = Sha512::digest(msg_bytes);
     /// let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
     ///
     /// // Generate both public and secret keys. This only fails when the provided rng fails.
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen_with_rng(&mut rng)?;
-    /// // Use the secret key to generate a signature. The third parameter is the
-    /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the provided rng fails.
+    /// // Sign the digest. The third parameter is the context string (often just an empty &[]),
+    /// // and the last parameter selects the preferred hedged variant.
     /// let sig_bytes =
-    ///     sk.try_hash_sign_with_rng(&mut rng, &msg_bytes, b"context", &Ph::SHA512, true)?;
+    ///     sk.try_hash_sign_with_rng(&mut rng, &digest, b"context", &pre_hash::SHA2_512, true)?;
     ///
     ///
-    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // Serialize the public key, and send with digest and signature bytes. These
     /// // statements model sending byte arrays over the wire.
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
+    /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     ///
     /// // Deserialize the public key. This only fails on a malformed key.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// // Use the public key to verify the msg signature
-    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA512);
+    /// // Use the public key to verify the signature on the digest
+    /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_512);
     /// assert!(v);
     /// # Ok(())
     /// # }
     /// ```
     fn try_hash_sign_with_rng(
-        &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph, hedged: bool,
+        &self, rng: &mut impl CryptoRngCore, hash: &[u8], ctx: &[u8], hash_oid: &[u8], hedged: bool,
     ) -> Result<Self::Signature, &'static str>;
 
 
@@ -374,15 +381,6 @@ pub trait Signer {
     /// let _pk = sk.get_public_key();
     /// ```
     fn get_public_key(&self) -> Self::PublicKey;
-
-
-    /// As of October 4 2024, the available NIST test vectors are applied to the **internal** functions
-    /// rather than the external API. This function should not be used outside of this scenario.
-    /// # Errors
-    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
-    fn _test_only_raw_sign(
-        &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
-    ) -> Result<Self::Signature, &'static str>;
 }
 
 
@@ -431,53 +429,50 @@ pub trait Verifier {
     fn verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8]) -> bool;
 
 
-    /// Verifies a digital signature on the hash of a message with respect to a `PublicKey`. As this
-    /// function operates on purely public data, it need/does not provide constant-time assurances.
+    /// Verifies a HashSLH-DSA signature over a precomputed digest. `hash` is `PH(M)` and `hash_oid`
+    /// is the DER encoding of that pre-hash, including the tag and length; see [`crate::pre_hash`].
+    /// The caller must supply the same digest and OID that were signed. As this function operates on
+    /// purely public data, it need/does not provide constant-time assurances. Returns `false` when
+    /// `ctx` is longer than 255 bytes, `hash_oid` is empty, `hash` is longer than 1024 bytes, or the
+    /// signature does not verify.
     ///
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
     /// # #[cfg(feature = "default-rng")] {
+    /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// use fips205::Ph;
+    /// use sha2::{Digest, Sha256};
     ///
     /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let digest = Sha256::digest(msg_bytes);
     ///
     /// // Generate both public and secret keys. This only fails when the OS rng fails.
     /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
-    /// // Use the secret key to generate a signature. The second parameter is the
-    /// // context string (often just an empty &[]), and the last parameter selects
-    /// // the preferred hedged variant. This only fails when the OS rng fails.
-    /// let sig_bytes = sk.try_hash_sign(&msg_bytes, b"context", &Ph::SHA256, true)?;
+    /// // Sign the digest. The second parameter is the context string (often just an empty &[]),
+    /// // and the last parameter selects the preferred hedged variant.
+    /// let sig_bytes = sk.try_hash_sign(&digest, b"context", &pre_hash::SHA2_256, true)?;
     ///
-    /// // Serialize the public key, and send with message and signature bytes. These
+    /// // Serialize the public key, and send with digest and signature bytes. These
     /// // statements model sending byte arrays over the wire.
-    /// let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
-    /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
+    /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
+    /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     /// // Deserialize the public key. This only fails on a malformed key.
     /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
-    /// // Use the public key to verify the signature on the message hash
-    /// let v = pk2.hash_verify(&msg_recv, &sig_recv, b"context", &Ph::SHA256);
+    /// // Use the public key to verify the signature on the digest
+    /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
     /// assert!(v);
     /// # }
     /// # Ok(())
     /// # }
     /// ```
     #[must_use]
-    fn hash_verify(&self, message: &[u8], signature: &Self::Signature, ctx: &[u8], ph: &Ph)
-        -> bool;
-
-
-    /// As of October 4 2024, the available NIST test vectors are applied to the **internal** functions
-    /// rather than the external API. This function should not be used outside of this scenario.
-    /// # Errors
-    #[deprecated = "Temporary function to allow application of internal nist vectors; will be removed"]
-    fn _test_only_raw_verify(
-        &self, m: &[u8], sig_bytes: &Self::Signature,
-    ) -> Result<bool, &'static str>;
+    fn hash_verify(
+        &self, hash: &[u8], signature: &Self::Signature, ctx: &[u8], hash_oid: &[u8],
+    ) -> bool;
 }
 
 

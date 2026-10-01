@@ -1,9 +1,9 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use fips205::{
-    slh_dsa_sha2_128f,  // Using slh_dsa_sha2_128f as example, could test other parameter sets
+    pre_hash,
+    slh_dsa_sha2_128f, // Using slh_dsa_sha2_128f as example, could test other parameter sets
     traits::{SerDes, Signer, Verifier},
-    Ph,
 };
 
 fuzz_target!(|data: &[u8]| {
@@ -12,10 +12,10 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
 
-    let ph = match data[0] % 3 {
-            0 => Ph::SHA256,
-            1 => Ph::SHA512,
-            _ => Ph::SHAKE256,
+    let oid: &[u8] = match data[0] % 3 {
+        0 => &pre_hash::SHA2_256,
+        1 => &pre_hash::SHA2_512,
+        _ => &pre_hash::SHAKE_256,
     };
 
     // Generate a valid key pair first
@@ -24,6 +24,7 @@ fuzz_target!(|data: &[u8]| {
         let split_point = data.len() % 255;
         let message = &data[split_point..];
         let context = &data[..split_point];
+        let digest = &message[..message.len().min(64)];
 
         // Test 1: Regular verification with valid signature
         if let Ok(valid_sig) = sk.try_sign(message, context, true) {
@@ -31,13 +32,13 @@ fuzz_target!(|data: &[u8]| {
         }
 
         // Test 2: Hash verification with valid signature
-        if let Ok(valid_hash_sig) = sk.try_hash_sign(message, context, &ph, true) {
-            let _ = pk.hash_verify(message, &valid_hash_sig, context, &ph);
+        if let Ok(valid_hash_sig) = sk.try_hash_sign(digest, context, oid, true) {
+            let _ = pk.hash_verify(digest, &valid_hash_sig, context, oid);
         }
 
         // Test 3: Try to deserialize and verify with potentially malformed public key
         if let Ok(maybe_pk) = slh_dsa_sha2_128f::PublicKey::try_from_bytes(
-            &pk.clone().into_bytes()  // Use valid key bytes but could use fuzzed data instead
+            &pk.clone().into_bytes(), // Use valid key bytes but could use fuzzed data instead
         ) {
             if let Ok(sig) = sk.try_sign(message, context, true) {
                 let _ = maybe_pk.verify(message, &sig, context);

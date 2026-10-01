@@ -54,7 +54,15 @@
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
 pub mod traits;
-pub use types::Ph;
+pub use crate::types::pre_hash;
+
+/// Largest `PH(M)` accepted by HashSLH-DSA sign and verify.
+///
+/// FIPS 205 §10.2.2 defines `M' = 0x01 || len(ctx) || ctx || OID || PH(M)` and does not
+/// state this ceiling. The same 1024-byte limit as `fips204` rejects an oversized digest
+/// instead of signing it. An empty OID is also rejected: §10.2.2 requires the DER
+/// encoding of the pre-hash OID (tag and length) in `M'`.
+const MAX_PREHASH_LEN: usize = 1024;
 
 /// The `rand_core` types are re-exported so that users of fips205 do not
 /// have to worry about using the exact correct version of `rand_core`.
@@ -79,9 +87,8 @@ const LEN2: u32 = 3;
 // This common functionality is injected into each parameter set module
 macro_rules! functionality {
     () => {
-        use crate::hashers::hash_message;
         use crate::traits::{KeyGen, SerDes, Signer, Verifier};
-        use crate::types::{Ph, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
+        use crate::types::{SlhDsaSig, SlhPrivateKey, SlhPublicKey};
         use rand_core::CryptoRngCore;
         use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -225,23 +232,28 @@ macro_rules! functionality {
 
             // Documented in traits.rs
             fn try_hash_sign_with_rng(
-                &self, rng: &mut impl CryptoRngCore, message: &[u8], ctx: &[u8], ph: &Ph,
+                &self, rng: &mut impl CryptoRngCore, hash: &[u8], ctx: &[u8], hash_oid: &[u8],
                 hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
                 if ctx.len() > 255 {
                     return Err("ctx must be less than 256 bytes");
                 };
-                let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
-                let (oid, phm_len) = hash_message(message, ph, &mut phm);
+                if hash_oid.is_empty() {
+                    return Err("HashSLH-DSA.Sign: OID is empty");
+                }
+                if hash.len() > crate::MAX_PREHASH_LEN {
+                    return Err("Hash of message is too long, should not be more than 1KiB");
+                }
+                // Algorithm 23 step 24: 0x01 || len(ctx) || ctx || OID || PH(M)
                 let mp: &[&[u8]] = &[
                     &[1u8],
                     &[ctx.len().to_le_bytes()[0]],
                     ctx,
-                    &oid,
-                    &phm[0..phm_len],
+                    hash_oid,
+                    hash,
                 ];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
-                    rng, &HASHERS, &mp, &self.0, hedged, // BAD
+                    rng, &HASHERS, &mp, &self.0, hedged,
                 );
                 sig.map(|s| s.serialize())
             }
@@ -250,13 +262,6 @@ macro_rules! functionality {
             fn get_public_key(&self) -> Self::PublicKey {
                 PublicKey(SlhPublicKey{pk_seed: self.0.pk_seed, pk_root: self.0.pk_root})
             }
-
-            // Documented in traits.rs
-            fn _test_only_raw_sign(
-                &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
-            ) -> Result<[u8; SIG_LEN], &'static str> {
-                self.sign_internal(rng, m, hedged)
-            }
         }
 
         impl PrivateKey {
@@ -264,9 +269,7 @@ macro_rules! functionality {
             ///
             /// Hidden from the docs and not part of [`crate::traits::Signer`].
             /// `cargo test --test` does not set `cfg(test)` on this library, so the
-            /// NIST harness in `tests/nist_vectors` can call it. The public
-            /// `_test_only_raw_sign` trait method goes away once that harness is the
-            /// only caller.
+            /// NIST internal groups in `tests/nist_vectors` call this hook.
             #[doc(hidden)]
             pub fn sign_internal(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
@@ -309,32 +312,23 @@ macro_rules! functionality {
 
             // Documented in traits.rs
             fn hash_verify(
-                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], ph: &Ph,
+                &self, hash: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], hash_oid: &[u8],
             ) -> bool {
-                if ctx.len() > 255 {
+                if ctx.len() > 255 || hash_oid.is_empty() || hash.len() > crate::MAX_PREHASH_LEN {
                     return false;
                 };
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
-                let mut phm = [0u8; 64]; // hashers don't all play well with each other (varying output size)
-                let (oid, phm_len) = hash_message(m, ph, &mut phm);
+                // Algorithm 25 step 20: 0x01 || len(ctx) || ctx || OID || PH(M)
                 let mp: &[&[u8]] = &[
                     &[1u8],
                     &[ctx.len().to_le_bytes()[0]],
                     ctx,
-                    &oid,
-                    &phm[0..phm_len],
+                    hash_oid,
+                    hash,
                 ];
-                let res = crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
+                crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
                     &HASHERS, &mp, &sig, &self.0,
-                );
-                res
-            }
-
-            // Documented in traits.rs
-            fn _test_only_raw_verify(
-                &self, m: &[u8], sig_bytes: &[u8; SIG_LEN],
-            ) -> Result<bool, &'static str> {
-                Ok(self.verify_internal(m, sig_bytes))
+                )
             }
         }
 
@@ -414,6 +408,9 @@ macro_rules! functionality {
         mod tests {
             use super::*;
             use rand_chacha::rand_core::SeedableRng;
+            use sha2::{Digest, Sha256, Sha512};
+            use sha3::digest::{ExtendableOutput, Update, XofReader};
+            use sha3::{Shake128, Shake256};
 
             // Test keygen, sign, serDes everything, verify true/false
             #[test]
@@ -437,13 +434,38 @@ macro_rules! functionality {
                 assert!(result, "Signature failed to verify");
                 let result = pk2.verify(&message, &sig, b"some other context");
                 assert!(!result, "Signature should not have verified");
-                for ph in [Ph::SHA256, Ph::SHA512, Ph::SHAKE128, Ph::SHAKE256] {
-                    let sig = sk2
-                        .try_hash_sign_with_rng(&mut rng, &message, b"context", &ph, true)
+
+                let sha256 = Sha256::digest(message);
+                let sha512 = Sha512::digest(message);
+                let mut shake128 = [0u8; 32];
+                let mut shake256 = [0u8; 64];
+                let mut h = Shake128::default();
+                h.update(&message);
+                h.finalize_xof().read(&mut shake128);
+                let mut h = Shake256::default();
+                h.update(&message);
+                h.finalize_xof().read(&mut shake256);
+                let digests: [(&[u8], &[u8]); 4] = [
+                    (&crate::pre_hash::SHA2_256, &sha256),
+                    (&crate::pre_hash::SHA2_512, &sha512),
+                    (&crate::pre_hash::SHAKE_128, &shake128),
+                    (&crate::pre_hash::SHAKE_256, &shake256),
+                ];
+                assert!(sk2.try_hash_sign_with_rng(&mut rng, &sha256, &[], &[], true).is_err());
+                assert!(!pk2.hash_verify(&sha256, &sig, &[], &[]));
+                let too_long = [0u8; crate::MAX_PREHASH_LEN + 1];
+                assert!(sk2
+                    .try_hash_sign_with_rng(&mut rng, &too_long, &[], &crate::pre_hash::SHA2_256, true)
+                    .is_err());
+                assert!(!pk2.hash_verify(&too_long, &sig, &[], &crate::pre_hash::SHA2_256));
+
+                for (oid, digest) in digests {
+                    let hash_sig = sk2
+                        .try_hash_sign_with_rng(&mut rng, digest, b"context", oid, true)
                         .unwrap();
-                    let result = pk2.hash_verify(&message, &sig, b"context", &ph);
+                    let result = pk2.hash_verify(digest, &hash_sig, b"context", oid);
                     assert!(result, "Signature failed to verify");
-                    let result = pk2.hash_verify(&message, &sig, b"some other context", &ph);
+                    let result = pk2.hash_verify(digest, &hash_sig, b"some other context", oid);
                     assert!(!result, "Signature should not have verified");
                 }
             }

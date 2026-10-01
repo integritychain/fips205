@@ -4,8 +4,8 @@
 //! (the same commit fips204 pins). `vsId` 53, `isSample: true`. The files are
 //! gzip -9 `internalProjection.json.gz` only.
 //!
-//! External pre-hash groups (`preHash == "preHash"`) are counted and skipped
-//! until the digest-and-OID API in plan section 6. Do not hash them here.
+//! External pre-hash groups (`preHash == "preHash"`) hash `message` here and
+//! call `try_hash_sign_with_rng` / `hash_verify` with the digest and OID.
 //!
 //! ```text
 //! FIPS205_NIST_SMOKE=1 cargo test --release --test nist_vectors
@@ -15,20 +15,24 @@
 //! `FIPS205_NIST_SMOKE=1` keeps every keygen case; per parameter set, one
 //! deterministic pure-external sign, one hedged pure-external sign, one
 //! deterministic internal sign, and the matching verify cases; all twelve
-//! `hashAlg` values, both deterministic and hedged, on `SLH-DSA-SHA2-128s`
-//! (skipped until section 6, but counted); one of each sigVer `reason` on
-//! SHA2-128s; one valid external verify on every other set; and one valid
-//! internal verify per set. The per-set pure-external pick includes the
-//! 256-bit sets. Unset, the harness runs the full file.
+//! `hashAlg` values, both deterministic and hedged, on `SLH-DSA-SHA2-128s`;
+//! one of each sigVer `reason` on SHA2-128s; one valid external verify on
+//! every other set; and one valid internal verify per set. The per-set
+//! pure-external pick includes the 256-bit sets. Unset, the harness runs the
+//! full file.
 
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 
 use flate2::read::GzDecoder;
+use fips205::pre_hash;
 use fips205::traits::{KeyGen, SerDes, Signer, Verifier};
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Value;
+use sha2::{Digest, Sha224, Sha256, Sha384, Sha512, Sha512_224, Sha512_256};
+use sha3::digest::{ExtendableOutput, Update, XofReader};
+use sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128, Shake256};
 
 struct TestRng {
     data: Vec<Vec<u8>>,
@@ -53,20 +57,18 @@ impl CryptoRng for TestRng {}
 struct Tally {
     ran: usize,
     smoke_skipped: usize,
-    /// External pre-hash cases, waiting on plan section 6.
-    prehash_skipped: usize,
     feature_skipped: usize,
 }
 
 impl Tally {
     fn new() -> Self {
-        Self { ran: 0, smoke_skipped: 0, prehash_skipped: 0, feature_skipped: 0 }
+        Self { ran: 0, smoke_skipped: 0, feature_skipped: 0 }
     }
 
     fn report(&self, which: &str) {
         println!(
-            "NIST {which}: ran {}, smoke-skipped {}, pre-hash skipped {} (plan section 6), feature-skipped {}",
-            self.ran, self.smoke_skipped, self.prehash_skipped, self.feature_skipped
+            "NIST {which}: ran {}, smoke-skipped {}, feature-skipped {}",
+            self.ran, self.smoke_skipped, self.feature_skipped
         );
     }
 }
@@ -167,6 +169,28 @@ macro_rules! sign_one {
     }};
 }
 
+macro_rules! sign_hash {
+    ($m:ident, $test:expr, $loc:expr, $hedged:expr) => {{
+        let sk_raw = hex_field($test, "sk", $loc);
+        let sk_arr = copy_n::<{ fips205::$m::SK_LEN }>(&sk_raw, $loc, "sk");
+        let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(&sk_arr)
+            .unwrap_or_else(|e| panic!("{} {e}", $loc));
+        let msg = hex_field($test, "message", $loc);
+        let ctx = hex_field($test, "context", $loc);
+        let (oid, digest) = ph_of(str_field($test, "hashAlg", $loc), &msg, $loc);
+        let mut rng = TestRng { data: Vec::new() };
+        if $hedged {
+            let add = hex_field($test, "additionalRandomness", $loc);
+            assert_eq!(add.len(), fips205::$m::N, "{} additionalRandomness", $loc);
+            rng.data.push(add);
+        }
+        let sig = sk
+            .try_hash_sign_with_rng(&mut rng, &digest, &ctx, oid, $hedged)
+            .unwrap_or_else(|e| panic!("{} sign: {e}", $loc));
+        assert_eq!(sig.as_slice(), hex_field($test, "signature", $loc).as_slice(), "{}", $loc);
+    }};
+}
+
 macro_rules! verify_one {
     ($m:ident, $test:expr, $loc:expr, $internal:expr) => {{
         let pk_raw = hex_field($test, "pk", $loc);
@@ -186,6 +210,25 @@ macro_rules! verify_one {
                     pk.verify(&msg, sig, &ctx)
                 }
             }
+            Err(_) => false,
+        };
+        let expect = $test["testPassed"].as_bool().unwrap_or_else(|| panic!("{} testPassed", $loc));
+        assert_eq!(ok, expect, "{}", $loc);
+    }};
+}
+
+macro_rules! verify_hash {
+    ($m:ident, $test:expr, $loc:expr) => {{
+        let pk_raw = hex_field($test, "pk", $loc);
+        let pk_arr = copy_n::<{ fips205::$m::PK_LEN }>(&pk_raw, $loc, "pk");
+        let pk = <fips205::$m::PublicKey as SerDes>::try_from_bytes(&pk_arr)
+            .unwrap_or_else(|e| panic!("{} {e}", $loc));
+        let msg = hex_field($test, "message", $loc);
+        let ctx = hex_field($test, "context", $loc);
+        let (oid, digest) = ph_of(str_field($test, "hashAlg", $loc), &msg, $loc);
+        let sig_raw = hex_field($test, "signature", $loc);
+        let ok = match sig_raw.as_slice().try_into() {
+            Ok(sig) => pk.hash_verify(&digest, sig, &ctx, oid),
             Err(_) => false,
         };
         let expect = $test["testPassed"].as_bool().unwrap_or_else(|| panic!("{} testPassed", $loc));
@@ -229,12 +272,43 @@ fn str_field<'a>(v: &'a Value, key: &str, loc: &str) -> &'a str {
     v[key].as_str().unwrap_or_else(|| panic!("{loc} missing {key}"))
 }
 
+/// `PH(M)` and its DER OID for an ACVP `hashAlg` name.
+/// SHAKE128 is 256 bits and SHAKE256 is 512 bits, matching FIPS 205 Algorithm 23.
+fn ph_of(name: &str, message: &[u8], loc: &str) -> (&'static [u8], Vec<u8>) {
+    match name {
+        "SHA2-224" => (&pre_hash::SHA2_224, Sha224::digest(message).to_vec()),
+        "SHA2-256" => (&pre_hash::SHA2_256, Sha256::digest(message).to_vec()),
+        "SHA2-384" => (&pre_hash::SHA2_384, Sha384::digest(message).to_vec()),
+        "SHA2-512" => (&pre_hash::SHA2_512, Sha512::digest(message).to_vec()),
+        "SHA2-512/224" => (&pre_hash::SHA2_512_224, Sha512_224::digest(message).to_vec()),
+        "SHA2-512/256" => (&pre_hash::SHA2_512_256, Sha512_256::digest(message).to_vec()),
+        "SHA3-224" => (&pre_hash::SHA3_224, Sha3_224::digest(message).to_vec()),
+        "SHA3-256" => (&pre_hash::SHA3_256, Sha3_256::digest(message).to_vec()),
+        "SHA3-384" => (&pre_hash::SHA3_384, Sha3_384::digest(message).to_vec()),
+        "SHA3-512" => (&pre_hash::SHA3_512, Sha3_512::digest(message).to_vec()),
+        "SHAKE-128" => {
+            let mut ret = vec![0u8; 32];
+            let mut hasher = Shake128::default();
+            hasher.update(message);
+            hasher.finalize_xof().read(&mut ret);
+            (&pre_hash::SHAKE_128, ret)
+        }
+        "SHAKE-256" => {
+            let mut ret = vec![0u8; 64];
+            let mut hasher = Shake256::default();
+            hasher.update(message);
+            hasher.finalize_xof().read(&mut ret);
+            (&pre_hash::SHAKE_256, ret)
+        }
+        other => panic!("{loc} unknown hashAlg {other}"),
+    }
+}
+
 fn keep_siggen(set: &str, iface: &str, pre: &str, det: bool, idx: usize) -> bool {
     if !smoke() {
         return true;
     }
     // All twelve hash algorithms, both hedged and deterministic, on SHA2-128s.
-    // Execution still skips them until plan section 6; the log counts that skip.
     if pre == "preHash" {
         return set == "SLH-DSA-SHA2-128s";
     }
@@ -312,12 +386,12 @@ fn nist_siggen() {
                 tally.smoke_skipped += 1;
                 continue;
             }
-            // External pre-hash waits on the digest-and-OID API (plan section 6).
-            if pre == "preHash" {
-                tally.prehash_skipped += 1;
-                continue;
-            }
-            if !dispatch!(set, sign_one, test, &loc, internal, hedged) {
+            let handled = if pre == "preHash" {
+                dispatch!(set, sign_hash, test, &loc, hedged)
+            } else {
+                dispatch!(set, sign_one, test, &loc, internal, hedged)
+            };
+            if !handled {
                 note_unhandled(set, &mut tally);
                 continue;
             }
@@ -352,12 +426,12 @@ fn nist_sigver() {
                 tally.smoke_skipped += 1;
                 continue;
             }
-            // External pre-hash waits on the digest-and-OID API (plan section 6).
-            if pre == "preHash" {
-                tally.prehash_skipped += 1;
-                continue;
-            }
-            if !dispatch!(set, verify_one, test, &loc, internal) {
+            let handled = if pre == "preHash" {
+                dispatch!(set, verify_hash, test, &loc)
+            } else {
+                dispatch!(set, verify_one, test, &loc, internal)
+            };
+            if !handled {
                 note_unhandled(set, &mut tally);
                 continue;
             }

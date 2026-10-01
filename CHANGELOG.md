@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bare-metal / `no_std`: use `default-features = false` plus the desired `slh_dsa_*`
   feature(s); default features pull an OS RNG backend that will not build on many
   embedded targets. Use `keygen_with_seeds` or `*_with_rng`.
-- `hash_sign` and `hash_verify` will take a precomputed digest and a DER-encoded OID
-  (`pre_hash`) instead of the message and `Ph`. The library will not hash the message.
+- `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID
+  (`pre_hash`) instead of the message and `Ph`. The library does not hash the message.
+  An empty OID or a digest longer than 1024 bytes is rejected. `Ph` is gone.
 
 ### Added
 - Re-export `CryptoRng`, `RngCore`, and `RngError` from `rand_core` 0.6
@@ -40,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - NIST ACVP sample vectors are the ACVP-Server `975de31eb83d` set, gzipped under
-  `tests/nist_vectors`. External pre-hash groups are skipped until `hash_sign` /
-  `hash_verify` take a digest and OID. `FIPS205_NIST_SMOKE=1` runs a subset
+  `tests/nist_vectors`, including external pre-hash groups. `FIPS205_NIST_SMOKE=1`
+  runs a subset
 - Crate and sample versions are **0.5.0** (`fips205`, `fips205-ffi`, `wasm`, `dudect`,
   `fuzz`)
 - Raised MSRV to **1.85**; CI MSRV jobs updated accordingly

@@ -60,8 +60,9 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 ## Notes
 
 * This crate is fully functional and corresponds to the final released FIPS 205 (August 13, 2024).
-* `hash_sign` and `hash_verify` will take a precomputed digest and a DER-encoded OID
-  (`pre_hash` lists the NIST CSOR encodings). The library will not hash the message.
+* `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID
+  (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message.
+  An empty OID or a digest longer than 1024 bytes is rejected.
 * C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
   [`wasm/README.md`](wasm/README.md).
 * Constant-time assurances target the source-code level only, with confirmation via
