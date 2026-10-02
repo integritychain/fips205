@@ -182,7 +182,7 @@ macro_rules! parameter_set {
                 let (Some(public_out), Some(private)) = (public_out, private) else {
                     return ret::NULL_PTR_ERROR;
                 };
-                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(&private.data) else {
+                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(private.data) else {
                     return ret::DESERIALIZATION_ERROR;
                 };
                 let pubkey = privkey.get_public_key();
@@ -210,7 +210,7 @@ macro_rules! parameter_set {
                 let msg = slice_from_c_buf!(message, message_size);
                 let ctx = slice_from_c_buf!(context, context_size);
 
-                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(&private.data) else {
+                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(private.data) else {
                     return ret::DESERIALIZATION_ERROR;
                 };
                 let hedged = hedged != 0;
@@ -252,7 +252,7 @@ macro_rules! parameter_set {
                 let ctx = slice_from_c_buf!(context, context_size);
                 let hoid = slice_from_c_buf!(hash_oid, hash_oid_size);
 
-                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(&private.data) else {
+                let Ok(privkey) = fips205::$pc::PrivateKey::try_from_bytes(private.data) else {
                     return ret::DESERIALIZATION_ERROR;
                 };
                 let hedged = hedged != 0;
@@ -289,7 +289,7 @@ macro_rules! parameter_set {
                 let msg = slice_from_c_buf!(message, message_size);
                 let ctx = slice_from_c_buf!(context, context_size);
 
-                let Ok(pubkey) = fips205::$pc::PublicKey::try_from_bytes(&public.data) else {
+                let Ok(pubkey) = fips205::$pc::PublicKey::try_from_bytes(public.data) else {
                     return ret::DESERIALIZATION_ERROR;
                 };
 
@@ -320,7 +320,7 @@ macro_rules! parameter_set {
                 let ctx = slice_from_c_buf!(context, context_size);
                 let hoid = slice_from_c_buf!(hash_oid, hash_oid_size);
 
-                let Ok(pubkey) = fips205::$pc::PublicKey::try_from_bytes(&public.data) else {
+                let Ok(pubkey) = fips205::$pc::PublicKey::try_from_bytes(public.data) else {
                     return ret::DESERIALIZATION_ERROR;
                 };
 

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Not API-compatible with 0.4.1. Depend on `fips205 = "0.5"`.
 - MSRV is **1.85**.
 - `Ph` is gone. `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID (`pre_hash`). This crate does not hash the message. An empty OID or a digest longer than 1024 bytes is rejected.
+- `SerDes::try_from_bytes` takes the byte array by value, as in `fips203` and `fips204`. Write `PublicKey::try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`. The arrays are `Copy`, so the caller keeps its copy.
 - RNG stays `rand_core` 0.6. `CryptoRng`, `RngCore`, and `RngError` are re-exported.
 - Default features enable the OS RNG and all twelve parameter sets. That does not build on bare metal. Use `default-features = false`, one `slh_dsa_*` feature, and `keygen_with_seeds` or `*_with_rng`.
 

@@ -42,7 +42,7 @@ pub trait KeyGen {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -88,7 +88,7 @@ pub trait KeyGen {
     ///
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -132,7 +132,7 @@ pub trait KeyGen {
     ///
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -205,7 +205,7 @@ pub trait Signer {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -256,7 +256,7 @@ pub trait Signer {
     /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
     /// assert!(v);
@@ -307,7 +307,7 @@ pub trait Signer {
     ///
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -361,7 +361,7 @@ pub trait Signer {
     ///
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_512);
     /// assert!(v);
@@ -429,7 +429,7 @@ pub trait Verifier {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the msg signature
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
@@ -473,7 +473,7 @@ pub trait Verifier {
     /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
     ///
     /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// // Use the public key to verify the signature on the digest
     /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
     /// assert!(v);
@@ -517,7 +517,7 @@ pub trait SerDes {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # }
@@ -558,14 +558,14 @@ pub trait SerDes {
     /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
     ///
     /// // Deserialize the public key, then use it to verify the msg signature
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
     /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
     /// assert!(v);
     /// # }
     /// # Ok(())
     /// # }
     /// ```
-    fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str>
+    fn try_from_bytes(ba: Self::ByteArray) -> Result<Self, &'static str>
     where
         Self: Sized;
 }

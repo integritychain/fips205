@@ -1,6 +1,19 @@
 use crate::types::{Adrs, Auth, ForsSig, HtSig, SlhDsaSig, WotsSig, XmssSig};
 
 
+/// # Macro ensure!()
+/// If the condition is not met, return an error Result. Borrowed from the `anyhow` crate.
+macro_rules! ensure {
+    ($cond:expr, $msg:literal $(,)?) => {
+        if !$cond {
+            return Err($msg);
+        }
+    };
+}
+
+pub(crate) use ensure; // make available throughout crate
+
+
 /// Algorithm 2: `toInt(X, n)` on page 15.
 /// Converts a byte string to an integer.
 ///

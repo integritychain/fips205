@@ -45,6 +45,12 @@
 // Signature serialize/deserialize and Adrs support can be found in helpers.rs
 // types are in types.rs, traits are in traits.rs, and lib.rs provides wrappers into slh.rs
 
+// Test hooks are `#[deprecated]` and live behind a non-default feature, so a normal build never
+// has them. The `acvp-internal` feature adds `#[doc(hidden)]` methods `sign_internal()` and
+// `verify_internal()`, so that every NIST vector runs, including the internal groups. The
+// crate's own tests enable it through a dev-dependency on the crate itself. SLH-DSA has no
+// rejection sampling, so the dudect harness uses the public API and needs no hook.
+
 
 /// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
 pub mod traits;
@@ -81,6 +87,7 @@ const LEN2: u32 = 3;
 // This common functionality is injected into each parameter set module
 macro_rules! functionality {
     () => {
+        use crate::helpers::ensure;
         use crate::traits::{KeyGen, SerDes, Signer, Verifier};
         use crate::types::{SlhDsaSig, SlhPrivateKey, SlhPublicKey};
         use rand_core::CryptoRngCore;
@@ -135,7 +142,7 @@ macro_rules! functionality {
         /// let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
         ///
         /// // A public key of the right length always decodes.
-        /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+        /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
         /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
@@ -179,7 +186,7 @@ macro_rules! functionality {
         ///
         ///
         /// // A public key of the right length always decodes.
-        /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+        /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
         /// // Use the public key to verify the msg signature
         /// let v = pk2.verify(&msg_recv, &sig_recv, b"context");
         /// assert!(v);
@@ -216,9 +223,7 @@ macro_rules! functionality {
             fn try_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
-                if ctx.len() > 255 {
-                    return Err("ctx must be less than 256 bytes");
-                };
+                ensure!(ctx.len() < 256, "ctx must be less than 256 bytes");
                 let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &mp, &self.0, hedged,
@@ -231,15 +236,12 @@ macro_rules! functionality {
                 &self, rng: &mut impl CryptoRngCore, hash: &[u8], ctx: &[u8], hash_oid: &[u8],
                 hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
-                if ctx.len() > 255 {
-                    return Err("ctx must be less than 256 bytes");
-                };
-                if hash_oid.is_empty() {
-                    return Err("HashSLH-DSA.Sign: OID is empty");
-                }
-                if hash.len() > crate::MAX_PREHASH_LEN {
-                    return Err("Hash of message is too long, should not be more than 1KiB");
-                }
+                ensure!(ctx.len() < 256, "ctx must be less than 256 bytes");
+                ensure!(!hash_oid.is_empty(), "HashSLH-DSA.Sign: OID is empty");
+                ensure!(
+                    hash.len() <= crate::MAX_PREHASH_LEN,
+                    "Hash of message is too long, should not be more than 1KiB"
+                );
                 // Algorithm 23 step 24: 0x01 || len(ctx) || ctx || OID || PH(M)
                 let mp: &[&[u8]] = &[
                     &[1u8],
@@ -260,12 +262,18 @@ macro_rules! functionality {
             }
         }
 
+        #[cfg(feature = "acvp-internal")]
         impl PrivateKey {
             /// `slh_sign_internal`: sign `m` with no external domain separator.
             ///
-            /// Hidden from the docs and not part of [`crate::traits::Signer`].
-            /// `cargo test --test` does not set `cfg(test)` on this library, so the
-            /// NIST internal groups in `tests/nist_vectors` call this hook.
+            /// Hidden from the docs and not part of [`crate::traits::Signer`]. The NIST internal
+            /// groups in `tests/nist_vectors` call this hook. `cargo test --test` does not set
+            /// `cfg(test)` on this library, so the crate's tests enable the `acvp-internal`
+            /// feature through a dev-dependency on the crate itself.
+            ///
+            /// # Errors
+            /// Returns an error when the random number generator fails.
+            #[deprecated = "Hook for the NIST ACVP internal test groups; do not use elsewhere"]
             #[doc(hidden)]
             pub fn sign_internal(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
@@ -328,11 +336,14 @@ macro_rules! functionality {
             }
         }
 
+        #[cfg(feature = "acvp-internal")]
         impl PublicKey {
             /// `slh_verify_internal`: verify `m` with no external domain separator.
             ///
             /// See [`PrivateKey::sign_internal`].
+            #[deprecated = "Hook for the NIST ACVP internal test groups; do not use elsewhere"]
             #[doc(hidden)]
+            #[must_use]
             pub fn verify_internal(&self, m: &[u8], sig_bytes: &[u8; SIG_LEN]) -> bool {
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 crate::slh::slh_verify_internal::<A, D, H, HP, K, LEN, M, N>(
@@ -359,10 +370,10 @@ macro_rules! functionality {
             }
 
             // Documented in traits.rs
-            fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
+            fn try_from_bytes(ba: Self::ByteArray) -> Result<Self, &'static str> {
                 let mut pk = SlhPublicKey { pk_seed: [0u8; N], pk_root: [0u8; N] };
-                pk.pk_seed.copy_from_slice(&bytes[..(PK_LEN / 2)]);
-                pk.pk_root.copy_from_slice(&bytes[(PK_LEN / 2)..]);
+                pk.pk_seed.copy_from_slice(&ba[..(PK_LEN / 2)]);
+                pk.pk_root.copy_from_slice(&ba[(PK_LEN / 2)..]);
                 Ok(PublicKey(pk))
             }
         }
@@ -382,19 +393,19 @@ macro_rules! functionality {
             }
 
             // Documented in traits.rs
-            fn try_from_bytes(bytes: &Self::ByteArray) -> Result<Self, &'static str> {
+            fn try_from_bytes(ba: Self::ByteArray) -> Result<Self, &'static str> {
                 let mut sk = SlhPrivateKey {
                     sk_seed: [0u8; N],
                     sk_prf: [0u8; N],
                     pk_seed: [0u8; N],
                     pk_root: [0u8; N],
                 };
-                sk.sk_seed.copy_from_slice(&bytes[0..(SK_LEN / 4)]);
-                sk.sk_prf.copy_from_slice(&bytes[(SK_LEN / 4)..(SK_LEN / 2)]);
-                sk.pk_seed.copy_from_slice(&bytes[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
-                sk.pk_root.copy_from_slice(&bytes[(3 * SK_LEN / 4)..]);
+                sk.sk_seed.copy_from_slice(&ba[0..(SK_LEN / 4)]);
+                sk.sk_prf.copy_from_slice(&ba[(SK_LEN / 4)..(SK_LEN / 2)]);
+                sk.pk_seed.copy_from_slice(&ba[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
+                sk.pk_root.copy_from_slice(&ba[(3 * SK_LEN / 4)..]);
                 let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(&HASHERS, sk.sk_seed, sk.sk_prf, sk.pk_seed);
-                if sk_test.pk_root != sk.pk_root { return Err("Corrupted key")}
+                ensure!(sk_test.pk_root == sk.pk_root, "Corrupted key");
                 Ok(PrivateKey(sk))
             }
         }
@@ -416,8 +427,8 @@ macro_rules! functionality {
                 let (pk1, sk1) = KG::try_keygen_with_rng(&mut rng).unwrap();
                 let pk1_bytes = pk1.into_bytes();
                 let sk1_bytes = sk1.into_bytes();
-                let pk2 = PublicKey::try_from_bytes(&pk1_bytes).unwrap();
-                let sk2 = PrivateKey::try_from_bytes(&sk1_bytes).unwrap();
+                let pk2 = PublicKey::try_from_bytes(pk1_bytes).unwrap();
+                let sk2 = PrivateKey::try_from_bytes(sk1_bytes).unwrap();
 
                 let sig = sk2.try_sign_with_rng(&mut rng, &message, b"context", true).unwrap();
                 let result = pk2.verify(&message, &sig, b"context");

@@ -38,7 +38,7 @@ fuzz_target!(|data: &[u8]| {
 
         // Test 3: Try to deserialize and verify with potentially malformed public key
         if let Ok(maybe_pk) = slh_dsa_sha2_128f::PublicKey::try_from_bytes(
-            &pk.clone().into_bytes(), // Use valid key bytes but could use fuzzed data instead
+            pk.clone().into_bytes(), // Use valid key bytes but could use fuzzed data instead
         ) {
             if let Ok(sig) = sk.try_sign(message, context, true) {
                 let _ = maybe_pk.verify(message, &sig, context);

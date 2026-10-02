@@ -46,7 +46,7 @@ let (pk_send, msg_send, sig_send) = (pk1.into_bytes(), msg_bytes, sig_bytes);
 let (pk_recv, msg_recv, sig_recv) = (pk_send, msg_send, sig_send);
 
 // A public key of the right length always decodes.
-let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(&pk_recv)?;
+let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
 // Use the public key to verify the msg signature
 let v = pk2.verify(&msg_recv, &sig_recv, b"context");
 assert!(v);

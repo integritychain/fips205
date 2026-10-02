@@ -20,6 +20,18 @@
 //! every other set; and one valid internal verify per set. The per-set
 //! pure-external pick includes the 256-bit sets. Unset, the harness runs the
 //! full file.
+//!
+//! Every vector in each file is applied. Each test counts the cases in its file
+//! and fails unless every one ran, apart from smoke mode and parameter sets whose
+//! feature is off. A group field or group kind that this harness does not know
+//! fails the test, so a new kind of NIST group is never skipped. The internal
+//! groups call the `acvp-internal` hooks, which `cargo test` enables through the
+//! dev-dependency on this crate in Cargo.toml. `cargo package` drops that
+//! dev-dependency, so a test run from the published crate counts those groups
+//! as skipped unless it passes `--features acvp-internal`.
+
+// The `acvp-internal` hooks are deprecated so that nothing outside the tests calls them.
+#![allow(deprecated)]
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -55,21 +67,62 @@ impl RngCore for TestRng {
 impl CryptoRng for TestRng {}
 
 struct Tally {
+    total: usize,
     ran: usize,
     smoke_skipped: usize,
     feature_skipped: usize,
+    hook_skipped: usize,
 }
 
 impl Tally {
-    fn new() -> Self {
-        Self { ran: 0, smoke_skipped: 0, feature_skipped: 0 }
+    fn new(doc: &Value) -> Self {
+        let total = groups(doc).iter().map(|g| cases(g).len()).sum();
+        Self { total, ran: 0, smoke_skipped: 0, feature_skipped: 0, hook_skipped: 0 }
     }
 
-    fn report(&self, which: &str) {
+    fn finish(&self, which: &str) {
         println!(
-            "NIST {which}: ran {}, smoke-skipped {}, feature-skipped {}",
-            self.ran, self.smoke_skipped, self.feature_skipped
+            "NIST {which}: ran {}, smoke-skipped {}, feature-skipped {}, of {}",
+            self.ran, self.smoke_skipped, self.feature_skipped, self.total
         );
+        if self.hook_skipped > 0 {
+            println!(
+                "NIST {which}: skipped {} internal cases; rerun with --features acvp-internal",
+                self.hook_skipped
+            );
+        }
+        assert_eq!(
+            self.ran + self.smoke_skipped + self.feature_skipped + self.hook_skipped,
+            self.total,
+            "NIST {which}: some cases did not run"
+        );
+        assert!(self.ran > 0, "NIST {which}: no cases ran");
+    }
+}
+
+fn groups(doc: &Value) -> &Vec<Value> {
+    doc["testGroups"].as_array().expect("testGroups")
+}
+
+fn cases(group: &Value) -> &Vec<Value> {
+    group["tests"].as_array().expect("tests")
+}
+
+/// Fails on a group field that this harness does not know, and on any `testType` but AFT.
+fn check_group(group: &Value, known: &[&str]) {
+    for key in group.as_object().expect("group").keys() {
+        assert!(known.contains(&key.as_str()), "tgId {}: unknown group field {key}", group["tgId"]);
+    }
+    assert_eq!(group["testType"], "AFT", "tgId {}: testType", group["tgId"]);
+}
+
+/// Whether a sigGen or sigVer group uses the internal interface. Panics on a combination of
+/// `signatureInterface` and `preHash` that this harness does not know.
+fn is_internal(group: &Value) -> bool {
+    match (group["signatureInterface"].as_str(), group["preHash"].as_str()) {
+        (Some("external"), Some("pure" | "preHash")) => false,
+        (Some("internal"), Some("none")) => true,
+        other => panic!("tgId {}: unknown group kind {other:?}", group["tgId"]),
     }
 }
 
@@ -132,6 +185,33 @@ fn note_unhandled(set: &str, tally: &mut Tally) {
     }
 }
 
+// The internal groups call the `acvp-internal` hooks, which exist only with that feature.
+// Without it, those cases are counted as skipped before these are reached.
+#[cfg(feature = "acvp-internal")]
+macro_rules! sign_internal {
+    ($sk:expr, $rng:expr, $msg:expr, $hedged:expr) => {
+        $sk.sign_internal($rng, $msg, $hedged)
+    };
+}
+#[cfg(not(feature = "acvp-internal"))]
+macro_rules! sign_internal {
+    ($($arg:tt)*) => {
+        unreachable!("skipped without acvp-internal")
+    };
+}
+#[cfg(feature = "acvp-internal")]
+macro_rules! verify_internal {
+    ($pk:expr, $msg:expr, $sig:expr) => {
+        $pk.verify_internal($msg, $sig)
+    };
+}
+#[cfg(not(feature = "acvp-internal"))]
+macro_rules! verify_internal {
+    ($($arg:tt)*) => {
+        unreachable!("skipped without acvp-internal")
+    };
+}
+
 macro_rules! keygen_one {
     ($m:ident, $test:expr, $loc:expr) => {{
         let sk_seed = copy_n::<{ fips205::$m::N }>(&hex_field($test, "skSeed", $loc), $loc, "skSeed");
@@ -149,7 +229,7 @@ macro_rules! sign_one {
     ($m:ident, $test:expr, $loc:expr, $internal:expr, $hedged:expr) => {{
         let sk_raw = hex_field($test, "sk", $loc);
         let sk_arr = copy_n::<{ fips205::$m::SK_LEN }>(&sk_raw, $loc, "sk");
-        let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(&sk_arr)
+        let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(sk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
         let msg = hex_field($test, "message", $loc);
         let mut rng = TestRng { data: Vec::new() };
@@ -159,7 +239,7 @@ macro_rules! sign_one {
             rng.data.push(add);
         }
         let sig = if $internal {
-            sk.sign_internal(&mut rng, &msg, $hedged)
+            sign_internal!(sk, &mut rng, &msg, $hedged)
         } else {
             let ctx = hex_field($test, "context", $loc);
             sk.try_sign_with_rng(&mut rng, &msg, &ctx, $hedged)
@@ -173,7 +253,7 @@ macro_rules! sign_hash {
     ($m:ident, $test:expr, $loc:expr, $hedged:expr) => {{
         let sk_raw = hex_field($test, "sk", $loc);
         let sk_arr = copy_n::<{ fips205::$m::SK_LEN }>(&sk_raw, $loc, "sk");
-        let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(&sk_arr)
+        let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(sk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
         let msg = hex_field($test, "message", $loc);
         let ctx = hex_field($test, "context", $loc);
@@ -195,7 +275,7 @@ macro_rules! verify_one {
     ($m:ident, $test:expr, $loc:expr, $internal:expr) => {{
         let pk_raw = hex_field($test, "pk", $loc);
         let pk_arr = copy_n::<{ fips205::$m::PK_LEN }>(&pk_raw, $loc, "pk");
-        let pk = <fips205::$m::PublicKey as SerDes>::try_from_bytes(&pk_arr)
+        let pk = <fips205::$m::PublicKey as SerDes>::try_from_bytes(pk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
         let msg = hex_field($test, "message", $loc);
         let sig_raw = hex_field($test, "signature", $loc);
@@ -204,7 +284,7 @@ macro_rules! verify_one {
         let ok = match sig_raw.as_slice().try_into() {
             Ok(sig) => {
                 if $internal {
-                    pk.verify_internal(&msg, sig)
+                    verify_internal!(pk, &msg, sig)
                 } else {
                     let ctx = hex_field($test, "context", $loc);
                     pk.verify(&msg, sig, &ctx)
@@ -221,7 +301,7 @@ macro_rules! verify_hash {
     ($m:ident, $test:expr, $loc:expr) => {{
         let pk_raw = hex_field($test, "pk", $loc);
         let pk_arr = copy_n::<{ fips205::$m::PK_LEN }>(&pk_raw, $loc, "pk");
-        let pk = <fips205::$m::PublicKey as SerDes>::try_from_bytes(&pk_arr)
+        let pk = <fips205::$m::PublicKey as SerDes>::try_from_bytes(pk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
         let msg = hex_field($test, "message", $loc);
         let ctx = hex_field($test, "context", $loc);
@@ -348,11 +428,12 @@ impl VerPick {
 #[test]
 fn nist_keygen() {
     let doc = load("SLH-DSA-keyGen-FIPS205");
-    let mut tally = Tally::new();
-    for group in doc["testGroups"].as_array().expect("keyGen testGroups") {
+    let mut tally = Tally::new(&doc);
+    for group in groups(&doc) {
+        check_group(group, &["parameterSet", "testType", "tests", "tgId"]);
         let set = str_field(group, "parameterSet", "keyGen group");
         let tg = group["tgId"].as_u64().expect("tgId");
-        for test in group["tests"].as_array().expect("tests") {
+        for test in cases(group) {
             let tc = test["tcId"].as_u64().expect("tcId");
             let loc = loc_of(set, tg, tc);
             // Smoke keeps every keygen case.
@@ -363,27 +444,33 @@ fn nist_keygen() {
             tally.ran += 1;
         }
     }
-    tally.report("keyGen");
-    assert!(tally.ran > 0, "no keygen cases ran");
+    tally.finish("keyGen");
 }
 
 #[test]
 fn nist_siggen() {
     let doc = load("SLH-DSA-sigGen-FIPS205");
-    let mut tally = Tally::new();
-    for group in doc["testGroups"].as_array().expect("sigGen testGroups") {
+    let mut tally = Tally::new(&doc);
+    for group in groups(&doc) {
+        check_group(group, &[
+            "deterministic", "parameterSet", "preHash", "signatureInterface", "testType", "tests", "tgId",
+        ]);
         let set = str_field(group, "parameterSet", "sigGen group");
         let tg = group["tgId"].as_u64().expect("tgId");
         let iface = str_field(group, "signatureInterface", "sigGen group");
         let pre = str_field(group, "preHash", "sigGen group");
         let det = group["deterministic"].as_bool().expect("deterministic");
-        let internal = iface == "internal";
+        let internal = is_internal(group);
         let hedged = !det;
-        for (idx, test) in group["tests"].as_array().expect("tests").iter().enumerate() {
+        for (idx, test) in cases(group).iter().enumerate() {
             let tc = test["tcId"].as_u64().expect("tcId");
             let loc = loc_of(set, tg, tc);
             if !keep_siggen(set, iface, pre, det, idx) {
                 tally.smoke_skipped += 1;
+                continue;
+            }
+            if internal && !cfg!(feature = "acvp-internal") {
+                tally.hook_skipped += 1;
                 continue;
             }
             let handled = if pre == "preHash" {
@@ -398,32 +485,36 @@ fn nist_siggen() {
             tally.ran += 1;
         }
     }
-    tally.report("sigGen");
-    assert!(tally.ran > 0, "no sigGen cases ran");
+    tally.finish("sigGen");
 }
 
 #[test]
 fn nist_sigver() {
     let doc = load("SLH-DSA-sigVer-FIPS205");
-    let mut tally = Tally::new();
+    let mut tally = Tally::new(&doc);
     let mut pick = VerPick {
         reasons_128s: HashSet::new(),
         valid_external: HashSet::new(),
         valid_internal: HashSet::new(),
     };
-    for group in doc["testGroups"].as_array().expect("sigVer testGroups") {
+    for group in groups(&doc) {
+        check_group(group, &["parameterSet", "preHash", "signatureInterface", "testType", "tests", "tgId"]);
         let set = str_field(group, "parameterSet", "sigVer group");
         let tg = group["tgId"].as_u64().expect("tgId");
         let iface = str_field(group, "signatureInterface", "sigVer group");
         let pre = str_field(group, "preHash", "sigVer group");
-        let internal = iface == "internal";
-        for test in group["tests"].as_array().expect("tests") {
+        let internal = is_internal(group);
+        for test in cases(group) {
             let tc = test["tcId"].as_u64().expect("tcId");
             let loc = loc_of(set, tg, tc);
             let reason = test["reason"].as_str().unwrap_or("");
             let passed = test["testPassed"].as_bool().unwrap_or(false);
             if !pick.keep(set, iface, pre, reason, passed) {
                 tally.smoke_skipped += 1;
+                continue;
+            }
+            if internal && !cfg!(feature = "acvp-internal") {
+                tally.hook_skipped += 1;
                 continue;
             }
             let handled = if pre == "preHash" {
@@ -438,6 +529,5 @@ fn nist_sigver() {
             tally.ran += 1;
         }
     }
-    tally.report("sigVer");
-    assert!(tally.ran > 0, "no sigVer cases ran");
+    tally.finish("sigVer");
 }
