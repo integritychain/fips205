@@ -123,7 +123,7 @@ macro_rules! functionality {
         /// ```rust
         /// # use std::error::Error;
         /// # fn main() -> Result<(), Box<dyn Error>> {
-        /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+        /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
         /// use fips205::traits::{SerDes, Signer, Verifier};
         ///
@@ -163,7 +163,7 @@ macro_rules! functionality {
         /// ```rust
         /// # use std::error::Error;
         /// # fn main() -> Result<(), Box<dyn Error>> {
-        /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+        /// # #[cfg(feature = "slh-dsa-shake-128s")] {
         /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
         /// use fips205::traits::{SerDes, Signer, Verifier};
         /// use rand_chacha::rand_core::SeedableRng;
@@ -434,7 +434,7 @@ macro_rules! functionality {
                 let result = pk2.verify(&message, &sig, b"context");
                 assert!(result, "Signature failed to verify");
 
-                let (pk3, sk3) = KG::keygen_with_seeds(&[0u8; N], &[1u8; N], &[2u8; N]);
+                let (pk3, sk3) = KG::keygen_from_seed(&[0u8; N], &[1u8; N], &[2u8; N]);
                 let sig = sk3.try_sign_with_rng(&mut rng, &message, b"context", true).unwrap();
                 let result = pk3.verify(&message, &sig, b"context");
 
@@ -500,7 +500,7 @@ macro_rules! functionality {
 /// [`slh_dsa_sha2_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_128s")]
+#[cfg(feature = "slh-dsa-sha2-128s")]
 pub mod slh_dsa_sha2_128s {
     use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -550,7 +550,7 @@ pub mod slh_dsa_sha2_128s {
 /// [`slh_dsa_shake_128s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_128s")]
+#[cfg(feature = "slh-dsa-shake-128s")]
 pub mod slh_dsa_shake_128s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -600,7 +600,7 @@ pub mod slh_dsa_shake_128s {
 /// [`slh_dsa_sha2_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_128f")]
+#[cfg(feature = "slh-dsa-sha2-128f")]
 pub mod slh_dsa_sha2_128f {
     use crate::hashers::sha2_cat_1::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -650,7 +650,7 @@ pub mod slh_dsa_sha2_128f {
 /// [`slh_dsa_shake_128f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_128f")]
+#[cfg(feature = "slh-dsa-shake-128f")]
 pub mod slh_dsa_shake_128f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -700,7 +700,7 @@ pub mod slh_dsa_shake_128f {
 /// [`slh_dsa_sha2_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_192s")]
+#[cfg(feature = "slh-dsa-sha2-192s")]
 pub mod slh_dsa_sha2_192s {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -750,7 +750,7 @@ pub mod slh_dsa_sha2_192s {
 /// [`slh_dsa_shake_192s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_192s")]
+#[cfg(feature = "slh-dsa-shake-192s")]
 pub mod slh_dsa_shake_192s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -800,7 +800,7 @@ pub mod slh_dsa_shake_192s {
 /// [`slh_dsa_sha2_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_192f")]
+#[cfg(feature = "slh-dsa-sha2-192f")]
 pub mod slh_dsa_sha2_192f {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -850,7 +850,7 @@ pub mod slh_dsa_sha2_192f {
 /// [`slh_dsa_shake_192f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_192f")]
+#[cfg(feature = "slh-dsa-shake-192f")]
 pub mod slh_dsa_shake_192f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -900,7 +900,7 @@ pub mod slh_dsa_shake_192f {
 /// [`slh_dsa_sha2_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_256s")]
+#[cfg(feature = "slh-dsa-sha2-256s")]
 pub mod slh_dsa_sha2_256s {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -950,7 +950,7 @@ pub mod slh_dsa_sha2_256s {
 /// [`slh_dsa_shake_256s::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_256s")]
+#[cfg(feature = "slh-dsa-shake-256s")]
 pub mod slh_dsa_shake_256s {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -1000,7 +1000,7 @@ pub mod slh_dsa_shake_256s {
 /// [`slh_dsa_sha2_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_sha2_256f")]
+#[cfg(feature = "slh-dsa-sha2-256f")]
 pub mod slh_dsa_sha2_256f {
     use crate::hashers::sha2_cat_3_5::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;
@@ -1050,7 +1050,7 @@ pub mod slh_dsa_sha2_256f {
 /// [`slh_dsa_shake_256f::PublicKey`] struct to verify the message byte-array with the Signature byte-array..
 ///
 /// See the top-level [crate] documentation for example code that implements the above flow.
-#[cfg(feature = "slh_dsa_shake_256f")]
+#[cfg(feature = "slh-dsa-shake-256f")]
 pub mod slh_dsa_shake_256f {
     use crate::hashers::shake::{f, h, h_msg, prf, prf_msg, t_l};
     use crate::hashers::Hashers;

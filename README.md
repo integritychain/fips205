@@ -27,7 +27,7 @@ The functionality is extremely simple to use, as demonstrated by the following e
 # use std::error::Error;
 #
 # fn main() -> Result<(), Box<dyn Error>> {
-# #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+# #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
 use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
 use fips205::traits::{SerDes, Signer, Verifier};
 
@@ -71,12 +71,12 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   Verify uses only public data.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
-  plus all twelve `slh_dsa_*` parameter sets. That OS RNG path is for hosted
+  plus all twelve `slh-dsa-*` parameter-set features. That OS RNG path is for hosted
   environments; it will **not** compile on bare-metal targets that lack a `getrandom`
   backend (for example `thumbv7em-none-eabi`). Embedded builds use
   `default-features = false`, the parameter-set feature they need, and
-  `keygen_with_seeds` or `*_with_rng`:
-  `fips205 = { version = "0.5", default-features = false, features = ["slh_dsa_sha2_128s"] }`.
+  `keygen_from_seed` or `*_with_rng`:
+  `fips205 = { version = "0.5", default-features = false, features = ["slh-dsa-sha2-128s"] }`.
   Custom generators must implement `CryptoRngCore` from `rand_core` 0.6
   (`CryptoRng` + `RngCore`). This crate re-exports `CryptoRng`, `RngCore`, and
   `RngError`. Key generation and signing call `try_fill_bytes`.

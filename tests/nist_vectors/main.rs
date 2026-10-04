@@ -217,7 +217,7 @@ macro_rules! keygen_one {
         let sk_seed = copy_n::<{ fips205::$m::N }>(&hex_field($test, "skSeed", $loc), $loc, "skSeed");
         let sk_prf = copy_n::<{ fips205::$m::N }>(&hex_field($test, "skPrf", $loc), $loc, "skPrf");
         let pk_seed = copy_n::<{ fips205::$m::N }>(&hex_field($test, "pkSeed", $loc), $loc, "pkSeed");
-        let (pk, sk) = <fips205::$m::KG as KeyGen>::keygen_with_seeds(&sk_seed, &sk_prf, &pk_seed);
+        let (pk, sk) = <fips205::$m::KG as KeyGen>::keygen_from_seed(&sk_seed, &sk_prf, &pk_seed);
         let pk_bytes = pk.into_bytes();
         let sk_bytes = sk.into_bytes();
         assert_eq!(pk_bytes.as_slice(), hex_field($test, "pk", $loc).as_slice(), "{loc} pk", loc = $loc);
@@ -319,29 +319,29 @@ macro_rules! verify_hash {
 macro_rules! dispatch {
     ($set:expr, $mac:ident, $($arg:expr),*) => {
         match $set {
-            #[cfg(feature = "slh_dsa_sha2_128s")]
+            #[cfg(feature = "slh-dsa-sha2-128s")]
             "SLH-DSA-SHA2-128s" => { $mac!(slh_dsa_sha2_128s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_sha2_128f")]
+            #[cfg(feature = "slh-dsa-sha2-128f")]
             "SLH-DSA-SHA2-128f" => { $mac!(slh_dsa_sha2_128f, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_sha2_192s")]
+            #[cfg(feature = "slh-dsa-sha2-192s")]
             "SLH-DSA-SHA2-192s" => { $mac!(slh_dsa_sha2_192s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_sha2_192f")]
+            #[cfg(feature = "slh-dsa-sha2-192f")]
             "SLH-DSA-SHA2-192f" => { $mac!(slh_dsa_sha2_192f, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_sha2_256s")]
+            #[cfg(feature = "slh-dsa-sha2-256s")]
             "SLH-DSA-SHA2-256s" => { $mac!(slh_dsa_sha2_256s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_sha2_256f")]
+            #[cfg(feature = "slh-dsa-sha2-256f")]
             "SLH-DSA-SHA2-256f" => { $mac!(slh_dsa_sha2_256f, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_128s")]
+            #[cfg(feature = "slh-dsa-shake-128s")]
             "SLH-DSA-SHAKE-128s" => { $mac!(slh_dsa_shake_128s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_128f")]
+            #[cfg(feature = "slh-dsa-shake-128f")]
             "SLH-DSA-SHAKE-128f" => { $mac!(slh_dsa_shake_128f, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_192s")]
+            #[cfg(feature = "slh-dsa-shake-192s")]
             "SLH-DSA-SHAKE-192s" => { $mac!(slh_dsa_shake_192s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_192f")]
+            #[cfg(feature = "slh-dsa-shake-192f")]
             "SLH-DSA-SHAKE-192f" => { $mac!(slh_dsa_shake_192f, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_256s")]
+            #[cfg(feature = "slh-dsa-shake-256s")]
             "SLH-DSA-SHAKE-256s" => { $mac!(slh_dsa_shake_256s, $($arg),*); true }
-            #[cfg(feature = "slh_dsa_shake_256f")]
+            #[cfg(feature = "slh-dsa-shake-256f")]
             "SLH-DSA-SHAKE-256f" => { $mac!(slh_dsa_shake_256f, $($arg),*); true }
             _ => false,
         }

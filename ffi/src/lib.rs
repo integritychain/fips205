@@ -164,7 +164,7 @@ macro_rules! parameter_set {
                         sk_seed.copy_from_slice(&seed.data[0..SIGN_N]);
                         sk_prf.copy_from_slice(&seed.data[SIGN_N..SIGN_N * 2]);
                         pk_seed.copy_from_slice(&seed.data[SIGN_N * 2..KEYGEN_SEED_LEN]);
-                        fips205::$pc::KG::keygen_with_seeds(&sk_seed, &sk_prf, &pk_seed)
+                        fips205::$pc::KG::keygen_from_seed(&sk_seed, &sk_prf, &pk_seed)
                     }
                 };
 

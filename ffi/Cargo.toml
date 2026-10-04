@@ -29,8 +29,8 @@ default-features = false
 # The four 128-bit sets. 192 and 256 stay Rust-only for this release.
 features = [
     "default-rng",
-    "slh_dsa_sha2_128s",
-    "slh_dsa_sha2_128f",
-    "slh_dsa_shake_128s",
-    "slh_dsa_shake_128f",
+    "slh-dsa-sha2-128s",
+    "slh-dsa-sha2-128f",
+    "slh-dsa-shake-128s",
+    "slh-dsa-shake-128f",
 ]

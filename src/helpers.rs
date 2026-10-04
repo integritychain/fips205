@@ -240,12 +240,12 @@ impl Adrs {
     pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
 
     #[cfg(any(
-        feature = "slh_dsa_shake_128f",
-        feature = "slh_dsa_shake_128s",
-        feature = "slh_dsa_shake_192f",
-        feature = "slh_dsa_shake_192s",
-        feature = "slh_dsa_shake_256f",
-        feature = "slh_dsa_shake_256s"
+        feature = "slh-dsa-shake-128f",
+        feature = "slh-dsa-shake-128s",
+        feature = "slh-dsa-shake-192f",
+        feature = "slh-dsa-shake-192s",
+        feature = "slh-dsa-shake-256f",
+        feature = "slh-dsa-shake-256s"
     ))]
     pub(crate) fn to_32_bytes(&self) -> [u8; 32] {
         let mut ret = [0u8; 32];
@@ -260,12 +260,12 @@ impl Adrs {
     }
 
     #[cfg(any(
-        feature = "slh_dsa_sha2_128f",
-        feature = "slh_dsa_sha2_128s",
-        feature = "slh_dsa_sha2_192f",
-        feature = "slh_dsa_sha2_192s",
-        feature = "slh_dsa_sha2_256f",
-        feature = "slh_dsa_sha2_256s"
+        feature = "slh-dsa-sha2-128f",
+        feature = "slh-dsa-sha2-128s",
+        feature = "slh-dsa-sha2-192f",
+        feature = "slh-dsa-sha2-192s",
+        feature = "slh-dsa-sha2-256f",
+        feature = "slh-dsa-sha2-256s"
     ))]
     pub(crate) fn to_22_bytes(&self) -> [u8; 22] {
         let mut ret = [0u8; 22];

@@ -23,7 +23,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -65,7 +65,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+    /// # #[cfg(feature = "slh-dsa-shake-128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -108,7 +108,7 @@ pub trait KeyGen {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+    /// # #[cfg(feature = "slh-dsa-shake-128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{KeyGen, SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -117,7 +117,7 @@ pub trait KeyGen {
     /// let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(123);
     ///
     /// // Generate both public and secret keys from the provided seeds.
-    /// let (pk1, sk) = slh_dsa_shake_128s::KG::keygen_with_seeds(&[0u8; slh_dsa_shake_128s::N],
+    /// let (pk1, sk) = slh_dsa_shake_128s::KG::keygen_from_seed(&[0u8; slh_dsa_shake_128s::N],
     ///                 &[1u8; slh_dsa_shake_128s::N], &[2u8; slh_dsa_shake_128s::N]);
     /// // Use the secret key to generate a signature. The second parameter is the
     /// // context string (often just an empty &[]), and the last parameter selects
@@ -141,7 +141,7 @@ pub trait KeyGen {
     /// # }
     /// ```
     #[must_use]
-    fn keygen_with_seeds<const N: usize>(
+    fn keygen_from_seed<const N: usize>(
         sk_seed: &[u8; N], sk_prf: &[u8; N], pk_seed: &[u8; N]
     ) -> (Self::PublicKey, Self::PrivateKey) {
         Self::try_keygen_with_rng(&mut DummyRng {data: [*sk_seed, *sk_prf, *pk_seed], i: 0 }).expect("rng will not fail")
@@ -186,7 +186,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -221,57 +221,6 @@ pub trait Signer {
     }
 
 
-    /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
-    /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
-    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
-    /// This function does not hash `hash` again. It utilizes the **OS default** random number
-    /// generator. Signing does not branch on the secret seed. WOTS chain lengths and FORS
-    /// indices follow the message digest, which is public once `R` is in the signature. The
-    /// random number generator is not part of this claim. The context is often empty (`&[]`).
-    /// # Errors
-    /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
-    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
-    /// # Examples
-    /// ```rust
-    /// # use std::error::Error;
-    /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
-    /// use fips205::pre_hash;
-    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
-    /// use fips205::traits::{SerDes, Signer, Verifier};
-    /// use sha2::{Digest, Sha256};
-    ///
-    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    /// let digest = Sha256::digest(msg_bytes);
-    ///
-    /// // Generate both public and secret keys. This only fails when the OS rng fails.
-    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
-    /// // Sign the digest. The second parameter is the context string (often just an empty &[]),
-    /// // and the last parameter selects the preferred hedged variant.
-    /// let sig_bytes = sk.try_hash_sign(&digest, b"context", &pre_hash::SHA2_256, true)?;
-    ///
-    /// // Serialize the public key, and send with digest and signature bytes. These
-    /// // statements model sending byte arrays over the wire.
-    /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
-    /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
-    ///
-    /// // A public key of the right length always decodes.
-    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
-    /// // Use the public key to verify the signature on the digest
-    /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
-    /// assert!(v);
-    /// # }
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(feature = "default-rng")]
-    fn try_hash_sign(
-        &self, hash: &[u8], ctx: &[u8], hash_oid: &[u8], hedged: bool,
-    ) -> Result<Self::Signature, &'static str> {
-        self.try_hash_sign_with_rng(&mut OsRng, hash, ctx, hash_oid, hedged)
-    }
-
-
     /// Attempt to sign a given message, returning a digital signature on success, or an
     /// error if something went wrong. This function utilizes a **provided** random number generator.
     /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
@@ -284,7 +233,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+    /// # #[cfg(feature = "slh-dsa-shake-128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     /// use rand_chacha::rand_core::SeedableRng;
@@ -323,6 +272,57 @@ pub trait Signer {
     /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
     /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
+    /// This function does not hash `hash` again. It utilizes the **OS default** random number
+    /// generator. Signing does not branch on the secret seed. WOTS chain lengths and FORS
+    /// indices follow the message digest, which is public once `R` is in the signature. The
+    /// random number generator is not part of this claim. The context is often empty (`&[]`).
+    /// # Errors
+    /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
+    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// # fn main() -> Result<(), Box<dyn Error>> {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
+    /// use fips205::pre_hash;
+    /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
+    /// use fips205::traits::{SerDes, Signer, Verifier};
+    /// use sha2::{Digest, Sha256};
+    ///
+    /// let msg_bytes = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    /// let digest = Sha256::digest(msg_bytes);
+    ///
+    /// // Generate both public and secret keys. This only fails when the OS rng fails.
+    /// let (pk1, sk) = slh_dsa_shake_128s::try_keygen()?;
+    /// // Sign the digest. The second parameter is the context string (often just an empty &[]),
+    /// // and the last parameter selects the preferred hedged variant.
+    /// let sig_bytes = sk.try_hash_sign(&digest, b"context", &pre_hash::SHA2_256, true)?;
+    ///
+    /// // Serialize the public key, and send with digest and signature bytes. These
+    /// // statements model sending byte arrays over the wire.
+    /// let (pk_send, hash_send, sig_send) = (pk1.into_bytes(), digest, sig_bytes);
+    /// let (pk_recv, hash_recv, sig_recv) = (pk_send, hash_send, sig_send);
+    ///
+    /// // A public key of the right length always decodes.
+    /// let pk2 = slh_dsa_shake_128s::PublicKey::try_from_bytes(pk_recv)?;
+    /// // Use the public key to verify the signature on the digest
+    /// let v = pk2.hash_verify(&hash_recv, &sig_recv, b"context", &pre_hash::SHA2_256);
+    /// assert!(v);
+    /// # }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "default-rng")]
+    fn try_hash_sign(
+        &self, hash: &[u8], ctx: &[u8], hash_oid: &[u8], hedged: bool,
+    ) -> Result<Self::Signature, &'static str> {
+        self.try_hash_sign_with_rng(&mut OsRng, hash, ctx, hash_oid, hedged)
+    }
+
+
+    /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
+    /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
+    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
     /// This function does not hash `hash` again. It utilizes a **provided** random number generator.
     /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
     /// the message digest, which is public once `R` is in the signature. The random number
@@ -335,7 +335,7 @@ pub trait Signer {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+    /// # #[cfg(feature = "slh-dsa-shake-128s")] {
     /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
@@ -377,12 +377,12 @@ pub trait Signer {
     /// Retrieves the public key associated with this private/secret key
     /// # Examples
     /// ```rust
-    /// # #[cfg(feature = "slh_dsa_shake_128s")] {
+    /// # #[cfg(feature = "slh-dsa-shake-128s")] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{KeyGen, Signer};
     ///
     /// // Generate a key pair from seeds, and keep only the secret key.
-    /// let (_, sk) = slh_dsa_shake_128s::KG::keygen_with_seeds(
+    /// let (_, sk) = slh_dsa_shake_128s::KG::keygen_from_seed(
     ///     &[0u8; slh_dsa_shake_128s::N],
     ///     &[1u8; slh_dsa_shake_128s::N],
     ///     &[2u8; slh_dsa_shake_128s::N],
@@ -410,7 +410,7 @@ pub trait Verifier {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -452,7 +452,7 @@ pub trait Verifier {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::pre_hash;
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
@@ -502,7 +502,7 @@ pub trait SerDes {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///
@@ -543,7 +543,7 @@ pub trait SerDes {
     /// ```rust
     /// # use std::error::Error;
     /// # fn main() -> Result<(), Box<dyn Error>> {
-    /// # #[cfg(all(feature = "slh_dsa_shake_128s", feature = "default-rng"))] {
+    /// # #[cfg(all(feature = "slh-dsa-shake-128s", feature = "default-rng"))] {
     /// use fips205::slh_dsa_shake_128s; // Could use any of the twelve security parameter sets.
     /// use fips205::traits::{SerDes, Signer, Verifier};
     ///

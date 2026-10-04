@@ -15,12 +15,12 @@ pub(crate) struct Hashers<const K: usize, const LEN: usize, const M: usize, cons
 
 
 #[cfg(any(
-    feature = "slh_dsa_shake_128f",
-    feature = "slh_dsa_shake_128s",
-    feature = "slh_dsa_shake_192f",
-    feature = "slh_dsa_shake_192s",
-    feature = "slh_dsa_shake_256f",
-    feature = "slh_dsa_shake_256s"
+    feature = "slh-dsa-shake-128f",
+    feature = "slh-dsa-shake-128s",
+    feature = "slh-dsa-shake-192f",
+    feature = "slh-dsa-shake-192s",
+    feature = "slh-dsa-shake-256f",
+    feature = "slh-dsa-shake-256s"
 ))]
 pub(crate) mod shake {
     use crate::types::Adrs;
@@ -98,7 +98,7 @@ pub(crate) mod shake {
 }
 
 
-#[cfg(any(feature = "slh_dsa_sha2_128f", feature = "slh_dsa_sha2_128s"))]
+#[cfg(any(feature = "slh-dsa-sha2-128f", feature = "slh-dsa-sha2-128s"))]
 pub(crate) mod sha2_cat_1 {
     use crate::types::Adrs;
     use core::cmp::min;
@@ -211,10 +211,10 @@ pub(crate) mod sha2_cat_1 {
 
 
 #[cfg(any(
-    feature = "slh_dsa_sha2_192f",
-    feature = "slh_dsa_sha2_192s",
-    feature = "slh_dsa_sha2_256f",
-    feature = "slh_dsa_sha2_256s"
+    feature = "slh-dsa-sha2-192f",
+    feature = "slh-dsa-sha2-192s",
+    feature = "slh-dsa-sha2-256f",
+    feature = "slh-dsa-sha2-256s"
 ))]
 pub(crate) mod sha2_cat_3_5 {
     use crate::types::Adrs;

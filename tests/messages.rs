@@ -5,7 +5,7 @@
 //! empty context, then checks that verify succeeds. The hex values are that run
 //! on SLH-DSA-SHA2-128s, the parameter set the demo builds.
 
-#![cfg(feature = "slh_dsa_sha2_128s")]
+#![cfg(feature = "slh-dsa-sha2-128s")]
 
 use fips205::slh_dsa_sha2_128s;
 use fips205::traits::{SerDes, Signer, Verifier};

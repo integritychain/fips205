@@ -52,7 +52,7 @@ macro_rules! py_case {
 
 py_case!(
     vector_slh_dsa_sha2_128s,
-    "slh_dsa_sha2_128s",
+    "slh-dsa-sha2-128s",
     slh_dsa_sha2_128s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD",
     "2FD81A25CCB148032DCD739936737F2D",
@@ -61,7 +61,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_sha2_128f,
-    "slh_dsa_sha2_128f",
+    "slh-dsa-sha2-128f",
     slh_dsa_sha2_128f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD",
     "2FD81A25CCB148032DCD739936737F2D",
@@ -70,7 +70,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_128s,
-    "slh_dsa_shake_128s",
+    "slh-dsa-shake-128s",
     slh_dsa_shake_128s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD",
     "2FD81A25CCB148032DCD739936737F2D",
@@ -79,7 +79,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_128f,
-    "slh_dsa_shake_128f",
+    "slh-dsa-shake-128f",
     slh_dsa_shake_128f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD",
     "2FD81A25CCB148032DCD739936737F2D",
@@ -88,7 +88,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_sha2_192s,
-    "slh_dsa_sha2_192s",
+    "slh-dsa-sha2-192s",
     slh_dsa_sha2_192s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB14803",
     "2DCD739936737F2DB505D7CFAD1B497499323C8686325E47",
@@ -97,7 +97,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_sha2_192f,
-    "slh_dsa_sha2_192f",
+    "slh-dsa-sha2-192f",
     slh_dsa_sha2_192f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB14803",
     "2DCD739936737F2DB505D7CFAD1B497499323C8686325E47",
@@ -106,7 +106,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_192s,
-    "slh_dsa_shake_192s",
+    "slh-dsa-shake-192s",
     slh_dsa_shake_192s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB14803",
     "2DCD739936737F2DB505D7CFAD1B497499323C8686325E47",
@@ -115,7 +115,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_192f,
-    "slh_dsa_shake_192f",
+    "slh-dsa-shake-192f",
     slh_dsa_shake_192f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB14803",
     "2DCD739936737F2DB505D7CFAD1B497499323C8686325E47",
@@ -124,7 +124,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_sha2_256s,
-    "slh_dsa_sha2_256s",
+    "slh-dsa-sha2-256s",
     slh_dsa_sha2_256s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB148032DCD739936737F2D",
     "B505D7CFAD1B497499323C8686325E4792F267AAFA3F87CA60D01CB54F29202A",
@@ -133,7 +133,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_sha2_256f,
-    "slh_dsa_sha2_256f",
+    "slh-dsa-sha2-256f",
     slh_dsa_sha2_256f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB148032DCD739936737F2D",
     "B505D7CFAD1B497499323C8686325E4792F267AAFA3F87CA60D01CB54F29202A",
@@ -142,7 +142,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_256s,
-    "slh_dsa_shake_256s",
+    "slh-dsa-shake-256s",
     slh_dsa_shake_256s,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB148032DCD739936737F2D",
     "B505D7CFAD1B497499323C8686325E4792F267AAFA3F87CA60D01CB54F29202A",
@@ -151,7 +151,7 @@ py_case!(
 );
 py_case!(
     vector_slh_dsa_shake_256f,
-    "slh_dsa_shake_256f",
+    "slh-dsa-shake-256f",
     slh_dsa_shake_256f,
     "7C9935A0B07694AA0C6D10E4DB6B1ADD2FD81A25CCB148032DCD739936737F2D",
     "B505D7CFAD1B497499323C8686325E4792F267AAFA3F87CA60D01CB54F29202A",
