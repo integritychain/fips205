@@ -223,7 +223,7 @@ macro_rules! functionality {
             fn try_sign_with_rng(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], ctx: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
-                ensure!(ctx.len() < 256, "ctx must be less than 256 bytes");
+                ensure!(ctx.len() < 256, "SLH-DSA.Sign: ctx too long");
                 let mp: &[&[u8]] = &[&[0u8], &[ctx.len().to_le_bytes()[0]], ctx, m];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &mp, &self.0, hedged,
@@ -236,7 +236,7 @@ macro_rules! functionality {
                 &self, rng: &mut impl CryptoRngCore, hash: &[u8], ctx: &[u8], hash_oid: &[u8],
                 hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
-                ensure!(ctx.len() < 256, "ctx must be less than 256 bytes");
+                ensure!(ctx.len() < 256, "HashSLH-DSA.Sign: ctx too long");
                 ensure!(!hash_oid.is_empty(), "HashSLH-DSA.Sign: OID is empty");
                 ensure!(
                     hash.len() <= crate::MAX_PREHASH_LEN,
@@ -283,7 +283,7 @@ macro_rules! functionality {
                 // 4: if (hedged) then    ▷ or to a random n-byte string
                 if hedged {
                     // 5: opt_rand ←$ Bn
-                    rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg17: rng failed")?;
+                    rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg 22: rng failed")?;
 
                     // 6: end if
                 }

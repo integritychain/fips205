@@ -53,7 +53,7 @@ pub(crate) fn ht_sign<
         //
         // 7: idx_leaf ← idx_tree mod 2^{h′}    ▷ h′ least significant bits of idx_tree
         let idx_leaf =
-            u32::try_from(idx_tree & ((1 << hp32) - 1)).map_err(|_| "Alg11: oversized idx leaf")?;
+            u32::try_from(idx_tree & ((1 << hp32) - 1)).map_err(|_| "Alg 12: oversized idx leaf")?;
 
         // 8: idx_tree ← idx_tree ≫ h′    ▷ Remove least significant h′ bits from idx_tree
         idx_tree >>= hp32;

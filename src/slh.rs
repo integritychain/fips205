@@ -25,15 +25,15 @@ pub(crate) fn slh_keygen_with_rng<
     //
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
     let mut sk_seed = [0u8; N];
-    rng.try_fill_bytes(&mut sk_seed).map_err(|_| "Alg17: rng failed1")?;
+    rng.try_fill_bytes(&mut sk_seed).map_err(|_| "Alg 21: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
     let mut sk_prf = [0u8; N];
-    rng.try_fill_bytes(&mut sk_prf).map_err(|_| "Alg17: rng failed2")?;
+    rng.try_fill_bytes(&mut sk_prf).map_err(|_| "Alg 21: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
     let mut pk_seed = [0u8; N];
-    rng.try_fill_bytes(&mut pk_seed).map_err(|_| "Alg17: rng failed3")?;
+    rng.try_fill_bytes(&mut pk_seed).map_err(|_| "Alg 21: rng failed3")?;
 
     // 4/5/6: implemented by ? operator on the above steps; not timing/order sensitive
 
@@ -114,7 +114,7 @@ pub(crate) fn slh_sign_with_rng<
     // 6:   return ⊥
     if hedged {
         //
-        rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg17: rng failed")?;
+        rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg 22: rng failed")?;
 
         // 7: end if
     }
