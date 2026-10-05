@@ -43,8 +43,8 @@ pub(crate) fn chain<const K: usize, const LEN: usize, const M: usize, const N: u
 }
 
 
-/// Algorithm 6: `wots_PKgen(SK.seed, PK.seed, ADRS)` on page 18.
-/// Generates a WOTS+ public key. The `wots_PKgen` function generates WOTS+ public keys. It takes as input `SK.seed`
+/// Algorithm 6: `wots_pkGen(SK.seed, PK.seed, ADRS)` on page 18.
+/// Generates a WOTS+ public key. The `wots_pkGen` function generates WOTS+ public keys. It takes as input `SK.seed`
 /// and `PK.seed` from the SLH-DSA private key and an address. The type in the address `ADRS` must be set to
 /// `WOTS_HASH`, and the layer address, tree address, and key pair address must encode the address of the `WOTS+`
 /// public key to be generated.
@@ -175,7 +175,7 @@ pub(crate) fn wots_sign<const K: usize, const LEN: usize, const M: usize, const 
 }
 
 
-/// Algorithm 8: `wots_PKFromSig(sig, M, PK.seed, ADRS)` on page 21.
+/// Algorithm 8: `wots_pkFromSig(sig, M, PK.seed, ADRS)` on page 21.
 /// Computes a WOTS+ public key from a message and its signature.
 ///
 /// Input: WOTS+ signature `sig`, message `M`, public seed `PK.seed`, address `ADRS`. <br>

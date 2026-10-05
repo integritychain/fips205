@@ -3,7 +3,7 @@ use crate::types::{Adrs, WotsSig, XmssSig, TREE, WOTS_HASH};
 use crate::wots;
 
 
-/// Algorithm 9: `xmss_node(SK.seed, i, z, PK.seed, ADRS)` on page 22.
+/// Algorithm 9: `xmss_node(SK.seed, i, z, PK.seed, ADRS)` on page 23.
 /// Computes the root of a Merkle subtree of WOTS+ public keys.
 ///
 /// Input: Secret seed `SK.seed`, target node index `i`, target node height `z`, public seed `PK.seed`,
@@ -35,7 +35,7 @@ pub(crate) fn xmss_node<
         // 3: ADRS.setKeyPairAddress(i)
         adrs.set_key_pair_address(i);
 
-        // 4: node ← wots_PKgen(SK.seed, PK.seed, ADRS)
+        // 4: node ← wots_pkGen(SK.seed, PK.seed, ADRS)
         wots::wots_pkgen::<K, LEN, M, N>(hashers, sk_seed, pk_seed, &adrs).0
 
         // 5: else
@@ -69,7 +69,7 @@ pub(crate) fn xmss_node<
 }
 
 
-/// Algorithm 10: `xmss_sign(M, SK.seed, idx, PK.seed, ADRS)` on page 23.
+/// Algorithm 10: `xmss_sign(M, SK.seed, idx, PK.seed, ADRS)` on page 24.
 /// Generates an XMSS signature.
 ///
 /// Input: n-byte message `M`, secret seed `SK.seed`, index `idx`, public seed `PK.seed`, address `ADRS`. <br>
@@ -123,7 +123,7 @@ pub(crate) fn xmss_sign<
 }
 
 
-/// Algorithm 11: `xmss_PKFromSig(idx, SIG_XMSS, M, PK.seed, ADRS)`
+/// Algorithm 11: `xmss_pkFromSig(idx, SIG_XMSS, M, PK.seed, ADRS)` on page 25.
 /// Computes an XMSS public key from an XMSS signature.
 ///
 /// Input: Index `idx`, XMSS signature `SIG_XMSS = (sig ∥ AUTH)`, n-byte message `M`, public seed `PK.seed`,
@@ -154,7 +154,7 @@ pub(crate) fn xmss_pk_from_sig<
     // 4: AUTH ← SIG_XMSS.getXMSSAUTH()    ▷ SIG_XMSS [len · n : (len + h′) · n]
     let auth = sig_xmss.get_xmss_auth();
 
-    // 5: node[0] ← wots_PKFromSig(sig, M, PK.seed, ADRS)
+    // 5: node[0] ← wots_pkFromSig(sig, M, PK.seed, ADRS)
     let mut node_0 = wots::wots_pk_from_sig::<K, LEN, M, N>(hashers, sig, m, pk_seed, &adrs).0;
 
     // 6: ADRS.setTypeAndClear(TREE)    ▷ Compute root from WOTS+ pk and AUTH

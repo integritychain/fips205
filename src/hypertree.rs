@@ -44,7 +44,7 @@ pub(crate) fn ht_sign<
     };
     sig_ht.xmss_sigs[0] = sig_tmp.clone();
 
-    // 5: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
+    // 5: root ← xmss_pkFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
     let mut root =
         xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
@@ -75,7 +75,7 @@ pub(crate) fn ht_sign<
         // 13: if j < d − 1 then
         if j < (d32 - 1) {
             //
-            // 14: root ← xmss_PKFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
+            // 14: root ← xmss_pkFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
             root = xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(
                 hashers, idx_leaf, &sig_tmp, &root, pk_seed, &adrs,
             );
@@ -120,7 +120,7 @@ pub(crate) fn ht_verify<
     // 3: SIG_tmp ← SIG_HT.getXMSSSignature(0)    ▷ SIG_HT [0 : (h′ + len) · n]
     let sig_tmp = sig_ht.xmss_sigs[0].clone();
 
-    // 4: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
+    // 4: node ← xmss_pkFromSig(idx_leaf, SIG_tmp, M, PK.seed, ADRS)
     let mut node = xmss::xmss_pk_from_sig(hashers, idx_leaf, &sig_tmp, m, pk_seed, &adrs);
 
     // 5: for j from 1 to d − 1 do
@@ -146,7 +146,7 @@ pub(crate) fn ht_verify<
         // 10: SIG_tmp ← SIG_HT.getXMSSSignature(j)     ▷ SIGHT [ j · (h′ + len) · n : ( j + 1)(h′ + len) · n]
         let sig_tmp = sig_ht.xmss_sigs[j as usize].clone();
 
-        // 11: node ← xmss_PKFromSig(idx_leaf, SIG_tmp, node, PK.seed, ADRS)
+        // 11: node ← xmss_pkFromSig(idx_leaf, SIG_tmp, node, PK.seed, ADRS)
         node = xmss::xmss_pk_from_sig(hashers, idx_leaf, &sig_tmp, &node, pk_seed, &adrs);
 
         // 12: end for

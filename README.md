@@ -8,7 +8,8 @@
 
 [FIPS 205] Stateless Hash-Based Digital Signature Standard written in pure Rust for server, 
 desktop, browser and embedded applications. The source repository includes examples demonstrating 
-benchmarking, constant-time statistical measurements, and WASM execution.
+benchmarking, code provenance, constant-time statistical measurements, a fuzzing harness, WASM execution, C FFI
+and Python bindings.
 
 This crate implements the FIPS 205 **final/released** standard in pure Rust with minimal and mainstream dependencies,
 and without any unsafe code. All twelve (!!) security parameter sets are fully functional. The implementation's

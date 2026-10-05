@@ -42,7 +42,7 @@ pub(crate) fn slh_keygen_with_rng<
 }
 
 
-/// Algorithm 18: `slh_keygen_internal()` on page 34.
+/// Algorithm 18: `slh_keygen_internal(SK.seed, SK.prf, PK.seed)` on page 34.
 /// Generates an SLH-DSA key pair. Note: this function **is not** exported.
 ///
 /// Input: Secret seed `SK.seed`, PRF key `SK.prf`, public seed `PK.seed` <br>
@@ -78,7 +78,7 @@ pub(crate) fn slh_keygen_internal<
 }
 
 
-/// Algorithm 22: `slh_sign(M, SK)` on page 39.
+/// Algorithm 22: `slh_sign(M, ctx, SK)` on page 39.
 /// Generates a pure SLH-DSA signature. Note that the collection of M' elements is done in the
 /// calling function, and this collection proceeds down into the hasher (to help avoid memory
 /// allocation, buffer copies, etc).
@@ -230,7 +230,7 @@ pub(crate) fn slh_sign_internal<
 }
 
 
-/// Algorithm 19: `slh_verify(M, SIG, ctx, PK)` on page 41.
+/// Algorithm 24: `slh_verify(M, SIG, ctx, PK)` on page 41.
 /// Verifies a pure SLH-DSA signature. Note that the collection of M' elements is done in the
 /// calling function, and this collection proceeds down into the hasher (to help avoid memory
 /// allocation, buffer copies, etc).
@@ -267,7 +267,7 @@ pub(crate) fn slh_verify<
 }
 
 
-/// Algorithm 20: `slh_verify(M, SIG, PK)` on page 36.
+/// Algorithm 20: `slh_verify_internal(M, SIG, PK)` on page 36.
 /// Verifies an SLH-DSA signature.
 ///
 /// Input: Message `M`, signature `SIG`, public key `PK = (PK.seed, PK.root)`. <br>

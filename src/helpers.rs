@@ -235,7 +235,7 @@ impl Adrs {
 
     pub(crate) fn set_tree_height(&mut self, z: u32) { self.f6 = z.to_be_bytes() }
 
-    pub(crate) fn get_tree_index(&mut self) -> u32 { u32::from_be_bytes(self.f7) }
+    pub(crate) fn get_tree_index(&self) -> u32 { u32::from_be_bytes(self.f7) }
 
     pub(crate) fn set_tree_index(&mut self, i: u32) { self.f7 = i.to_be_bytes() }
 

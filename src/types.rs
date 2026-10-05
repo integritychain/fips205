@@ -139,19 +139,20 @@ pub(crate) const FORS_PRF: u32 = 6;
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 #[repr(align(32))] // TODO: check alignment size perf/requirements
 pub(crate) struct Adrs {
-    pub(crate) f0: [u8; 4],
     // layer address
+    pub(crate) f0: [u8; 4],
+    // tree address
     pub(crate) f1: [u8; 4],
     // tree address
     pub(crate) f2: [u8; 4],
     // tree address
     pub(crate) f3: [u8; 4],
-    // tree address
-    pub(crate) f4: [u8; 4],
     // type
-    pub(crate) f5: [u8; 4],
+    pub(crate) f4: [u8; 4],
     // key pair address OR padding
-    pub(crate) f6: [u8; 4],
+    pub(crate) f5: [u8; 4],
     // chain address OR padding OR tree height
-    pub(crate) f7: [u8; 4], // hash address OR padding OR tree index OR hash address = 0
+    pub(crate) f6: [u8; 4],
+    // hash address OR padding OR tree index OR hash address = 0
+    pub(crate) f7: [u8; 4],
 }

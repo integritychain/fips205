@@ -80,7 +80,7 @@ pub(crate) mod shake {
     }
 
 
-    // Perhaps there is a more elegant way to covert ml into list of bytes
+    // Perhaps there is a more elegant way to convert ml into list of bytes
     pub(crate) fn t_l<const X: usize, const Y: usize>(
         pk_seed: &[u8], adrs: &Adrs, ml: &[[u8; Y]; X],
     ) -> [u8; Y] {

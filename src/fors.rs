@@ -3,7 +3,7 @@ use crate::helpers::base_2b;
 use crate::types::{Adrs, Auth, ForsPk, ForsSig, FORS_PRF, FORS_ROOTS};
 
 
-/// Algorithm 14: `fors_SKgen(SK.seed, PK.seed, ADRS, idx)` on page 29.
+/// Algorithm 14: `fors_skGen(SK.seed, PK.seed, ADRS, idx)` on page 29.
 /// Generates a FORS private-key value.
 ///
 /// Input: Secret seed `SK.seed`, public seed `PK.seed`, address `ADRS`, secret key index `idx`. <br>
@@ -54,7 +54,7 @@ pub(crate) fn fors_node<
     // 1: if z = 0 then
     let node = if z == 0 {
         //
-        // 2: sk ← fors_SKgen(SK.seed, PK.seed, ADRS, i)
+        // 2: sk ← fors_skGen(SK.seed, PK.seed, ADRS, i)
         let sk = fors_sk_gen(hashers, sk_seed, pk_seed, &adrs, i);
 
         // 3: ADRS.setTreeHeight(0)
@@ -124,7 +124,7 @@ pub(crate) fn fors_sign<
     // 3: for i from 0 to k − 1 do    ▷ Compute signature elements
     for i in 0..k32 {
         //
-        // 4: SIG_FORS ← SIG_FORS ∥ fors_SKgen(SK.seed, PK.seed, ADRS, i · 2^a + indices[i])
+        // 4: SIG_FORS ← SIG_FORS ∥ fors_skGen(SK.seed, PK.seed, ADRS, i · 2^a + indices[i])
         sig_fors.private_key_value[i as usize] = fors_sk_gen::<K, LEN, M, N>(
             hashers,
             sk_seed,

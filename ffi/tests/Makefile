@@ -9,7 +9,7 @@
 
 SETS = sha2_128s sha2_128f shake_128s shake_128f
 # Link name produced by cargo (libfips205.so / .dylib). ELF SONAME from
-# build.rs is libfips205.so.0 — see RUNTIME_LIB below.
+# build.rs is libfips205.so.0 — see ADDITIONAL_RUN_DEPENDS below.
 LINK_LIB = libfips205.$(SO_EXT)
 
 OS := $(shell uname)
