@@ -1,6 +1,7 @@
 use rand_core::CryptoRngCore;
 use rand_core::RngCore;
 use rand_core::CryptoRng;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "default-rng")]
 use rand_core::OsRng;
@@ -149,6 +150,8 @@ pub trait KeyGen {
 }
 
 // This is for the deterministic keygen functions; will be refactored more nicely
+// It holds copies of SK.seed, SK.prf and PK.seed, so it wipes itself on drop (FIPS 205 §3.1).
+#[derive(Zeroize, ZeroizeOnDrop)]
 struct DummyRng<const N: usize> { data: [[u8; N]; 3], i: usize }
 
 impl<const N: usize> RngCore for DummyRng<N> {

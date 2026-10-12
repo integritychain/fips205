@@ -104,6 +104,8 @@ typedef struct slh_dsa_shake_128f_signature {
 extern "C" {
 #endif
 
+/* Fills seed_out from the OS RNG. Returns SLH_DSA_KEYGEN_ERROR, with
+   seed_out zeroed, if the RNG fails. */
 slh_dsa_err slh_dsa_populate_seed(slh_dsa_keygen_seed *seed_out);
 
 

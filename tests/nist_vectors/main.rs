@@ -26,9 +26,8 @@
 //! feature is off. A group field or group kind that this harness does not know
 //! fails the test, so a new kind of NIST group is never skipped. The internal
 //! groups call the `acvp-internal` hooks, which `cargo test` enables through the
-//! dev-dependency on this crate in Cargo.toml. `cargo package` drops that
-//! dev-dependency, so a test run from the published crate counts those groups
-//! as skipped unless it passes `--features acvp-internal`.
+//! dev-dependency on this crate in Cargo.toml. The vectors stay in the
+//! repository; the published crate omits this directory (`exclude` in Cargo.toml).
 
 // The `acvp-internal` hooks are deprecated so that nothing outside the tests calls them.
 #![allow(deprecated)]

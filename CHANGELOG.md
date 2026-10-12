@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The constant-time claim covers the secret seed. WOTS and FORS lengths follow the message digest, and verify uses public data.
+- The SHAKE (Keccak) state, and the seed copies that `keygen_from_seed` holds, are wiped on drop (FIPS 205 §3.1). This needs `sha3` 0.10.9 or later.
 
 ### Removed
 - Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`.
