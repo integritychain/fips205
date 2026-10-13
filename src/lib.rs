@@ -430,6 +430,14 @@ macro_rules! functionality {
                 let sk1_bytes = sk1.into_bytes();
                 let pk2 = PublicKey::try_from_bytes(pk1_bytes).unwrap();
                 let sk2 = PrivateKey::try_from_bytes(sk1_bytes).unwrap();
+                assert_eq!(sk2.get_public_key().into_bytes(), pk1_bytes);
+
+                // A changed SK.seed or PK.root byte no longer matches the recomputed PK.root
+                for i in [0, SK_LEN - 1] {
+                    let mut bad = sk1_bytes;
+                    bad[i] ^= 1;
+                    assert_eq!(PrivateKey::try_from_bytes(bad).err(), Some("Corrupted key"));
+                }
 
                 let sig = sk2.try_sign_with_rng(&mut rng, &message, b"context", true).unwrap();
                 let result = pk2.verify(&message, &sig, b"context");
@@ -440,7 +448,7 @@ macro_rules! functionality {
                 let result = pk3.verify(&message, &sig, b"context");
 
                 assert!(result, "Signature failed to verify");
-                let result = pk2.verify(&message, &sig, b"some other context");
+                let result = pk3.verify(&message, &sig, b"some other context");
                 assert!(!result, "Signature should not have verified");
 
                 let sha256 = Sha256::digest(message);

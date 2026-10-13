@@ -230,6 +230,8 @@ macro_rules! sign_one {
         let sk_arr = copy_n::<{ fips205::$m::SK_LEN }>(&sk_raw, $loc, "sk");
         let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(sk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
+        let pk = sk.get_public_key().into_bytes();
+        assert_eq!(pk.as_slice(), hex_field($test, "pk", $loc).as_slice(), "{} pk", $loc);
         let msg = hex_field($test, "message", $loc);
         let mut rng = TestRng { data: Vec::new() };
         if $hedged {
@@ -254,6 +256,8 @@ macro_rules! sign_hash {
         let sk_arr = copy_n::<{ fips205::$m::SK_LEN }>(&sk_raw, $loc, "sk");
         let sk = <fips205::$m::PrivateKey as SerDes>::try_from_bytes(sk_arr)
             .unwrap_or_else(|e| panic!("{} {e}", $loc));
+        let pk = sk.get_public_key().into_bytes();
+        assert_eq!(pk.as_slice(), hex_field($test, "pk", $loc).as_slice(), "{} pk", $loc);
         let msg = hex_field($test, "message", $loc);
         let ctx = hex_field($test, "context", $loc);
         let (oid, digest) = ph_of(str_field($test, "hashAlg", $loc), &msg, $loc);
