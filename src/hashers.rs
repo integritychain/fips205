@@ -1,4 +1,18 @@
 use crate::types::Adrs;
+use zeroize::Zeroize;
+
+
+/// Overwrites the stack area that a hash call just used. sha2 0.10 cannot zeroize its state and
+/// sha3 0.10 permutes on stack copies, so their frames can still hold secret-derived bytes
+/// (FIPS 205 §3.1). It is called from the same frame as the hash call, so this frame overlays the
+/// hash's.
+#[inline(never)]
+pub(crate) fn scrub_hash_stack() {
+    // 2 KiB, wiped a word at a time, as in `fips203` and `fips204`
+    let mut area = [0u64; 256];
+    area.zeroize();
+    let _ = core::hint::black_box(&area);
+}
 
 
 // Holds hasher function references; constructed by each security parameter set wrapper

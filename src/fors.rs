@@ -1,6 +1,7 @@
-use crate::hashers::Hashers;
+use crate::hashers::{scrub_hash_stack, Hashers};
 use crate::helpers::base_2b;
 use crate::types::{Adrs, Auth, ForsPk, ForsSig, FORS_PRF, FORS_ROOTS};
+use zeroize::Zeroizing;
 
 
 /// Algorithm 14: `fors_skGen(SK.seed, PK.seed, ADRS, idx)` on page 29.
@@ -54,8 +55,8 @@ pub(crate) fn fors_node<
     // 1: if z = 0 then
     let node = if z == 0 {
         //
-        // 2: sk ← fors_skGen(SK.seed, PK.seed, ADRS, i)
-        let sk = fors_sk_gen(hashers, sk_seed, pk_seed, &adrs, i);
+        // 2: sk ← fors_skGen(SK.seed, PK.seed, ADRS, i)    ▷ secret, wiped on drop (FIPS 205 §3.1)
+        let sk = Zeroizing::new(fors_sk_gen(hashers, sk_seed, pk_seed, &adrs, i));
 
         // 3: ADRS.setTreeHeight(0)
         adrs.set_tree_height(0);
@@ -63,8 +64,10 @@ pub(crate) fn fors_node<
         // 4: ADRS.setTreeIndex(i)
         adrs.set_tree_index(i);
 
-        // 5: node ← F(PK.seed, ADRS, sk)
-        (hashers.f)(pk_seed, &adrs, &sk)
+        // 5: node ← F(PK.seed, ADRS, sk)    ▷ then scrub the stack that the PRF and F used
+        let node = (hashers.f)(pk_seed, &adrs, &sk[..]);
+        scrub_hash_stack();
+        node
 
         // 6: else
     } else {

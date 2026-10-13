@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - The constant-time claim covers the secret seed. WOTS and FORS lengths follow the message digest, and verify uses public data.
-- Key generation and signing wipe their seeds and random values on drop: SK.seed, SK.prf and opt_rand, including the seed copies that `keygen_from_seed` holds. The SHA2 sets' HMAC key pads, which hold SK.prf, and the SHAKE (Keccak) state are wiped too (FIPS 205 §3.1). This needs `sha3` 0.10.9 or later.
+- Key generation and signing wipe their seeds and random values on drop: SK.seed, SK.prf and opt_rand, including the seed copies that `keygen_from_seed` holds. The SHA2 sets' HMAC key pads, which hold SK.prf, each FORS leaf secret and the stack its hashes used, and the SHAKE (Keccak) state are wiped too (FIPS 205 §3.1). This needs `sha3` 0.10.9 or later.
 
 ### Removed
 - Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`.
