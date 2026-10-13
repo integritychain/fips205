@@ -278,12 +278,13 @@ macro_rules! functionality {
             pub fn sign_internal(
                 &self, rng: &mut impl CryptoRngCore, m: &[u8], hedged: bool,
             ) -> Result<[u8; SIG_LEN], &'static str> {
-                let mut opt_rand = (self.0).pk_seed;
+                // opt_rand is wiped when it goes out of scope (FIPS 205 §3.1)
+                let mut opt_rand = zeroize::Zeroizing::new((self.0).pk_seed);
 
                 // 4: if (hedged) then    ▷ or to a random n-byte string
                 if hedged {
                     // 5: opt_rand ←$ Bn
-                    rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg 22: rng failed")?;
+                    rng.try_fill_bytes(&mut opt_rand[..]).map_err(|_| "Alg 22: rng failed")?;
 
                     // 6: end if
                 }
@@ -291,7 +292,7 @@ macro_rules! functionality {
                     &HASHERS,
                     &[m],
                     &self.0,
-                    opt_rand,
+                    &opt_rand,
                 );
                 sig.map(|s| s.serialize())
             }
@@ -404,7 +405,7 @@ macro_rules! functionality {
                 sk.sk_prf.copy_from_slice(&ba[(SK_LEN / 4)..(SK_LEN / 2)]);
                 sk.pk_seed.copy_from_slice(&ba[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
                 sk.pk_root.copy_from_slice(&ba[(3 * SK_LEN / 4)..]);
-                let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(&HASHERS, sk.sk_seed, sk.sk_prf, sk.pk_seed);
+                let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(&HASHERS, &sk.sk_seed, &sk.sk_prf, &sk.pk_seed);
                 ensure!(sk_test.pk_root == sk.pk_root, "Corrupted key");
                 Ok(PrivateKey(sk))
             }

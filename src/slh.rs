@@ -3,6 +3,7 @@ use crate::types::{Adrs, SlhDsaSig, SlhPrivateKey, SlhPublicKey};
 use crate::types::{Auth, ForsSig, HtSig, WotsSig, XmssSig, FORS_TREE};
 use crate::{fors, helpers, hypertree, xmss};
 use rand_core::CryptoRngCore;
+use zeroize::Zeroizing;
 
 
 /// Algorithm 21: `slh_keygen()` on page 37.
@@ -23,13 +24,15 @@ pub(crate) fn slh_keygen_with_rng<
     rng: &mut impl CryptoRngCore, hashers: &Hashers<K, LEN, M, N>,
 ) -> Result<(SlhPrivateKey<N>, SlhPublicKey<N>), &'static str> {
     //
+    // SK.seed and SK.prf are wiped when they go out of scope, even on RNG failure (FIPS 205 §3.1)
+
     // 1: SK.seed ←$ B^n    ▷ Set SK.seed, SK.prf, and PK.seed to random n-byte
-    let mut sk_seed = [0u8; N];
-    rng.try_fill_bytes(&mut sk_seed).map_err(|_| "Alg 21: rng failed1")?;
+    let mut sk_seed = Zeroizing::new([0u8; N]);
+    rng.try_fill_bytes(&mut sk_seed[..]).map_err(|_| "Alg 21: rng failed1")?;
 
     // 2: SK.prf ←$ B^n    ▷ strings using an approved random bit generator
-    let mut sk_prf = [0u8; N];
-    rng.try_fill_bytes(&mut sk_prf).map_err(|_| "Alg 21: rng failed2")?;
+    let mut sk_prf = Zeroizing::new([0u8; N]);
+    rng.try_fill_bytes(&mut sk_prf[..]).map_err(|_| "Alg 21: rng failed2")?;
 
     // 3: PK.seed ←$ B^n
     let mut pk_seed = [0u8; N];
@@ -38,7 +41,7 @@ pub(crate) fn slh_keygen_with_rng<
     // 4/5/6: implemented by ? operator on the above steps; not timing/order sensitive
 
     // 7:
-    Ok(slh_keygen_internal::<D, H, HP, K, LEN, M, N>(hashers, sk_seed, sk_prf, pk_seed))
+    Ok(slh_keygen_internal::<D, H, HP, K, LEN, M, N>(hashers, &sk_seed, &sk_prf, &pk_seed))
 }
 
 
@@ -57,7 +60,7 @@ pub(crate) fn slh_keygen_internal<
     const M: usize,
     const N: usize,
 >(
-    hashers: &Hashers<K, LEN, M, N>, sk_seed: [u8; N], sk_prf: [u8; N], pk_seed: [u8; N],
+    hashers: &Hashers<K, LEN, M, N>, sk_seed: &[u8; N], sk_prf: &[u8; N], pk_seed: &[u8; N],
 ) -> (SlhPrivateKey<N>, SlhPublicKey<N>) {
     let (d32, hp32) = (u32::try_from(D).unwrap(), u32::try_from(HP).unwrap());
     //
@@ -68,12 +71,16 @@ pub(crate) fn slh_keygen_internal<
     adrs.set_layer_address(d32 - 1);
 
     // 3: PK.root ← xmss_node(SK.seed, 0, h′, PK.seed, ADRS)
-    let pk_root =
-        xmss::xmss_node::<H, HP, K, LEN, M, N>(hashers, &sk_seed, 0, hp32, &pk_seed, &adrs);
+    let pk_root = xmss::xmss_node::<H, HP, K, LEN, M, N>(hashers, sk_seed, 0, hp32, pk_seed, &adrs);
 
     // 4: return ( (SK.seed, SK.prf, PK.seed, PK.root), (PK.seed, PK.root) )
-    let pk = SlhPublicKey { pk_seed, pk_root };
-    let sk = SlhPrivateKey { sk_seed, sk_prf, pk_seed, pk_root };
+    let pk = SlhPublicKey { pk_seed: *pk_seed, pk_root };
+    let sk = SlhPrivateKey {
+        sk_seed: *sk_seed,
+        sk_prf: *sk_prf,
+        pk_seed: *pk_seed,
+        pk_root,
+    };
     (sk, pk)
 }
 
@@ -108,13 +115,14 @@ pub(crate) fn slh_sign_with_rng<
     // visible and immediate): `try_sign_with_rng()` and `try_hash_sign_with_rng()`
 
     // 4: 𝑎𝑑𝑑𝑟𝑛𝑑 ←− 𝔹𝑛     ▷ skip lines 4 through 7 for the deterministic variant
-    let mut opt_rand = sk.pk_seed;
+    // opt_rand is wiped when it goes out of scope (FIPS 205 §3.1)
+    let mut opt_rand = Zeroizing::new(sk.pk_seed);
 
     // 5: if 𝑎𝑑𝑑𝑟𝑛𝑑 = NULL then
     // 6:   return ⊥
     if hedged {
         //
-        rng.try_fill_bytes(&mut opt_rand).map_err(|_| "Alg 22: rng failed")?;
+        rng.try_fill_bytes(&mut opt_rand[..]).map_err(|_| "Alg 22: rng failed")?;
 
         // 7: end if
     }
@@ -124,7 +132,7 @@ pub(crate) fn slh_sign_with_rng<
     // down into the hasher as `mp` (to help avoid memory allocation, buffer copies, etc).
 
     // 9: SIG ← slh_sign_internal(𝑀′, SK, 𝑎𝑑𝑑𝑟𝑛𝑑)    ▷ omit 𝑎𝑑𝑑𝑟𝑛𝑑 for the deterministic variant
-    slh_sign_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sk, opt_rand)
+    slh_sign_internal::<A, D, H, HP, K, LEN, M, N>(hashers, mp, sk, &opt_rand)
 }
 
 
@@ -146,7 +154,7 @@ pub(crate) fn slh_sign_internal<
     const M: usize,
     const N: usize,
 >(
-    hashers: &Hashers<K, LEN, M, N>, m: &[&[u8]], sk: &SlhPrivateKey<N>, opt_rand: [u8; N],
+    hashers: &Hashers<K, LEN, M, N>, m: &[&[u8]], sk: &SlhPrivateKey<N>, opt_rand: &[u8; N],
 ) -> Result<SlhDsaSig<A, D, HP, K, LEN, N>, &'static str> {
     let (d32, h32) = (u32::try_from(D).unwrap(), u32::try_from(H).unwrap());
     //
@@ -157,7 +165,7 @@ pub(crate) fn slh_sign_internal<
     // This is handled in the calling function
 
     // 3: R ← PRF_msg(SK.prf, opt_rand, M)    ▷ Generate hedgedr
-    let r = (hashers.prf_msg)(&sk.sk_prf, &opt_rand, m);
+    let r = (hashers.prf_msg)(&sk.sk_prf, opt_rand, m);
 
     // 4: SIG ← R
     let mut sig = SlhDsaSig {
