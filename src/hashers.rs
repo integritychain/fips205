@@ -103,6 +103,7 @@ pub(crate) mod sha2_cat_1 {
     use crate::types::Adrs;
     use core::cmp::min;
     use sha2::{Digest, Sha256};
+    use zeroize::Zeroize;
 
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
@@ -162,6 +163,7 @@ pub(crate) mod sha2_cat_1 {
         }
         let mut outer_hasher = Sha256::new();
         outer_hasher.update(&padding[..]);
+        padding.zeroize(); // it holds SK.prf XOR opad (FIPS 205 §3.1)
         outer_hasher.update(inner_hasher.finalize());
         outer_hasher.finalize().into()
     }
@@ -220,6 +222,7 @@ pub(crate) mod sha2_cat_3_5 {
     use crate::types::Adrs;
     use core::cmp::min;
     use sha2::{Digest, Sha256, Sha512};
+    use zeroize::Zeroize;
 
 
     fn sha2_256(input: &[&[u8]], out: &mut [u8]) {
@@ -289,6 +292,7 @@ pub(crate) mod sha2_cat_3_5 {
         }
         let mut outer_hasher = Sha512::new();
         outer_hasher.update(&padding[..]);
+        padding.zeroize(); // it holds SK.prf XOR opad (FIPS 205 §3.1)
         outer_hasher.update(inner_hasher.finalize());
         outer_hasher.finalize().into()
     }
