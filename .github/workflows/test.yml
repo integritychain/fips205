@@ -183,13 +183,13 @@ jobs:
           targets: ${{ matrix.target }}
       - run: ${{ matrix.deps }}
       - run: cargo check --target ${{ matrix.target }} --all-features
-      # Smoke the NIST files. The full file is the `nist_vectors` job.
+      # Smoke the NIST and SLotH vectors here. The `coverage` job runs the full NIST file on every push.
       - run: cargo test --release --target ${{ matrix.target }}
         env:
           FIPS205_NIST_SMOKE: "1"
 
 
-  # Full NIST file. Not part of push or pull_request; those stay on the smoke set.
+  # The full NIST file in a release build, on demand. `coverage` already runs it in full.
   nist_vectors:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

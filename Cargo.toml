@@ -34,6 +34,8 @@ criterion = "0.5"
 textwrap = "=0.16.2"
 serde_json = "1.0"
 flate2 = "1.0.27"
+# The NIST KAT DRBG that regenerates the SLotH known-answer files
+aes = "0.8.4"
 
 [features]
 default = ["default-rng", "slh-dsa-sha2-128s", "slh-dsa-shake-128s", "slh-dsa-sha2-128f", "slh-dsa-shake-128f",
