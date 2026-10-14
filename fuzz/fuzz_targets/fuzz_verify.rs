@@ -1,10 +1,10 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
 use fips205::{
     pre_hash,
     slh_dsa_sha2_128f, // Using slh_dsa_sha2_128f as example, could test other parameter sets
     traits::{SerDes, Signer, Verifier},
 };
+use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     // Need at least some bytes for our test cases

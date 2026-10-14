@@ -36,9 +36,9 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 
-use flate2::read::GzDecoder;
 use fips205::pre_hash;
 use fips205::traits::{KeyGen, SerDes, Signer, Verifier};
+use flate2::read::GzDecoder;
 use rand_core::{CryptoRng, RngCore};
 use serde_json::Value;
 use sha2::{Digest, Sha224, Sha256, Sha384, Sha512, Sha512_224, Sha512_256};
@@ -76,7 +76,13 @@ struct Tally {
 impl Tally {
     fn new(doc: &Value) -> Self {
         let total = groups(doc).iter().map(|g| cases(g).len()).sum();
-        Self { total, ran: 0, smoke_skipped: 0, feature_skipped: 0, hook_skipped: 0 }
+        Self {
+            total,
+            ran: 0,
+            smoke_skipped: 0,
+            feature_skipped: 0,
+            hook_skipped: 0,
+        }
     }
 
     fn finish(&self, which: &str) {
@@ -99,18 +105,18 @@ impl Tally {
     }
 }
 
-fn groups(doc: &Value) -> &Vec<Value> {
-    doc["testGroups"].as_array().expect("testGroups")
-}
+fn groups(doc: &Value) -> &Vec<Value> { doc["testGroups"].as_array().expect("testGroups") }
 
-fn cases(group: &Value) -> &Vec<Value> {
-    group["tests"].as_array().expect("tests")
-}
+fn cases(group: &Value) -> &Vec<Value> { group["tests"].as_array().expect("tests") }
 
 /// Fails on a group field that this harness does not know, and on any `testType` but AFT.
 fn check_group(group: &Value, known: &[&str]) {
     for key in group.as_object().expect("group").keys() {
-        assert!(known.contains(&key.as_str()), "tgId {}: unknown group field {key}", group["tgId"]);
+        assert!(
+            known.contains(&key.as_str()),
+            "tgId {}: unknown group field {key}",
+            group["tgId"]
+        );
     }
     assert_eq!(group["testType"], "AFT", "tgId {}: testType", group["tgId"]);
 }
@@ -125,9 +131,7 @@ fn is_internal(group: &Value) -> bool {
     }
 }
 
-fn smoke() -> bool {
-    std::env::var_os("FIPS205_NIST_SMOKE").is_some_and(|v| v == "1")
-}
+fn smoke() -> bool { std::env::var_os("FIPS205_NIST_SMOKE").is_some_and(|v| v == "1") }
 
 fn load(name: &str) -> Value {
     let path = format!(
@@ -154,9 +158,7 @@ fn copy_n<const N: usize>(bytes: &[u8], loc: &str, what: &str) -> [u8; N] {
     out
 }
 
-fn loc_of(set: &str, tg: u64, tc: u64) -> String {
-    format!("{set} tgId={tg} tcId={tc}")
-}
+fn loc_of(set: &str, tg: u64, tc: u64) -> String { format!("{set} tgId={tg} tcId={tc}") }
 
 fn known_set(set: &str) -> bool {
     matches!(
@@ -213,14 +215,26 @@ macro_rules! verify_internal {
 
 macro_rules! keygen_one {
     ($m:ident, $test:expr, $loc:expr) => {{
-        let sk_seed = copy_n::<{ fips205::$m::N }>(&hex_field($test, "skSeed", $loc), $loc, "skSeed");
+        let sk_seed =
+            copy_n::<{ fips205::$m::N }>(&hex_field($test, "skSeed", $loc), $loc, "skSeed");
         let sk_prf = copy_n::<{ fips205::$m::N }>(&hex_field($test, "skPrf", $loc), $loc, "skPrf");
-        let pk_seed = copy_n::<{ fips205::$m::N }>(&hex_field($test, "pkSeed", $loc), $loc, "pkSeed");
+        let pk_seed =
+            copy_n::<{ fips205::$m::N }>(&hex_field($test, "pkSeed", $loc), $loc, "pkSeed");
         let (pk, sk) = <fips205::$m::KG as KeyGen>::keygen_from_seed(&sk_seed, &sk_prf, &pk_seed);
         let pk_bytes = pk.into_bytes();
         let sk_bytes = sk.into_bytes();
-        assert_eq!(pk_bytes.as_slice(), hex_field($test, "pk", $loc).as_slice(), "{loc} pk", loc = $loc);
-        assert_eq!(sk_bytes.as_slice(), hex_field($test, "sk", $loc).as_slice(), "{loc} sk", loc = $loc);
+        assert_eq!(
+            pk_bytes.as_slice(),
+            hex_field($test, "pk", $loc).as_slice(),
+            "{loc} pk",
+            loc = $loc
+        );
+        assert_eq!(
+            sk_bytes.as_slice(),
+            hex_field($test, "sk", $loc).as_slice(),
+            "{loc} sk",
+            loc = $loc
+        );
     }};
 }
 
@@ -456,7 +470,8 @@ fn nist_siggen() {
     let mut tally = Tally::new(&doc);
     for group in groups(&doc) {
         check_group(group, &[
-            "deterministic", "parameterSet", "preHash", "signatureInterface", "testType", "tests", "tgId",
+            "deterministic", "parameterSet", "preHash", "signatureInterface", "testType", "tests",
+            "tgId",
         ]);
         let set = str_field(group, "parameterSet", "sigGen group");
         let tg = group["tgId"].as_u64().expect("tgId");
@@ -501,7 +516,9 @@ fn nist_sigver() {
         valid_internal: HashSet::new(),
     };
     for group in groups(&doc) {
-        check_group(group, &["parameterSet", "preHash", "signatureInterface", "testType", "tests", "tgId"]);
+        check_group(group, &[
+            "parameterSet", "preHash", "signatureInterface", "testType", "tests", "tgId",
+        ]);
         let set = str_field(group, "parameterSet", "sigVer group");
         let tg = group["tgId"].as_u64().expect("tgId");
         let iface = str_field(group, "signatureInterface", "sigVer group");

@@ -1,6 +1,6 @@
+use rand_core::CryptoRng;
 use rand_core::CryptoRngCore;
 use rand_core::RngCore;
-use rand_core::CryptoRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "default-rng")]
@@ -143,16 +143,20 @@ pub trait KeyGen {
     /// ```
     #[must_use]
     fn keygen_from_seed<const N: usize>(
-        sk_seed: &[u8; N], sk_prf: &[u8; N], pk_seed: &[u8; N]
+        sk_seed: &[u8; N], sk_prf: &[u8; N], pk_seed: &[u8; N],
     ) -> (Self::PublicKey, Self::PrivateKey) {
-        Self::try_keygen_with_rng(&mut DummyRng {data: [*sk_seed, *sk_prf, *pk_seed], i: 0 }).expect("rng will not fail")
+        Self::try_keygen_with_rng(&mut DummyRng { data: [*sk_seed, *sk_prf, *pk_seed], i: 0 })
+            .expect("rng will not fail")
     }
 }
 
 // This is for the deterministic keygen functions; will be refactored more nicely
 // It holds copies of SK.seed, SK.prf and PK.seed, so it wipes itself on drop (FIPS 205 §3.1).
 #[derive(Zeroize, ZeroizeOnDrop)]
-struct DummyRng<const N: usize> { data: [[u8; N]; 3], i: usize }
+struct DummyRng<const N: usize> {
+    data: [[u8; N]; 3],
+    i: usize,
+}
 
 impl<const N: usize> RngCore for DummyRng<N> {
     fn next_u32(&mut self) -> u32 { unimplemented!() }

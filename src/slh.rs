@@ -41,7 +41,9 @@ pub(crate) fn slh_keygen_with_rng<
     // 4/5/6: implemented by ? operator on the above steps; not timing/order sensitive
 
     // 7:
-    Ok(slh_keygen_internal::<D, H, HP, K, LEN, M, N>(hashers, &sk_seed, &sk_prf, &pk_seed))
+    Ok(slh_keygen_internal::<D, H, HP, K, LEN, M, N>(
+        hashers, &sk_seed, &sk_prf, &pk_seed,
+    ))
 }
 
 
@@ -202,8 +204,8 @@ pub(crate) fn slh_sign_internal<
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 10: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32))
-        & (u64::MAX >> (64 - h32 / d32));
+    let idx_leaf =
+        helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32)) & (u64::MAX >> (64 - h32 / d32));
 
     // 11: ADRS.setTreeAddress(idx_tree)
     adrs.set_tree_address(idx_tree);
@@ -225,12 +227,7 @@ pub(crate) fn slh_sign_internal<
     // 17: SIG_HT ← ht_sign(PK_FORS , SK.seed, PK.seed, idx_tree, idx_leaf)
     // 18: SIG ← SIG ∥ SIG_HT
     sig.ht_sig = hypertree::ht_sign::<D, H, HP, K, LEN, M, N>(
-        hashers,
-        &pk_fors.key,
-        &sk.sk_seed,
-        &sk.pk_seed,
-        idx_tree,
-        idx_leaf as u32,
+        hashers, &pk_fors.key, &sk.sk_seed, &sk.pk_seed, idx_tree, idx_leaf as u32,
     )?;
 
     // 19: return SIG
@@ -333,8 +330,8 @@ pub(crate) fn slh_verify_internal<
         & (u64::MAX >> (64 - (h32 - h32 / d32)));
 
     // 13: idx_leaf ← toInt(tmp_idx_leaf, ceil(h/8d) mod 2^{h/d}
-    let idx_leaf = helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32))
-        & (u64::MAX >> (64 - h32 / d32));
+    let idx_leaf =
+        helpers::to_int(tmp_idx_leaf, h32.div_ceil(8 * d32)) & (u64::MAX >> (64 - h32 / d32));
 
     // 14: ADRS.setTreeAddress(idx_tree)    ▷ Compute FORS public key
     adrs.set_tree_address(idx_tree);
@@ -343,7 +340,7 @@ pub(crate) fn slh_verify_internal<
     adrs.set_type_and_clear(FORS_TREE);
 
     // 16: ADRS.setKeyPairAddress(idx_leaf)
-    let Ok(idx_leaf_u32) = u32::try_from(idx_leaf) else { return false };  // should never fail
+    let Ok(idx_leaf_u32) = u32::try_from(idx_leaf) else { return false }; // should never fail
     adrs.set_key_pair_address(idx_leaf_u32);
 
     // 17: PK_FORS ← fors_pkFromSig(SIG_FORS, md, PK.seed, ADRS)
@@ -352,12 +349,6 @@ pub(crate) fn slh_verify_internal<
 
     // 18: return ht_verify(PK_FORS, SIG_HT, PK.seed, idx_tree , idx_leaf, PK.root)
     hypertree::ht_verify::<D, HP, K, LEN, M, N>(
-        hashers,
-        &pk_fors.key,
-        sig_ht,
-        &pk.pk_seed,
-        idx_tree,
-        idx_leaf_u32,
-        &pk.pk_root,
+        hashers, &pk_fors.key, sig_ht, &pk.pk_seed, idx_tree, idx_leaf_u32, &pk.pk_root,
     )
 }

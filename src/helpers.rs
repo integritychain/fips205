@@ -250,9 +250,7 @@ impl Adrs {
     pub(crate) fn to_32_bytes(&self) -> [u8; 32] {
         let mut ret = [0u8; 32];
         let mut start = 0;
-        for sl in [
-            self.f0, self.f1, self.f2, self.f3, self.f4, self.f5, self.f6, self.f7,
-        ] {
+        for sl in [self.f0, self.f1, self.f2, self.f3, self.f4, self.f5, self.f6, self.f7] {
             ret[start..start + 4].copy_from_slice(&sl);
             start += 4;
         }

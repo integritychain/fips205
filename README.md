@@ -68,7 +68,7 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
   [`wasm/README.md`](wasm/README.md).
 * Constant-time: key generation and signing never branch, loop or index memory on secret data
-  (SK.seed, SK.prf, opt_rand, and the FORS and WOTS+ secret values derived from them). Control
+  (`SK.seed`, `SK.prf`, `opt_rand`, and the FORS and WOTS+ secret values derived from them). Control
   flow and memory access follow only public data: the parameter set, the message and context
   lengths, the `hedged` flag, and the message digest, tree indices and WOTS+ digits that the
   signature reveals. For each parameter set, key generation and signing always make the same

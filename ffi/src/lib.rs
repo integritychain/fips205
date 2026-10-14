@@ -45,17 +45,11 @@ pub struct slh_dsa_sign_seed {
 struct NopRng;
 
 impl RngCore for NopRng {
-    fn next_u32(&mut self) -> u32 {
-        unimplemented!()
-    }
+    fn next_u32(&mut self) -> u32 { unimplemented!() }
 
-    fn next_u64(&mut self) -> u64 {
-        unimplemented!()
-    }
+    fn next_u64(&mut self) -> u64 { unimplemented!() }
 
-    fn fill_bytes(&mut self, _out: &mut [u8]) {
-        unimplemented!()
-    }
+    fn fill_bytes(&mut self, _out: &mut [u8]) { unimplemented!() }
 
     fn try_fill_bytes(&mut self, _out: &mut [u8]) -> Result<(), rand_core::Error> {
         Err(rng_fail(1))
@@ -69,13 +63,9 @@ struct FixedRng<'a> {
 }
 
 impl RngCore for FixedRng<'_> {
-    fn next_u32(&mut self) -> u32 {
-        unimplemented!()
-    }
+    fn next_u32(&mut self) -> u32 { unimplemented!() }
 
-    fn next_u64(&mut self) -> u64 {
-        unimplemented!()
-    }
+    fn next_u64(&mut self) -> u64 { unimplemented!() }
 
     fn fill_bytes(&mut self, out: &mut [u8]) {
         self.try_fill_bytes(out).expect("sign seed length");

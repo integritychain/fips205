@@ -243,13 +243,7 @@ macro_rules! functionality {
                     "Hash of message is too long, should not be more than 1KiB"
                 );
                 // Algorithm 23 step 24: 0x01 || len(ctx) || ctx || OID || PH(M)
-                let mp: &[&[u8]] = &[
-                    &[1u8],
-                    &[ctx.len().to_le_bytes()[0]],
-                    ctx,
-                    hash_oid,
-                    hash,
-                ];
+                let mp: &[&[u8]] = &[&[1u8], &[ctx.len().to_le_bytes()[0]], ctx, hash_oid, hash];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
                     rng, &HASHERS, &mp, &self.0, hedged,
                 );
@@ -258,7 +252,7 @@ macro_rules! functionality {
 
             // Documented in traits.rs
             fn get_public_key(&self) -> Self::PublicKey {
-                PublicKey(SlhPublicKey{pk_seed: self.0.pk_seed, pk_root: self.0.pk_root})
+                PublicKey(SlhPublicKey { pk_seed: self.0.pk_seed, pk_root: self.0.pk_root })
             }
         }
 
@@ -324,16 +318,8 @@ macro_rules! functionality {
                 };
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);
                 // Algorithm 25 step 20: 0x01 || len(ctx) || ctx || OID || PH(M)
-                let mp: &[&[u8]] = &[
-                    &[1u8],
-                    &[ctx.len().to_le_bytes()[0]],
-                    ctx,
-                    hash_oid,
-                    hash,
-                ];
-                crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(
-                    &HASHERS, &mp, &sig, &self.0,
-                )
+                let mp: &[&[u8]] = &[&[1u8], &[ctx.len().to_le_bytes()[0]], ctx, hash_oid, hash];
+                crate::slh::slh_verify::<A, D, H, HP, K, LEN, M, N>(&HASHERS, &mp, &sig, &self.0)
             }
         }
 
@@ -405,7 +391,9 @@ macro_rules! functionality {
                 sk.sk_prf.copy_from_slice(&ba[(SK_LEN / 4)..(SK_LEN / 2)]);
                 sk.pk_seed.copy_from_slice(&ba[(SK_LEN / 2)..(3 * SK_LEN / 4)]);
                 sk.pk_root.copy_from_slice(&ba[(3 * SK_LEN / 4)..]);
-                let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(&HASHERS, &sk.sk_seed, &sk.sk_prf, &sk.pk_seed);
+                let (sk_test, _) = crate::slh::slh_keygen_internal::<D, H, HP, K, LEN, M, N>(
+                    &HASHERS, &sk.sk_seed, &sk.sk_prf, &sk.pk_seed,
+                );
                 ensure!(sk_test.pk_root == sk.pk_root, "Corrupted key");
                 Ok(PrivateKey(sk))
             }
@@ -471,7 +459,13 @@ macro_rules! functionality {
                 assert!(!pk2.hash_verify(&sha256, &sig, &[], &[]));
                 let too_long = [0u8; crate::MAX_PREHASH_LEN + 1];
                 assert!(sk2
-                    .try_hash_sign_with_rng(&mut rng, &too_long, &[], &crate::pre_hash::SHA2_256, true)
+                    .try_hash_sign_with_rng(
+                        &mut rng,
+                        &too_long,
+                        &[],
+                        &crate::pre_hash::SHA2_256,
+                        true
+                    )
                     .is_err());
                 assert!(!pk2.hash_verify(&too_long, &sig, &[], &crate::pre_hash::SHA2_256));
 

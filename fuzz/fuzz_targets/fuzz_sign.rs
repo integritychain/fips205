@@ -1,10 +1,10 @@
 #![no_main]
-use libfuzzer_sys::fuzz_target;
 use fips205::{
     pre_hash,
     slh_dsa_sha2_128f, // Using sha2_128f as an example parameter set
     traits::Signer,
 };
+use libfuzzer_sys::fuzz_target;
 use rand_core::OsRng;
 
 // Wrapper struct to help organize the fuzz input

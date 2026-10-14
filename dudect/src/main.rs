@@ -51,7 +51,7 @@ fn keygen_and_sign(runner: &mut CtRunner, mut _rng: &mut BenchRng) {
         runner.run_one(class, || {
             let mut rng = TestRng(*z); // regurgitates z as rng
             for _ in 0..ITERATIONS_INNER {
-                let (_pk, sk) = slh_dsa_sha2_128s::try_keygen_with_rng(&mut rng).unwrap();  // Generate both public and secret keys
+                let (_pk, sk) = slh_dsa_sha2_128s::try_keygen_with_rng(&mut rng).unwrap(); // Generate both public and secret keys
                 let _ = sk.try_sign_with_rng(&mut rng, &message.0, &[0], true);
                 //let _ = ml_dsa_44::dudect_keygen_sign_with_rng(&mut rng, &message.0);
             }
