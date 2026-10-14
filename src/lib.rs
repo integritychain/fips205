@@ -115,8 +115,9 @@ macro_rules! functionality {
         // ----- PRIMARY FUNCTIONS ---
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
-        /// This function utilizes the OS default random number generator. Key generation does
-        /// not branch on the secret seed. The random number generator is not part of this claim.
+        /// This function utilizes the OS default random number generator. Key generation never
+        /// branches, loops or indexes memory on secret data, and makes the same number of hash
+        /// calls for every key. The random number generator is not part of this claim.
         /// # Errors
         /// Returns an error when the random number generator fails.
         /// # Examples
@@ -155,8 +156,9 @@ macro_rules! functionality {
 
 
         /// Generates a public and private key pair specific to this security parameter set. <br>
-        /// This function utilizes a supplied random number generator. Key generation does not
-        /// branch on the secret seed. The random number generator is not part of this claim.
+        /// This function utilizes a supplied random number generator. Key generation never
+        /// branches, loops or indexes memory on secret data, and makes the same number of hash
+        /// calls for every key. The random number generator is not part of this claim.
         /// # Errors
         /// Returns an error when the random number generator fails.
         /// # Examples

@@ -79,10 +79,19 @@ def hedged_arg(group: dict, test: dict) -> object:
     return rnd
 
 
+def check_count(mode: str, document: dict, passed: int, skipped: int) -> None:
+    """Every case passed or was skipped (a set or interface the C API does not export)."""
+    total = sum(len(group["tests"]) for group in document["testGroups"])
+    print(f"Passed {passed} {mode} tests ({skipped} skipped)")
+    assert passed + skipped == total, f"{mode}: {passed} passed and {skipped} skipped, of {total}"
+    assert passed > 0, f"{mode}: no tests ran"
+
+
 def run_keygen() -> None:
     passed = 0
     skipped = 0
-    for group in load("keyGen")["testGroups"]:
+    document = load("keyGen")
+    for group in document["testGroups"]:
         param = EXPORTED.get(group["parameterSet"])
         if param is None:
             skipped += len(group["tests"])
@@ -98,13 +107,14 @@ def run_keygen() -> None:
             if bytes(priv) != a2b_hex(test["sk"]):
                 raise Exception(f"{loc} sk got {b2a_hex(bytes(priv))!r}")
             passed += 1
-    print(f"Passed {passed} keyGen tests ({skipped} skipped)")
+    check_count("keyGen", document, passed, skipped)
 
 
 def run_siggen() -> None:
     passed = 0
     skipped = 0
-    for group in load("sigGen")["testGroups"]:
+    document = load("sigGen")
+    for group in document["testGroups"]:
         param = EXPORTED.get(group["parameterSet"])
         external = group["signatureInterface"] == "external"
         if param is None or not external:
@@ -127,13 +137,14 @@ def run_siggen() -> None:
             if sig != a2b_hex(test["signature"]):
                 raise Exception(f"{loc} sigGen mismatch")
             passed += 1
-    print(f"Passed {passed} sigGen tests ({skipped} skipped)")
+    check_count("sigGen", document, passed, skipped)
 
 
 def run_sigver() -> None:
     passed = 0
     skipped = 0
-    for group in load("sigVer")["testGroups"]:
+    document = load("sigVer")
+    for group in document["testGroups"]:
         param = EXPORTED.get(group["parameterSet"])
         external = group["signatureInterface"] == "external"
         if param is None or not external:
@@ -156,7 +167,7 @@ def run_sigver() -> None:
             if verif != test["testPassed"]:
                 raise Exception(f"{loc} sigVer got {verif} wanted {test['testPassed']}")
             passed += 1
-    print(f"Passed {passed} sigVer tests ({skipped} skipped)")
+    check_count("sigVer", document, passed, skipped)
 
 
 if __name__ == "__main__":

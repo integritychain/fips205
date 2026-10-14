@@ -16,8 +16,9 @@ pub trait KeyGen {
 
 
     /// Generates a public and private key pair specific to this security parameter set.
-    /// This function utilizes the **OS default** random number generator. Key generation does
-    /// not branch on the secret seed. The random number generator is not part of this claim.
+    /// This function utilizes the **OS default** random number generator. Key generation never
+    /// branches, loops or indexes memory on secret data, and makes the same number of hash calls
+    /// for every key. The random number generator is not part of this claim.
     /// # Errors
     /// Returns an error when the random number generator fails.
     /// # Examples
@@ -58,8 +59,9 @@ pub trait KeyGen {
 
 
     /// Generates a public and private key pair specific to this security parameter set.
-    /// This function utilizes the **provided** random number generator. Key generation does
-    /// not branch on the secret seed. The random number generator is not part of this claim.
+    /// This function utilizes the **provided** random number generator. Key generation never
+    /// branches, loops or indexes memory on secret data, and makes the same number of hash calls
+    /// for every key. The random number generator is not part of this claim.
     /// # Errors
     /// Returns an error when the random number generator fails.
     /// # Examples
@@ -103,8 +105,8 @@ pub trait KeyGen {
 
     /// Generates a public and private key pair specific to this security parameter set.
     /// This function utilizes **three provided seeds** rather than a random number
-    /// generator in order to deterministically generate keys. Key generation does not
-    /// branch on the secret seed.
+    /// generator in order to deterministically generate keys. Key generation never branches, loops
+    /// or indexes memory on secret data, and makes the same number of hash calls for every key.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -184,9 +186,10 @@ pub trait Signer {
 
     /// Attempt to sign the given message, returning a digital signature on success, or an error if
     /// something went wrong. This function utilizes the **OS default** random number generator.
-    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
-    /// the message digest, which is public once `R` is in the signature. The random number
-    /// generator is not part of this claim. The context is often empty (`&[]`).
+    /// Signing never branches, loops or indexes memory on secret data: control flow follows only
+    /// public data, such as the message digest and the tree indices and WOTS+ digits that the
+    /// signature reveals, and every signature makes the same number of hash calls. The random
+    /// number generator is not part of this claim. The context is often empty (`&[]`).
     /// # Errors
     /// Returns an error when the random number generator fails or `ctx` is longer than 255 bytes.
     /// # Examples
@@ -230,9 +233,10 @@ pub trait Signer {
 
     /// Attempt to sign a given message, returning a digital signature on success, or an
     /// error if something went wrong. This function utilizes a **provided** random number generator.
-    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
-    /// the message digest, which is public once `R` is in the signature. The random number
-    /// generator is not part of this claim. The context is often empty (`&[]`).
+    /// Signing never branches, loops or indexes memory on secret data: control flow follows only
+    /// public data, such as the message digest and the tree indices and WOTS+ digits that the
+    /// signature reveals, and every signature makes the same number of hash calls. The random
+    /// number generator is not part of this claim. The context is often empty (`&[]`).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails or `ctx` is longer than 255 bytes.
@@ -280,8 +284,9 @@ pub trait Signer {
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
     /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
     /// This function does not hash `hash` again. It utilizes the **OS default** random number
-    /// generator. Signing does not branch on the secret seed. WOTS chain lengths and FORS
-    /// indices follow the message digest, which is public once `R` is in the signature. The
+    /// generator. Signing never branches, loops or indexes memory on secret data: control flow
+    /// follows only public data, such as the message digest and the tree indices and WOTS+ digits
+    /// that the signature reveals, and every signature makes the same number of hash calls. The
     /// random number generator is not part of this claim. The context is often empty (`&[]`).
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
@@ -331,9 +336,10 @@ pub trait Signer {
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
     /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
     /// This function does not hash `hash` again. It utilizes a **provided** random number generator.
-    /// Signing does not branch on the secret seed. WOTS chain lengths and FORS indices follow
-    /// the message digest, which is public once `R` is in the signature. The random number
-    /// generator is not part of this claim. The context is often empty (`&[]`).
+    /// Signing never branches, loops or indexes memory on secret data: control flow follows only
+    /// public data, such as the message digest and the tree indices and WOTS+ digits that the
+    /// signature reveals, and every signature makes the same number of hash calls. The random
+    /// number generator is not part of this claim. The context is often empty (`&[]`).
     ///
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,

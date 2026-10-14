@@ -6,19 +6,17 @@
 ![Apache2/MIT licensed][license-image]
 ![Rust Version][rustc-image]
 
-[FIPS 205] Stateless Hash-Based Digital Signature Standard written in pure Rust for server, 
-desktop, browser and embedded applications. The source repository includes examples demonstrating 
-benchmarking, code provenance, constant-time statistical measurements, a fuzzing harness, WASM execution, C FFI
-and Python bindings.
+[FIPS 205] Stateless Hash-Based Digital Signature Standard written in pure Rust for server, desktop, browser and
+embedded applications. The source repository includes examples demonstrating benchmarking, code provenance,
+constant-time statistical measurements, a fuzzing harness, WASM execution, a C FFI shared library and Python bindings.
 
-This crate implements the FIPS 205 **final/released** standard in pure Rust with minimal and mainstream dependencies,
-and without any unsafe code. All twelve (!!) security parameter sets are fully functional. Key generation and
-signing are constant-time: every branch, loop bound and memory index depends only on public data, and each
-signature makes the same number of hash calls for its parameter set, whatever the key, message or randomness.
-It does not require the standard library, e.g. 
-`#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the full 
-range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
-towards safety and correctness.
+This crate implements the released FIPS 205 standard in pure Rust with minimal and mainstream dependencies, and without
+any unsafe code. All twelve security parameter sets are fully functional and tested. Key generation and signing are
+constant-time: every branch, loop bound and memory index depends only on public data, and each signature makes the
+same number of hash calls for its parameter set, whatever the key, message or randomness. The crate does not require
+the standard library (it is `#![no_std]`), makes no heap allocations (no `alloc` needed), and exposes the `RNG`, so it
+suits the full range of applications from server down to bare metal. The API is stabilized, and the code is heavily
+biased towards safety and correctness.
 
 See <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.205.pdf> for a full description of the target functionality.
 
@@ -57,16 +55,11 @@ assert!(v);
 ~~~
 
 The Rust [Documentation][docs-link] lives under each **Module** corresponding to the desired
-[security parameter][docs-modules]. 
+[security parameter][docs-modules].
 
 ## Notes
 
 * This crate is fully functional and corresponds to the final released FIPS 205 (August 13, 2024).
-* `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID
-  (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message.
-  An empty OID or a digest longer than 1024 bytes is rejected.
-* C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
-  [`wasm/README.md`](wasm/README.md).
 * Constant-time: key generation and signing never branch, loop or index memory on secret data
   (`SK.seed`, `SK.prf`, `opt_rand`, and the FORS and WOTS+ secret values derived from them). Control
   flow and memory access follow only public data: the parameter set, the message and context
@@ -77,19 +70,27 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   and by the [`dudect`](dudect/README.md) measurements. The claim is at the source level: the
   compiler and CPU are trusted not to add secret-dependent timing, and the caller's RNG is
   outside it. Verify uses only public data and makes no constant-time claim.
-* Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
-* RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
-  plus all twelve `slh-dsa-*` parameter-set features. That OS RNG path is for hosted
-  environments; it will **not** compile on bare-metal targets that lack a `getrandom`
-  backend (for example `thumbv7em-none-eabi`). Embedded builds use
-  `default-features = false`, the parameter-set feature they need, and
-  `keygen_from_seed` or `*_with_rng`:
+* FIPS 205 places specific requirements on randomness (section 3.1), hence the exposed `RNG`. RNG
+  integration uses **`rand_core` 0.6**: custom generators implement `CryptoRngCore` (`CryptoRng` +
+  `RngCore`), which this crate re-exports along with `RngError`. Key generation and signing call
+  `try_fill_bytes`, so handle its error or use the seed-based functions.
+* The default features enable `default-rng` plus all twelve parameter sets. That OS RNG path is
+  for hosted environments; it will **not** compile on bare-metal targets that lack a `getrandom`
+  backend (for example `thumbv7em-none-eabi`). Embedded builds use `default-features = false`,
+  the parameter-set feature they need, and the seed-based functions or `*_with_rng`:
   `fips205 = { version = "0.5", default-features = false, features = ["slh-dsa-sha2-128s"] }`.
-  Custom generators must implement `CryptoRngCore` from `rand_core` 0.6
-  (`CryptoRng` + `RngCore`). This crate re-exports `CryptoRng`, `RngCore`, and
-  `RngError`. Key generation and signing call `try_fill_bytes`.
-* Requires Rust **1.85** or higher (Debian stable / trixie). The minimum supported Rust version may be changed in the future,
-  but it will be done with a minor version bump (when the major version is larger than 0).
+* `hash_sign` and `hash_verify` (HashSLH-DSA) take a precomputed digest and a DER-encoded OID
+  (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message. An empty
+  OID or a digest longer than 1024 bytes is rejected.
+* Test vectors: the NIST ACVP keyGen, sigGen and sigVer vectors (including HashSLH-DSA) and the
+  [SLotH](https://github.com/slh-dsa/sloth) known-answer files, regenerated and checked by hash,
+  run in the test suite, and the Python bindings apply the ACVP files for the four 128-bit sets
+  through the C ABI. The vector files stay in the repository; the published crate omits them.
+* A C shared library (`libfips205`) for the four 128-bit sets, including HashSLH-DSA, with Python
+  bindings, and a WASM browser demo, are described in [`ffi/README.md`](ffi/README.md) and
+  [`wasm/README.md`](wasm/README.md).
+* Requires Rust **1.85** or higher (Debian stable, trixie). The minimum supported Rust version may
+  change in the future, but only with a minor version bump (once the major version is above 0).
 * All on-by-default features of this library are covered by `SemVer`.
 
 ## License
@@ -99,7 +100,7 @@ or [MIT license](http://opensource.org/licenses/MIT) at your option.
 
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as 
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
 defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 [//]: # (badges)
