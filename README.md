@@ -12,10 +12,10 @@ benchmarking, code provenance, constant-time statistical measurements, a fuzzing
 and Python bindings.
 
 This crate implements the FIPS 205 **final/released** standard in pure Rust with minimal and mainstream dependencies,
-and without any unsafe code. All twelve (!!) security parameter sets are fully functional. The implementation's
-key- and signature-generation functionality does not branch on the secret seed. WOTS chain
-lengths and FORS indices follow the message digest, which is public once the signature's
-random value is known. It does not require the standard library, e.g. 
+and without any unsafe code. All twelve (!!) security parameter sets are fully functional. Key generation and
+signing are constant-time: every branch, loop bound and memory index depends only on public data, and each
+signature makes the same number of hash calls for its parameter set, whatever the key, message or randomness.
+It does not require the standard library, e.g. 
 `#[no_std]`, has no heap allocations, e.g. no `alloc` needed, and exposes the `RNG` so it is suitable for the full 
 range of applications from server down to the bare-metal. The API is stabilized and the code is heavily biased 
 towards safety and correctness.
@@ -67,9 +67,16 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   An empty OID or a digest longer than 1024 bytes is rejected.
 * C FFI and a WASM browser demo are described in [`ffi/README.md`](ffi/README.md) and
   [`wasm/README.md`](wasm/README.md).
-* Constant-time assurances are about the secret seed, checked by source review and
-  the `dudect` tests. The message-digest loops and the RNG are outside that claim.
-  Verify uses only public data.
+* Constant-time: key generation and signing never branch, loop or index memory on secret data
+  (SK.seed, SK.prf, opt_rand, and the FORS and WOTS+ secret values derived from them). Control
+  flow and memory access follow only public data: the parameter set, the message and context
+  lengths, the `hedged` flag, and the message digest, tree indices and WOTS+ digits that the
+  signature reveals. For each parameter set, key generation and signing always make the same
+  number of calls to each hash function; only hashing the message and context takes longer as
+  they grow. Checked by source review, by counting hash calls in all twelve parameter sets,
+  and by the [`dudect`](dudect/README.md) measurements. The claim is at the source level: the
+  compiler and CPU are trusted not to add secret-dependent timing, and the caller's RNG is
+  outside it. Verify uses only public data and makes no constant-time claim.
 * Note that FIPS 205 places specific requirements on randomness per section 3.1, hence the exposed `RNG`.
 * RNG integration uses **`rand_core` 0.6**. The default features enable `default-rng`
   plus all twelve `slh-dsa-*` parameter-set features. That OS RNG path is for hosted

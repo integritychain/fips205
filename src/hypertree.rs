@@ -73,18 +73,21 @@ pub(crate) fn ht_sign<
         sig_ht.xmss_sigs[j as usize] = sig_tmp.clone();
 
         // 13: if j < d − 1 then
-        if j < (d32 - 1) {
-            //
-            // 14: root ← xmss_pkFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
-            root = xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(
-                hashers, idx_leaf, &sig_tmp, &root, pk_seed, &adrs,
-            );
+        //     Left out, so the top layer's root (PK.root) is computed too. Every layer's WOTS+
+        //     chains then take w − 1 steps in all (msg[i] to sign, w − 1 − msg[i] for the root),
+        //     so signing time does not depend on the digits signed.
+        //
+        // 14: root ← xmss_pkFromSig(idx_leaf, SIG_tmp, root, PK.seed, ADRS)
+        root = xmss::xmss_pk_from_sig::<HP, K, LEN, M, N>(
+            hashers, idx_leaf, &sig_tmp, &root, pk_seed, &adrs,
+        );
 
-            // 15: end if
-        }
+        // 15: end if
 
         // 16: end for
     }
+    // The top layer's root is unused (see step 13); keep its computation
+    let _ = core::hint::black_box(&root);
 
     // 17: return SIGHT
     Ok(sig_ht)

@@ -30,7 +30,7 @@ pub struct AlignedBytes<const BYTE_LEN: usize>(pub(crate) [u8; BYTE_LEN]);
 
 
 fn keygen_and_sign(runner: &mut CtRunner, mut _rng: &mut BenchRng) {
-    const ITERATIONS_OUTER: usize = 20_000;
+    const ITERATIONS_OUTER: usize = 45_000;
     const ITERATIONS_INNER: usize = 2;
 
     let message = AlignedBytes::<8>([0u8, 1, 2, 3, 4, 5, 6, 7]);

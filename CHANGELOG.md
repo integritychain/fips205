@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `libfips205` for the four 128-bit sets, including HashSLH-DSA, and Python bindings in `ffi/python`. The 192- and 256-bit sets stay Rust-only (expanded upon request).
 
 ### Changed
-- The constant-time claim covers the secret seed. WOTS and FORS lengths follow the message digest, and verify uses public data.
+- Key generation and signing are constant-time: branches, loop bounds and memory indices depend only on public data, and each signature makes the same number of hash calls for its parameter set. Signing now also computes the top hypertree layer's root, which FIPS 205 Algorithm 12 skips, so its WOTS+ work no longer varies with the message digest. Signatures are unchanged. Verify uses public data.
 - Key generation and signing wipe their seeds and random values on drop: SK.seed, SK.prf and opt_rand, including the seed copies that `keygen_from_seed` holds. The SHA2 sets' HMAC key pads, which hold SK.prf, each FORS leaf secret and the stack its hashes used, and the SHAKE (Keccak) state are wiped too (FIPS 205 §3.1). This needs `sha3` 0.10.9 or later.
 
 ### Removed
