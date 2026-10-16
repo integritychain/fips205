@@ -389,9 +389,9 @@ class _FFI:
         libname = ctypes.util.find_library("fips205")
         if libname is None:
             raise OSError(
-                "libfips205 shared library not found. Install it, or set "
-                "FIPS205_PYTHON_TESTING_LIBRARY to the path of libfips205.so "
-                "for in-tree tests."
+                "libfips205 shared library not found. Install it where the system "
+                "loader looks, or set FIPS205_PYTHON_TESTING_LIBRARY to its full "
+                "path (libfips205.so, or libfips205.dylib on macOS)."
             )
         lib = ctypes.CDLL(libname)
 

@@ -50,4 +50,6 @@ $ FIPS205_PYTHON_TESTING_LIBRARY=../../target/release/libfips205.so \
     PYTHONPATH=. python3 test/nist.py
 ~~~
 
+On macOS the library is `libfips205.dylib`.
+
 Importing the module without `libfips205` on the library path raises `OSError` naming that library.

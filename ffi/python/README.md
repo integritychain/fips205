@@ -64,7 +64,10 @@ This is a wrapper around libfips205, built from the Rust fips205-ffi crate.
 
 If that library is not installed in the expected path for libraries on
 your system, importing this module will fail. For in-tree tests, set
-`FIPS205_PYTHON_TESTING_LIBRARY` to the built `libfips205.so`.
+`FIPS205_PYTHON_TESTING_LIBRARY` to the built `libfips205.so` (`libfips205.dylib` on macOS).
+On macOS, Python searches `DYLD_LIBRARY_PATH`, then `~/lib`, `/usr/local/lib`, `/lib` and
+`/usr/lib`, so a library installed elsewhere, such as MacPorts' `/opt/local/lib` or
+Homebrew's `/opt/homebrew/lib`, also needs `FIPS205_PYTHON_TESTING_LIBRARY`.
 
 ## See Also
 
