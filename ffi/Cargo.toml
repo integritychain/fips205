@@ -3,7 +3,6 @@ name = "fips205-ffi"
 version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-publish = false  # libfips205 is built from source, not published to crates.io
 description = "C shared library exposing FIPS 205: Stateless Hash-Based Digital Signature Standard"
 authors = ["Eric Schorn <eschorn@integritychain.com>", "Daniel Kahn Gillmor <dkg@fifthhorseman.net>"]
 documentation = "https://docs.rs/fips205"

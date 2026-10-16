@@ -282,15 +282,16 @@ pub trait Signer {
 
     /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
-    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
-    /// This function does not hash `hash` again. It utilizes the **OS default** random number
+    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings,
+    /// and for those `hash` must be the whole digest. This function does not hash `hash` again. It utilizes the **OS default** random number
     /// generator. Signing never branches, loops or indexes memory on secret data: control flow
     /// follows only public data, such as the message digest and the tree indices and WOTS+ digits
     /// that the signature reveals, and every signature makes the same number of hash calls. The
     /// random number generator is not part of this claim. The context is often empty (`&[]`).
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
-    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
+    /// `hash_oid` is not a DER-encoded OID, or `hash` is not the output length of a
+    /// [`crate::pre_hash`] OID or is longer than 1024 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -334,8 +335,8 @@ pub trait Signer {
 
     /// Attempt to sign a precomputed digest, returning a HashSLH-DSA signature on success, or an
     /// error if something went wrong. `hash` is `PH(M)` and `hash_oid` is the DER encoding of that
-    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings.
-    /// This function does not hash `hash` again. It utilizes a **provided** random number generator.
+    /// pre-hash, including the tag and length. [`crate::pre_hash`] provides the NIST CSOR encodings,
+    /// and for those `hash` must be the whole digest. This function does not hash `hash` again. It utilizes a **provided** random number generator.
     /// Signing never branches, loops or indexes memory on secret data: control flow follows only
     /// public data, such as the message digest and the tree indices and WOTS+ digits that the
     /// signature reveals, and every signature makes the same number of hash calls. The random
@@ -343,7 +344,8 @@ pub trait Signer {
     ///
     /// # Errors
     /// Returns an error when the random number generator fails, the `ctx` is longer than 255 bytes,
-    /// `hash_oid` is empty, or `hash` is longer than 1024 bytes.
+    /// `hash_oid` is not a DER-encoded OID, or `hash` is not the output length of a
+    /// [`crate::pre_hash`] OID or is longer than 1024 bytes.
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -458,8 +460,9 @@ pub trait Verifier {
     /// is the DER encoding of that pre-hash, including the tag and length; see [`crate::pre_hash`].
     /// The caller must supply the same digest and OID that were signed. Verification uses only
     /// public data, so it makes no constant-time claim. Returns `false` when
-    /// `ctx` is longer than 255 bytes, `hash_oid` is empty, `hash` is longer than 1024 bytes, or the
-    /// signature does not verify.
+    /// `ctx` is longer than 255 bytes, `hash_oid` is not a DER-encoded OID, `hash` is not the output
+    /// length of a [`crate::pre_hash`] OID or is longer than 1024 bytes, or the signature does not
+    /// verify.
     ///
     /// # Examples
     /// ```rust

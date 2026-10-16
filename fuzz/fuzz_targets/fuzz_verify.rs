@@ -12,10 +12,11 @@ fuzz_target!(|data: &[u8]| {
         return;
     }
 
-    let oid: &[u8] = match data[0] % 3 {
-        0 => &pre_hash::SHA2_256,
-        1 => &pre_hash::SHA2_512,
-        _ => &pre_hash::SHAKE_256,
+    // The digest has the length of the OID's hash function
+    let (oid, len): (&[u8], usize) = match data[0] % 3 {
+        0 => (&pre_hash::SHA2_256, 32),
+        1 => (&pre_hash::SHA2_512, 64),
+        _ => (&pre_hash::SHAKE_256, 64),
     };
 
     // Generate a valid key pair first
@@ -24,7 +25,9 @@ fuzz_target!(|data: &[u8]| {
         let split_point = data.len() % 255;
         let message = &data[split_point..];
         let context = &data[..split_point];
-        let digest = &message[..message.len().min(64)];
+        let mut buf = [0u8; 64];
+        buf[..message.len().min(64)].copy_from_slice(&message[..message.len().min(64)]);
+        let digest = &buf[..len];
 
         // Test 1: Regular verification with valid signature
         if let Ok(valid_sig) = sk.try_sign(message, context, true) {

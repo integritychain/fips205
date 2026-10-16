@@ -5,27 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.5.0 (in progress)
+## 0.5.0 (unreleased)
 
 ### Migration from 0.4.x
-- Not API-compatible with 0.4.1. Depend on `fips205 = "0.5"`.
-- MSRV is **1.85**.
-- `Ph` is gone. `hash_sign` and `hash_verify` take a precomputed digest and a DER-encoded OID (`pre_hash`). This crate does not hash the message. An empty OID or a digest longer than 1024 bytes is rejected.
-- `SerDes::try_from_bytes` takes the byte array by value, as in `fips203` and `fips204`. Write `PublicKey::try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`. The arrays are `Copy`, so the caller keeps its copy.
-- Cargo features use hyphens, as in `fips203` and `fips204`. Write `slh-dsa-sha2-128s`, not `slh_dsa_sha2_128s`, and likewise for all twelve sets. Module names such as `fips205::slh_dsa_sha2_128s` are unchanged.
-- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`, as in `fips203`, `fips204` and this crate's C API. It takes the same three seeds.
-- RNG stays `rand_core` 0.6. `CryptoRng`, `RngCore`, and `RngError` are re-exported.
-- Default features enable the OS RNG and all twelve parameter sets. That does not build on bare metal. Use `default-features = false`, one `slh-dsa-*` feature, and `keygen_from_seed` or `*_with_rng`.
+- MSRV is 1.85 (was 1.70).
+- `Ph` is removed. `try_hash_sign` and `hash_verify` take the caller's digest and a DER-encoded OID (see `pre_hash`) in place of the message. For a `pre_hash` OID the digest must be that function's full output (SHAKE128: 32 bytes, SHAKE256: 64 bytes). A digest of the wrong length, a non-DER OID, or a digest over 1024 bytes is an error on sign and `false` on verify.
+- Cargo features use hyphens: `slh-dsa-sha2-128s`, not `slh_dsa_sha2_128s`, and likewise for all twelve sets. Module names are unchanged.
+- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`.
+- `SerDes::try_from_bytes` takes the byte array by value: write `try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`.
 
 ### Added
-- `libfips205` for the four 128-bit sets, including HashSLH-DSA, and Python bindings in `ffi/python`. The 192- and 256-bit sets stay Rust-only (expanded upon request).
+- `libfips205`, a C library for the four 128-bit sets including HashSLH-DSA, and Python bindings in `ffi/python`.
+- `CryptoRng`, `RngCore` and `RngError` are re-exported from `rand_core` 0.6.
 
 ### Changed
-- Key generation and signing are constant-time: branches, loop bounds and memory indices depend only on public data, and each signature makes the same number of hash calls for its parameter set. Signing now also computes the top hypertree layer's root, which FIPS 205 Algorithm 12 skips, so its WOTS+ work no longer varies with the message digest. Signatures are unchanged. Verify uses public data.
-- Key generation and signing wipe their seeds and random values on drop: SK.seed, SK.prf and opt_rand, including the seed copies that `keygen_from_seed` holds. The SHA2 sets' HMAC key pads, which hold SK.prf, each FORS leaf secret and the stack its hashes used, and the SHAKE (Keccak) state are wiped too (FIPS 205 §3.1). This needs `sha3` 0.10.9 or later.
+- Key generation and signing are constant-time. Signatures are unchanged.
+- Key generation and signing zeroize their seeds, randomness and secret intermediate values.
 
 ### Removed
-- Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`.
+- Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`. Test hooks are now behind the `acvp-internal` feature, which is not for use in applications.
 
 ## 0.4.1 (2024-12-22)
 

@@ -79,9 +79,11 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   backend (for example `thumbv7em-none-eabi`). Embedded builds use `default-features = false`,
   the parameter-set feature they need, and the seed-based functions or `*_with_rng`:
   `fips205 = { version = "0.5", default-features = false, features = ["slh-dsa-sha2-128s"] }`.
-* `hash_sign` and `hash_verify` (HashSLH-DSA) take a precomputed digest and a DER-encoded OID
-  (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message. An empty
-  OID or a digest longer than 1024 bytes is rejected.
+* `try_hash_sign` and `hash_verify` (HashSLH-DSA) take a precomputed digest and a DER-encoded OID
+  (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message. For a
+  `pre_hash` OID the digest must have that function's output length (32 bytes for SHAKE128, 64
+  for SHAKE256), so passing the message by mistake is an error. Any other OID must be
+  DER-encoded and takes a digest of up to 1024 bytes.
 * Test vectors: the NIST ACVP keyGen, sigGen and sigVer vectors (including HashSLH-DSA) and the
   [SLotH](https://github.com/slh-dsa/sloth) known-answer files, regenerated and checked by hash,
   run in the test suite, and the Python bindings apply the ACVP files for the four 128-bit sets

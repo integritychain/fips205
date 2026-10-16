@@ -60,9 +60,35 @@ pub use crate::types::pre_hash;
 ///
 /// FIPS 205 §10.2.2 defines `M' = 0x01 || len(ctx) || ctx || OID || PH(M)` and does not
 /// state this ceiling. The same 1024-byte limit as `fips204` rejects an oversized digest
-/// instead of signing it. An empty OID is also rejected: §10.2.2 requires the DER
-/// encoding of the pre-hash OID (tag and length) in `M'`.
+/// instead of signing it.
 const MAX_PREHASH_LEN: usize = 1024;
+
+/// Checks the pre-hash inputs of HashSLH-DSA sign and verify (Algorithms 23 and 25). `hash_oid`
+/// must be a DER-encoded OID (tag 0x06, short-form length, content), as §10.2.2 requires, so that
+/// `M'` fixes where the OID ends and the digest begins. For an OID in [`pre_hash`], `hash` must be
+/// exactly as long as that function's output: the library does not hash, so this catches a
+/// message passed where its digest belongs. Any other OID takes a digest of up to 1024 bytes.
+fn check_pre_hash(hash: &[u8], hash_oid: &[u8]) -> Result<(), &'static str> {
+    helpers::ensure!(!hash_oid.is_empty(), "HashSLH-DSA.Sign: OID is empty");
+    helpers::ensure!(
+        hash_oid.len() >= 3
+            && hash_oid[0] == 0x06
+            && hash_oid[1] < 0x80
+            && usize::from(hash_oid[1]) == hash_oid.len() - 2,
+        "HashSLH-DSA.Sign: OID is not DER encoded"
+    );
+    helpers::ensure!(
+        hash.len() <= MAX_PREHASH_LEN,
+        "Hash of message is too long, should not be more than 1KiB"
+    );
+    if let Some(len) = pre_hash::digest_len(hash_oid) {
+        helpers::ensure!(
+            hash.len() == len,
+            "HashSLH-DSA.Sign: digest length does not match the OID"
+        );
+    }
+    Ok(())
+}
 
 /// The `rand_core` types are re-exported so that users of fips205 do not
 /// have to worry about using the exact correct version of `rand_core`.
@@ -239,11 +265,8 @@ macro_rules! functionality {
                 hedged: bool,
             ) -> Result<Self::Signature, &'static str> {
                 ensure!(ctx.len() < 256, "HashSLH-DSA.Sign: ctx too long");
-                ensure!(!hash_oid.is_empty(), "HashSLH-DSA.Sign: OID is empty");
-                ensure!(
-                    hash.len() <= crate::MAX_PREHASH_LEN,
-                    "Hash of message is too long, should not be more than 1KiB"
-                );
+                // The OID must be DER, and the digest must fit it. Checked before drawing randomness.
+                crate::check_pre_hash(hash, hash_oid)?;
                 // Algorithm 23 step 24: 0x01 || len(ctx) || ctx || OID || PH(M)
                 let mp: &[&[u8]] = &[&[1u8], &[ctx.len().to_le_bytes()[0]], ctx, hash_oid, hash];
                 let sig = crate::slh::slh_sign_with_rng::<A, D, H, HP, K, LEN, M, N>(
@@ -315,7 +338,8 @@ macro_rules! functionality {
             fn hash_verify(
                 &self, hash: &[u8], sig_bytes: &[u8; SIG_LEN], ctx: &[u8], hash_oid: &[u8],
             ) -> bool {
-                if ctx.len() > 255 || hash_oid.is_empty() || hash.len() > crate::MAX_PREHASH_LEN {
+                // Same checks as HashSLH-DSA.Sign: a DER OID, and a digest that fits it.
+                if ctx.len() > 255 || crate::check_pre_hash(hash, hash_oid).is_err() {
                     return false;
                 };
                 let sig = SlhDsaSig::<A, D, HP, K, LEN, N>::deserialize(sig_bytes);

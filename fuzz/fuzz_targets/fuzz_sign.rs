@@ -20,14 +20,18 @@ struct FuzzInput {
 fuzz_target!(|input: FuzzInput| {
     // Generate a keypair first (using real RNG for this part)
     if let Ok((_, sk)) = slh_dsa_sha2_128f::try_keygen() {
-        let oid: &[u8] = match input.hash_function % 3 {
-            0 => &pre_hash::SHA2_256,
-            1 => &pre_hash::SHA2_512,
-            _ => &pre_hash::SHAKE_256,
+        // The digest has the length of the OID's hash function
+        let (oid, len): (&[u8], usize) = match input.hash_function % 3 {
+            0 => (&pre_hash::SHA2_256, 32),
+            1 => (&pre_hash::SHA2_512, 64),
+            _ => (&pre_hash::SHAKE_256, 64),
         };
         let ctx = &input.context[..input.context.len() % 255];
-        // The library does not hash this digest. Cap it so the 1024-byte check is not the only path.
-        let digest = &input.message[..input.message.len().min(64)];
+        // The library does not hash this digest. Take it from the message, zero-padded.
+        let mut buf = [0u8; 64];
+        let n = input.message.len().min(64);
+        buf[..n].copy_from_slice(&input.message[..n]);
+        let digest = &buf[..len];
 
         // Test regular signing
         let _ = sk.try_sign_with_rng(&mut OsRng, &input.message, ctx, input.hedged);
