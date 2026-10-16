@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SerDes::try_from_bytes` takes the byte array by value: write `try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`.
 
 ### Added
-- `libfips205`, a C library for the four 128-bit sets including HashSLH-DSA, and Python bindings in `ffi/python`.
+- `libfips205` (crate `fips205-ffi`), a C library for the four 128-bit sets including HashSLH-DSA, and Python bindings in `ffi/python`.
 - `CryptoRng`, `RngCore` and `RngError` are re-exported from `rand_core` 0.6.
 
 ### Changed
