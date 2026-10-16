@@ -1,4 +1,4 @@
-FIPS 205 (SLH-DSA) hash-based digital signatures
+# `fips205` Python module
 
 This Python module provides an implementation of FIPS 205, the
 Stateless Hash-Based Digital Signature Standard.

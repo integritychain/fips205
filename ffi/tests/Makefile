@@ -23,7 +23,9 @@ endif
 
 all: check
 
-# adjustments for testing the local debug or release build:
+# adjustments for testing the local debug or release build. target/release is used
+# when it has the library, else target/debug; to choose, pass e.g.
+# SO_LOCATION=../../target/debug/ (with the trailing slash).
 ifneq ($(AS_INSTALLED),true)
 SO_LOCATIONS = $(foreach w,.. ../..,$(foreach x,release debug,$w/target/$x $w/target/*/$x))
 SO_LOCATION = $(dir $(firstword $(foreach d,$(SO_LOCATIONS),$(wildcard $d/$(LINK_LIB)))))
@@ -35,8 +37,9 @@ ADDITIONAL_RUN_DEPENDS = $(SO_LOCATION)$(LINK_LIB)
 else
 # cargo emits libfips205.so, but build.rs sets ELF SONAME to libfips205.so.0,
 # so the loader looks for the versioned name at runtime.
-ADDITIONAL_RUN_DEPENDS = $(SO_LOCATION)libfips205.so.0
-$(SO_LOCATION)libfips205.so.0: $(SO_LOCATION)$(LINK_LIB)
+SONAME_LINK = $(SO_LOCATION)libfips205.so.0
+ADDITIONAL_RUN_DEPENDS = $(SONAME_LINK)
+$(SONAME_LINK): $(SO_LOCATION)$(LINK_LIB)
 	ln -sfn $(LINK_LIB) $@
 endif
 endif
@@ -55,7 +58,8 @@ baseline-%: baseline.c ../fips205.h
 link-two: two_a.c two_b.c ../fips205.h
 	$(CC) -o $@ -g -Werror -Wall -pedantic two_a.c two_b.c $(COMPILE_FLAGS) -lfips205
 
+# Remove only what this Makefile creates. Never the cargo-built library.
 clean:
-	rm -f $(BASELINES) link-two $(ADDITIONAL_RUN_DEPENDS)
+	rm -f $(BASELINES) link-two $(SONAME_LINK)
 
 .PHONY: clean check all

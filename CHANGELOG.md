@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CryptoRng`, `RngCore` and `RngError` are re-exported from `rand_core` 0.6.
 
 ### Changed
+- `Signer::get_public_key` is `#[must_use]`.
 - Key generation and signing are constant-time. Signatures are unchanged.
 - Key generation and signing zeroize their seeds, randomness and secret intermediate values.
 

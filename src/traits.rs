@@ -412,6 +412,7 @@ pub trait Signer {
     /// let _pk = sk.get_public_key();
     /// # }
     /// ```
+    #[must_use]
     fn get_public_key(&self) -> Self::PublicKey;
 }
 

@@ -8,7 +8,7 @@ authors = ["Eric Schorn <eschorn@integritychain.com>", "Daniel Kahn Gillmor <dkg
 documentation = "https://docs.rs/fips205"
 categories = ["cryptography"]
 repository = "https://github.com/integritychain/fips205"
-keywords = ["FIPS", "FIPS205", "hash", "signature"]
+keywords = ["FIPS205", "slh-dsa", "post-quantum", "signature", "ffi"]
 # MSRV set at 1.85 for Debian stable (trixie), e.g. https://packages.debian.org/trixie/rustc
 rust-version = "1.85"
 

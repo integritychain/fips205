@@ -133,8 +133,7 @@ macro_rules! functionality {
         pub struct PublicKey(SlhPublicKey<N>);
 
         /// Empty struct that implements the [`crate::traits::KeyGen`] trait, for keypair generation.
-        #[derive(Zeroize, ZeroizeOnDrop)]
-        pub struct KG(); // Arguable how useful an empty struct+trait is...
+        pub struct KG();
 
 
         // ----- PRIMARY FUNCTIONS ---
