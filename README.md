@@ -67,7 +67,7 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   signature reveals. For each parameter set, key generation and signing always make the same
   number of calls to each hash function; only hashing the message and context takes longer as
   they grow. Checked by source review, by counting hash calls in all twelve parameter sets,
-  and by the [`dudect`](dudect/README.md) measurements. The claim is at the source level: the
+  and by the [`dudect`][dudect-readme] measurements. The claim is at the source level: the
   compiler and CPU are trusted not to add secret-dependent timing, and the caller's RNG is
   outside it. Verify uses only public data and makes no constant-time claim.
 * FIPS 205 places specific requirements on randomness (section 3.1), hence the exposed `RNG`. RNG
@@ -89,8 +89,8 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
   run in the test suite, and the Python bindings apply the ACVP files for the four 128-bit sets
   through the C ABI. The vector files stay in the repository; the published crate omits them.
 * A C shared library (`libfips205`) for the four 128-bit sets, including HashSLH-DSA, with Python
-  bindings, and a WASM browser demo, are described in [`ffi/README.md`](ffi/README.md) and
-  [`wasm/README.md`](wasm/README.md).
+  bindings, and a WASM browser demo, are described in [`ffi/README.md`][ffi-readme] and
+  [`wasm/README.md`][wasm-readme].
 * Requires Rust **1.85** or higher (Debian stable, trixie). The minimum supported Rust version may
   change in the future, but only with a minor version bump (once the major version is above 0).
 * All on-by-default features of this library are covered by `SemVer`.
@@ -119,5 +119,8 @@ defined in the Apache-2.0 license, shall be dual licensed as above, without any 
 
 [//]: # (general links)
 
+[dudect-readme]: https://github.com/integritychain/fips205/blob/main/dudect/README.md
+[ffi-readme]: https://github.com/integritychain/fips205/blob/main/ffi/README.md
+[wasm-readme]: https://github.com/integritychain/fips205/blob/main/wasm/README.md
 [IntegrityChain]: https://github.com/integritychain/
 [FIPS 205]: https://csrc.nist.gov/pubs/fips/205/final

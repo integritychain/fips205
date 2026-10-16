@@ -7,7 +7,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use rand_core::OsRng;
 
 
-/// The `KeyGen` trait is defined to allow trait objects.
+/// The `KeyGen` trait defines methods for generating public and private key pairs.
 pub trait KeyGen {
     /// A public key specific to the chosen security parameter set, e.g., `slh_dsa_shake_128s`, `slh_dsa_sha2_128s` etc
     type PublicKey;

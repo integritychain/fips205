@@ -52,7 +52,7 @@
 // rejection sampling, so the dudect harness uses the public API and needs no hook.
 
 
-/// All functionality is covered by traits, such that consumers can utilize trait objects as desired.
+/// All functionality is covered by traits.
 pub mod traits;
 pub use crate::types::pre_hash;
 
@@ -132,8 +132,7 @@ macro_rules! functionality {
         #[derive(Clone, Zeroize, ZeroizeOnDrop)]
         pub struct PublicKey(SlhPublicKey<N>);
 
-        /// Empty struct to enable `KeyGen` trait objects across security parameter sets. <br>
-        /// Implements the [`crate::traits::KeyGen`] trait.
+        /// Empty struct that implements the [`crate::traits::KeyGen`] trait, for keypair generation.
         #[derive(Zeroize, ZeroizeOnDrop)]
         pub struct KG(); // Arguable how useful an empty struct+trait is...
 
