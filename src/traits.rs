@@ -107,6 +107,11 @@ pub trait KeyGen {
     /// This function utilizes **three provided seeds** rather than a random number
     /// generator in order to deterministically generate keys. Key generation never branches, loops
     /// or indexes memory on secret data, and makes the same number of hash calls for every key.
+    /// Each seed must be n bytes, the parameter set's `N`; another length fails to compile:
+    /// ```compile_fail
+    /// use fips205::{slh_dsa_shake_128s, traits::KeyGen};
+    /// let (_pk, _sk) = slh_dsa_shake_128s::KG::keygen_from_seed(&[0u8; 32], &[1u8; 32], &[2u8; 32]);
+    /// ```
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
@@ -155,9 +160,9 @@ pub trait KeyGen {
 // This is for the deterministic keygen functions; will be refactored more nicely
 // It holds copies of SK.seed, SK.prf and PK.seed, so it wipes itself on drop (FIPS 205 §3.1).
 #[derive(Zeroize, ZeroizeOnDrop)]
-struct DummyRng<const N: usize> {
-    data: [[u8; N]; 3],
-    i: usize,
+pub(crate) struct DummyRng<const N: usize> {
+    pub(crate) data: [[u8; N]; 3],
+    pub(crate) i: usize,
 }
 
 impl<const N: usize> RngCore for DummyRng<N> {

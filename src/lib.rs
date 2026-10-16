@@ -240,6 +240,16 @@ macro_rules! functionality {
                 let res = crate::slh::slh_keygen_with_rng::<D, H, HP, K, LEN, M, N>(rng, &HASHERS);
                 res.map(|(sk, pk)| (PublicKey(pk), PrivateKey(sk)))
             }
+
+            // Documented in traits.rs. Overrides the default to reject seeds that are not n bytes
+            // at compile time; the default would panic at run time.
+            fn keygen_from_seed<const SN: usize>(
+                sk_seed: &[u8; SN], sk_prf: &[u8; SN], pk_seed: &[u8; SN],
+            ) -> (PublicKey, PrivateKey) {
+                const { assert!(SN == N, "keygen_from_seed: each seed must be n bytes") };
+                let mut rng = crate::traits::DummyRng { data: [*sk_seed, *sk_prf, *pk_seed], i: 0 };
+                Self::try_keygen_with_rng(&mut rng).expect("rng will not fail")
+            }
         }
 
 

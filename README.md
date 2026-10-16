@@ -73,11 +73,11 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * FIPS 205 places specific requirements on randomness (section 3.1), hence the exposed `RNG`. RNG
   integration uses **`rand_core` 0.6**: custom generators implement `CryptoRngCore` (`CryptoRng` +
   `RngCore`), which this crate re-exports along with `RngError`. Key generation and signing call
-  `try_fill_bytes`, so handle its error or use the seed-based functions.
+  `try_fill_bytes`, so handle its error, or use `keygen_from_seed` and sign with `hedged = false`.
 * The default features enable `default-rng` plus all twelve parameter sets. That OS RNG path is
   for hosted environments; it will **not** compile on bare-metal targets that lack a `getrandom`
   backend (for example `thumbv7em-none-eabi`). Embedded builds use `default-features = false`,
-  the parameter-set feature they need, and the seed-based functions or `*_with_rng`:
+  the parameter-set feature they need, and `*_with_rng`, or `keygen_from_seed` and `hedged = false`:
   `fips205 = { version = "0.5", default-features = false, features = ["slh-dsa-sha2-128s"] }`.
 * `try_hash_sign` and `hash_verify` (HashSLH-DSA) take a precomputed digest and a DER-encoded OID
   (`pre_hash` lists the NIST CSOR encodings). The library does not hash the message. For a

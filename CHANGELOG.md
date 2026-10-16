@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MSRV is 1.85 (was 1.70).
 - `Ph` is removed. `try_hash_sign` and `hash_verify` take the caller's digest and a DER-encoded OID (see `pre_hash`) in place of the message. For a `pre_hash` OID the digest must be that function's full output (SHAKE128: 32 bytes, SHAKE256: 64 bytes). A digest of the wrong length, a non-DER OID, or a digest over 1024 bytes is an error on sign and `false` on verify.
 - Cargo features use hyphens: `slh-dsa-sha2-128s`, not `slh_dsa_sha2_128s`, and likewise for all twelve sets. Module names are unchanged.
-- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`.
+- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`. Each seed must be n bytes: another length is now a compile error, where 0.4 panicked at run time.
 - `SerDes::try_from_bytes` takes the byte array by value: write `try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`.
 
 ### Added
