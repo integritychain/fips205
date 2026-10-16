@@ -37,7 +37,7 @@ On ELF targets, `build.rs` sets the SONAME to **`libfips205.so.0`**.
 | `libfips205.so` | Link name (`-lfips205`) |
 | `libfips205.so.0` | Runtime name the loader looks up |
 
-`ffi/tests/Makefile` creates a local `libfips205.so.0` symlink next to Cargo's output so in-tree runs succeed. On macOS, `build.rs` sets `@rpath/libfips205.dylib` instead.
+`ffi/tests/Makefile` creates a local `libfips205.so.0` symlink next to Cargo's output so in-tree runs succeed. On macOS and iOS, `build.rs` sets `@rpath/libfips205.dylib` instead. On Android the SONAME is unversioned, `libfips205.so`, because an APK holds only `lib*.so` files. Windows and WebAssembly builds get no extra linker flags. `build.rs` picks these by the target, not the build machine, so cross builds get the right ones.
 
 
 # Python
