@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Signer::get_public_key` is `#[must_use]`.
 - Key generation and signing are constant-time. Signatures are unchanged.
 - Key generation and signing zeroize their seeds, randomness and secret intermediate values.
+- New compiler warnings no longer fail the build (CI still treats warnings as errors), and a build without any parameter-set feature, such as `--no-default-features`, compiles cleanly.
 
 ### Removed
 - Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`. Test hooks are now behind the `acvp-internal` feature, which is not for use in applications.

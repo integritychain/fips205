@@ -69,6 +69,10 @@ On macOS, Python searches `DYLD_LIBRARY_PATH`, then `~/lib`, `/usr/local/lib`, `
 `/usr/lib`, so a library installed elsewhere, such as MacPorts' `/opt/local/lib` or
 Homebrew's `/opt/homebrew/lib`, also needs `FIPS205_PYTHON_TESTING_LIBRARY`.
 
+The NIST tests under `test/` read vectors from `../../tests/nist_vectors` in a source checkout,
+or from the directory named by `FIPS205_NIST_VECTORS`. The published `fips205` crate includes
+the keyGen vectors, under `tests/nist_vectors/`.
+
 ## See Also
 
 - https://csrc.nist.gov/pubs/fips/205/final

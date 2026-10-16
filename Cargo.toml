@@ -13,8 +13,9 @@ keywords = ["FIPS205", "slh-dsa", "sphincs", "post-quantum", "signature"]
 repository = "https://github.com/integritychain/fips205"
 # MSRV set at 1.85 for Debian stable (trixie), e.g. https://packages.debian.org/trixie/rustc
 rust-version = "1.85"
-# The NIST ACVP vectors (38 MB) stay in the repository; the published crate omits them
-exclude = ["tests/nist_vectors/"]
+# The NIST ACVP vectors (38 MB) stay in the repository; the published crate omits them, except the
+# keyGen vectors (17 kB), which distribution packages use to test the FFI
+exclude = ["tests/nist_vectors/*", "!tests/nist_vectors/SLH-DSA-keyGen-FIPS205/"]
 
 
 [dependencies]
@@ -30,8 +31,6 @@ fips205 = { path = ".", default-features = false, features = ["acvp-internal"] }
 rand_chacha = "0.3.1"
 hex = "0.4.3"
 criterion = "0.5"
-# Direct pin: Cargo.lock is gitignored; textwrap>=0.16.3 raises MSRV above 1.85
-textwrap = "=0.16.2"
 serde_json = "1.0"
 flate2 = "1.0.27"
 # The NIST KAT DRBG that regenerates the SLotH known-answer files

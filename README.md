@@ -87,7 +87,8 @@ The Rust [Documentation][docs-link] lives under each **Module** corresponding to
 * Test vectors: the NIST ACVP keyGen, sigGen and sigVer vectors (including HashSLH-DSA) and the
   [SLotH](https://github.com/slh-dsa/sloth) known-answer files, regenerated and checked by hash,
   run in the test suite, and the Python bindings apply the ACVP files for the four 128-bit sets
-  through the C ABI. The vector files stay in the repository; the published crate omits them.
+  through the C ABI. The vector files stay in the repository; the published crate has only the
+  keyGen file, which the bindings' tests can use through `FIPS205_NIST_VECTORS`.
 * A C shared library (`libfips205`, published as `fips205-ffi`) for the four 128-bit sets,
   including HashSLH-DSA, with Python bindings, and a WASM browser demo, are described in
   [`ffi/README.md`][ffi-readme] and [`wasm/README.md`][wasm-readme].
