@@ -9,23 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migration from 0.4.x
 - MSRV is 1.85 (was 1.70).
-- `Ph` is removed. `try_hash_sign` and `hash_verify` take the caller's digest and a DER-encoded OID (see `pre_hash`) in place of the message. For a `pre_hash` OID the digest must be that function's full output (SHAKE128: 32 bytes, SHAKE256: 64 bytes). A digest of the wrong length, a non-DER OID, or a digest over 1024 bytes is an error on sign and `false` on verify.
-- Cargo features use hyphens: `slh-dsa-sha2-128s`, not `slh_dsa_sha2_128s`, and likewise for all twelve sets. Module names are unchanged.
-- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`. Each seed must be n bytes: another length is now a compile error, where 0.4 panicked at run time.
-- `SerDes::try_from_bytes` takes the byte array by value: write `try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`.
+- `Ph` is removed. `try_hash_sign`, `try_hash_sign_with_rng` and `hash_verify` take a digest and a DER-encoded OID (see `pre_hash`) instead of the message. A digest of the wrong length for a `pre_hash` OID (SHAKE128: 32 bytes, SHAKE256: 64), a digest over 1024 bytes, or a malformed OID is an error on sign and `false` on verify.
+- Cargo features use hyphens: `slh-dsa-sha2-128s`, not `slh_dsa_sha2_128s`, for all twelve sets. Module names are unchanged.
+- `KeyGen::keygen_with_seeds` is renamed `keygen_from_seed`. A seed of the wrong length fails to build (0.4 panicked at run time).
+- `SerDes::try_from_bytes` takes the byte array by value: `try_from_bytes(bytes)`, not `try_from_bytes(&bytes)`.
+- `KG` no longer implements `Zeroize` or `ZeroizeOnDrop`.
 
 ### Added
-- `libfips205` (crate `fips205-ffi`), a C library for the four 128-bit sets including HashSLH-DSA, and Python bindings in `ffi/python`.
+- `libfips205` (crate `fips205-ffi`): a C library and Python bindings for the four 128-bit sets, including HashSLH-DSA.
+- `pre_hash`: DER-encoded OIDs of the pre-hash functions, for `try_hash_sign` and `hash_verify`.
 - `CryptoRng`, `RngCore` and `RngError` are re-exported from `rand_core` 0.6.
 
 ### Changed
 - `Signer::get_public_key` is `#[must_use]`.
-- Key generation and signing are constant-time. Signatures are unchanged.
-- Key generation and signing zeroize their seeds, randomness and secret intermediate values.
-- New compiler warnings no longer fail the build (CI still treats warnings as errors), and a build without any parameter-set feature, such as `--no-default-features`, compiles cleanly.
+- Signing time no longer varies with the message digest: every signature makes the same number of hash calls. Signatures are unchanged.
+- Key generation and signing zeroize their randomness and secret intermediate values, best effort: copies of keys that are moved or passed by value can remain on the stack.
+- Building the crate itself, as distributions do, no longer fails on new compiler warnings or with no parameter-set feature.
 
 ### Removed
-- Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`. Test hooks are now behind the `acvp-internal` feature, which is not for use in applications.
+- Deprecated `_test_only_raw_sign` and `_test_only_raw_verify`. Test hooks are behind the `acvp-internal` feature, which is not for applications.
 
 ## 0.4.1 (2024-12-22)
 
