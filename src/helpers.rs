@@ -142,19 +142,18 @@ impl<
         for k in 0..K {
             out[start..(start + N)].copy_from_slice(&self.fors_sig.private_key_value[k]);
             start += N;
-            for a in 0..A {
-                out[start..(start + N)].copy_from_slice(&self.fors_sig.auth[k].tree[a]);
+            for node in &self.fors_sig.auth[k].tree {
+                out[start..(start + N)].copy_from_slice(node);
                 start += N;
             }
         }
-        for d in 0..D {
-            for len in 0..LEN {
-                out[start..(start + N)]
-                    .copy_from_slice(&self.ht_sig.xmss_sigs[d].sig_wots.data[len]);
+        for xmss in &self.ht_sig.xmss_sigs {
+            for block in &xmss.sig_wots.data {
+                out[start..(start + N)].copy_from_slice(block);
                 start += N;
             }
-            for hp in 0..HP {
-                out[start..(start + N)].copy_from_slice(&self.ht_sig.xmss_sigs[d].auth[hp]);
+            for node in &xmss.auth {
+                out[start..(start + N)].copy_from_slice(node);
                 start += N;
             }
         }
@@ -187,19 +186,18 @@ impl<
         for k in 0..K {
             output.fors_sig.private_key_value[k].copy_from_slice(&bytes[start..(start + N)]);
             start += N;
-            for a in 0..A {
-                output.fors_sig.auth[k].tree[a].copy_from_slice(&bytes[start..(start + N)]);
+            for node in &mut output.fors_sig.auth[k].tree {
+                node.copy_from_slice(&bytes[start..(start + N)]);
                 start += N;
             }
         }
-        for d in 0..D {
-            for len in 0..LEN {
-                output.ht_sig.xmss_sigs[d].sig_wots.data[len]
-                    .copy_from_slice(&bytes[start..(start + N)]);
+        for xmss in &mut output.ht_sig.xmss_sigs {
+            for block in &mut xmss.sig_wots.data {
+                block.copy_from_slice(&bytes[start..(start + N)]);
                 start += N;
             }
-            for hp in 0..HP {
-                output.ht_sig.xmss_sigs[d].auth[hp].copy_from_slice(&bytes[start..(start + N)]);
+            for node in &mut xmss.auth {
+                node.copy_from_slice(&bytes[start..(start + N)]);
                 start += N;
             }
         }
